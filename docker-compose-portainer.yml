@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # ===================================
+  # nginx Reverse Proxy
+  # ===================================
+  nginx:
+    image: harung43/pantrypal-nginx:latest
+    container_name: pantrypal-nginx
+    ports:
+      - "8080:80"
+    depends_on:
+      - api-gateway
+      - web-ui
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # ===================================
+  # API Gateway
+  # ===================================
+  api-gateway:
+    image: harung43/pantrypal-api-gateway:latest
+    container_name: pantrypal-api-gateway
+    environment:
+      - INVENTORY_SERVICE_URL=http://inventory-service:8001
+      - LOOKUP_SERVICE_URL=http://lookup-service:8002
+      - AUTH_MODE=full  # Options: none, api_key_only, full, smart
+      # none: No authentication (open access)
+      # api_key_only: API keys required for all requests
+      # full: Login required for UI, API keys OR session for API
+      # smart: Local network = open, external = login/API key required (uses TRUSTED_NETWORKS)
+      - ALLOW_REGISTRATION=false  # Set to false to disable new user signups
+      # CORS Configuration - Use "*" for wildcard or specify origins
+      - CORS_ORIGINS=*
+      # Database paths - store all DBs in the mounted data directory
+      - USERS_DB_PATH=/app/data/users.db
+      - API_KEYS_DB_PATH=/app/data/api_keys.db
+      # Email settings (for password reset and notifications)
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USERNAME=hqhinge@gmail.com
+      - SMTP_PASSWORD=frtodkfuxtxwrkpr
+      - SMTP_FROM_EMAIL=hqhinge@gmail.com
+      - SMTP_FROM_NAME=PantryPal
+      - SMTP_USE_TLS=true
+    volumes:
+      - /home/harungunasekaran/Documents/docket_mnt/pantrypal/data:/app/data
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # ===================================
+  # Inventory Service
+  # ===================================
+  inventory-service:
+    image: harung43/pantrypal-inventory-service:latest
+    container_name: pantrypal-inventory-service
+    environment:
+      - DATABASE_URL=sqlite:////app/data/inventory/inventory.db
+      # Backup Configuration (optional)
+      - BACKUP_ENABLED=false
+      - BACKUP_SCHEDULE=0 2 * * *
+      - BACKUP_RETENTION_DAYS=7
+      - BACKUP_PATH=/app/backups
+    volumes:
+      - /home/harungunasekaran/Documents/docket_mnt/pantrypal/data/inventory:/app/data/inventory
+      # Uncomment below if BACKUP_ENABLED=true
+      # - /home/harungunasekaran/Documents/docket_mnt/pantrypal/backups:/app/backups
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===================================
+  # Lookup Service
+  # ===================================
+  lookup-service:
+    image: harung43/pantrypal-lookup-service:latest
+    container_name: pantrypal-lookup-service
+    environment:
+      - CACHE_DB_PATH=/app/data/lookup_cache/lookup_cache.db
+      - CACHE_TTL_DAYS=30
+    volumes:
+      - /home/harungunasekaran/Documents/docket_mnt/pantrypal/data/lookup_cache:/app/data/lookup_cache
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===================================
+  # Web UI (React Dashboard)
+  # ===================================
+  web-ui:
+    image: harung43/pantrypal-web-ui:latest
+    container_name: pantrypal-web-ui
+    environment:
+      - NODE_ENV=production
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+networks:
+  pantrypal-network:
+    driver: bridge
+
+# Note: The volumes section below is not needed since we're using bind mounts
+# volumes:
+#   inventory_data:
+#   lookup_cache_data:

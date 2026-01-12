@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  # ===================================
+  # nginx Reverse Proxy
+  # ===================================
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: pantrypal-nginx
+    ports:
+      - "8888:80"
+    depends_on:
+      - api-gateway
+      - web-ui
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # ===================================
+  # API Gateway
+  # ===================================
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: pantrypal-api-gateway
+    environment:
+      - INVENTORY_SERVICE_URL=http://inventory-service:8001
+      - LOOKUP_SERVICE_URL=http://lookup-service:8002
+      - AUTH_MODE=full  # Options: none, api_key_only, full, smart
+      # none: No authentication (open access)
+      # api_key_only: API keys required for all requests
+      # full: Login required for UI, API keys OR session for API
+      # smart: Local network = open, external = login/API key required (uses TRUSTED_NETWORKS)
+      - ALLOW_REGISTRATION=true  # Set to false to disable new user signups
+      # CORS Configuration
+      # Use "*" for development (no credentials) or specify origins like:
+      # "http://localhost:8080,http://192.168.1.100:8080,http://your-ip:8080"
+      - CORS_ORIGINS=*
+      # Email settings (for password reset and notifications)
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME}
+      - SMTP_USE_TLS=${SMTP_USE_TLS}
+    volumes:
+      - ./data:/app/data
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # ===================================
+  # Inventory Service
+  # ===================================
+  inventory-service:
+    build:
+      context: ./services/inventory-service
+      dockerfile: Dockerfile
+    container_name: pantrypal-inventory-service
+    environment:
+      - DATABASE_URL=sqlite:////app/data/inventory/inventory.db
+      # Backup Configuration (optional)
+      # Set BACKUP_ENABLED=true to enable automated CSV backups
+      - BACKUP_ENABLED=false
+      # Backup schedule in cron format (default: daily at 2 AM)
+      # Examples: "0 */6 * * *" (every 6h), "0 2 * * 0" (weekly)
+      - BACKUP_SCHEDULE=0 2 * * *
+      # Number of days to keep backups before automatic cleanup
+      - BACKUP_RETENTION_DAYS=7
+      # Path where backups are stored (must match volume mount)
+      - BACKUP_PATH=/app/backups
+    volumes:
+      - ./data/inventory:/app/data/inventory
+      # Backup storage directory (optional, only needed if BACKUP_ENABLED=true)
+      # Backups saved as: ./backups/pantrypal_backup_YYYY-MM-DD_HHMMSS.csv
+      - ./backups:/app/backups
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===================================
+  # Lookup Service
+  # ===================================
+  lookup-service:
+    build:
+      context: ./services/lookup-service
+      dockerfile: Dockerfile
+    container_name: pantrypal-lookup-service
+    environment:
+      - CACHE_DB_PATH=/app/data/lookup_cache/lookup_cache.db
+      - CACHE_TTL_DAYS=30
+    volumes:
+      - ./data/lookup_cache:/app/data/lookup_cache
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===================================
+  # Web UI (React Dashboard)
+  # ===================================
+  web-ui:
+    build:
+      context: ./services/web-ui
+      dockerfile: Dockerfile
+    container_name: pantrypal-web-ui
+    environment:
+      - NODE_ENV=production
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+networks:
+  pantrypal-network:
+    driver: bridge
+
+volumes:
+  inventory_data:
+  lookup_cache_data:

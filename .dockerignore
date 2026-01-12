@@ -1,0 +1,102 @@
+# PantryPal Root .dockerignore
+
+# ===================================
+# Version Control
+# ===================================
+.git
+.gitignore
+.gitattributes
+
+# ===================================
+# Documentation
+# ===================================
+*.md
+README.md
+LICENSE
+TESTING.md
+docs/
+
+# ===================================
+# Data & Databases
+# ===================================
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ===================================
+# Environment & Secrets
+# ===================================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+*.pem
+*.key
+*.crt
+
+# ===================================
+# Build Scripts & Deployment
+# ===================================
+build-multiarch.sh
+build-and-push.sh
+install-dockerignore.sh
+docker-compose-hub.yml
+docker-compose.override.yml
+setup-pantrypal.sh
+start-pantrypal.sh
+
+# ===================================
+# IDE & Editors
+# ===================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===================================
+# OS Files
+# ===================================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# ===================================
+# Mobile App (not needed in backend)
+# ===================================
+mobile/
+
+# ===================================
+# Backup & Temporary Files
+# ===================================
+*.backup
+*.bak
+*.tmp
+*~
+.temp/
+
+# ===================================
+# Python
+# ===================================
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ===================================
+# Node
+# ===================================
+node_modules/
+npm-debug.log*
+dist/
+build/
+.vite/
