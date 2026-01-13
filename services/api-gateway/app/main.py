@@ -42,6 +42,10 @@ app.add_middleware(
 INVENTORY_SERVICE_URL = os.getenv("INVENTORY_SERVICE_URL", "http://inventory-service:8001")
 LOOKUP_SERVICE_URL = os.getenv("LOOKUP_SERVICE_URL", "http://lookup-service:8002")
 
+# Base URL for email links (password reset, email verification)
+# If not set, will fall back to using the incoming request URL
+APP_URL = os.getenv("APP_URL")
+
 # ============================================================================
 # REQUEST MODELS
 # ============================================================================
@@ -257,7 +261,8 @@ async def register(request: RegisterRequest, response: Response, http_request: R
         # Send verification email if email is configured
         if is_email_configured():
             try:
-                base_url = http_request.url.scheme + "://" + http_request.url.netloc
+                # Use APP_URL if configured, otherwise fall back to request URL
+                base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
                 verification_token = user_db.create_email_verification_token(user["id"])
                 send_verification_email(request.email, request.username, verification_token, base_url)
 
@@ -366,7 +371,8 @@ async def forgot_password(request: ForgotPasswordRequest, http_request: Request)
     
     if token:
         try:
-            base_url = http_request.url.scheme + "://" + http_request.url.netloc
+            # Use APP_URL if configured, otherwise fall back to request URL
+            base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
             send_password_reset_email(request.email, token, base_url)
         except Exception as e:
             print(f"Failed to send reset email: {e}")
@@ -450,7 +456,8 @@ async def resend_verification(request: ResendVerificationRequest, http_request: 
 
     # Create new verification token
     try:
-        base_url = http_request.url.scheme + "://" + http_request.url.netloc
+        # Use APP_URL if configured, otherwise fall back to request URL
+        base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
         verification_token = user_db.create_email_verification_token(user['id'])
         send_verification_email(request.email, user['username'], verification_token, base_url)
 
@@ -1063,6 +1070,12 @@ class AdminUpdateUserRequest(BaseModel):
 class AdminResetPasswordRequest(BaseModel):
     new_password: str
 
+class AdminCreateUserRequest(BaseModel):
+    username: str
+    email: EmailStr
+    full_name: Optional[str] = None
+    send_welcome_email: bool = True
+
 
 @app.get("/api/users/me")
 async def get_my_profile(auth = Depends(get_current_auth)):
@@ -1263,18 +1276,129 @@ async def admin_reset_password(
     
     return {"message": "Password reset successfully"}
 
+@app.post("/api/admin/users")
+async def create_user_by_admin(
+    request: AdminCreateUserRequest,
+    http_request: Request,
+    auth = Depends(require_admin)
+):
+    """Create a new user (admin only)"""
+    if AUTH_MODE not in ["full", "smart"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User creation not available in current auth mode"
+        )
+
+    # Check if username already exists
+    import sqlite3
+    conn = user_db.get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE username = ?", (request.username,))
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists"
+        )
+
+    # Check if email already exists
+    cursor.execute("SELECT id FROM users WHERE email = ?", (request.email,))
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already in use"
+        )
+    conn.close()
+
+    # Generate a temporary random password (user will reset it via email)
+    import secrets
+    import string
+    temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+
+    try:
+        # Create the user with the temporary password
+        user = user_db.create_user(
+            username=request.username,
+            password=temp_password,
+            email=request.email,
+            full_name=request.full_name,
+            is_admin=False
+        )
+
+        # Mark user as email verified (admin-created users don't need verification)
+        conn = user_db.get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (user["id"],))
+        conn.commit()
+        conn.close()
+
+        # Send welcome email with password reset link if email is configured
+        if request.send_welcome_email and is_email_configured():
+            try:
+                # Use APP_URL if configured, otherwise fall back to request URL
+                base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
+
+                # Create password reset token
+                reset_token = user_db.create_password_reset_token(request.email)
+
+                # Send ONE combined welcome email with password reset link
+                send_welcome_email(request.email, request.username, base_url, reset_token)
+
+                return {
+                    "message": f"User {request.username} created successfully! Welcome email with password setup link sent.",
+                    "email_sent": True,
+                    "user": {
+                        "id": user["id"],
+                        "username": user["username"],
+                        "email": user["email"],
+                        "full_name": user.get("full_name")
+                    }
+                }
+            except Exception as e:
+                print(f"Failed to send welcome email: {e}")
+                # User created but email failed
+                return {
+                    "message": f"User {request.username} created, but failed to send welcome email.",
+                    "email_sent": False,
+                    "user": {
+                        "id": user["id"],
+                        "username": user["username"],
+                        "email": user["email"],
+                        "full_name": user.get("full_name")
+                    }
+                }
+        else:
+            # Email not configured or not requested
+            return {
+                "message": f"User {request.username} created successfully!",
+                "email_sent": False,
+                "user": {
+                    "id": user["id"],
+                    "username": user["username"],
+                    "email": user["email"],
+                    "full_name": user.get("full_name")
+                }
+            }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
+
 @app.delete("/api/admin/users/{user_id}")
 async def delete_user_account(user_id: int, auth = Depends(require_admin)):
     """Delete user account (admin only)"""
     # Don't allow deleting yourself
     if user_id == auth["id"]:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
-    
+
     success = user_db.delete_user(user_id)
-    
+
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     return {"message": "User deleted successfully"}
 
 @app.get("/api/admin/stats")

@@ -6,9 +6,13 @@ import TopBar from './components/TopBar';
 import InventoryPage from './pages/InventoryPage';
 import AddItemPage from './pages/AddItemPage';
 import { ShoppingListPage } from './pages/ShoppingListPage';
+import { InsightsPage } from './pages/InsightsPage';
+import { RecipesPage } from './pages/RecipesPage';
 import SettingsPage from './SettingsPage';
 import LandingPage from './LandingPage';
-import { getItems, getCurrentUser } from './api';
+import VerifyEmailPage from './VerifyEmailPage';
+import ResetPasswordPage from './ResetPasswordPage';
+import { getItems, getCurrentUser, isServerConfigured } from './api';
 import { useDarkMode } from './hooks/useDarkMode';
 import './App.css';
 
@@ -22,9 +26,23 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Check if we're on a special route (email verification or password reset)
+  const isSpecialRoute = location.pathname === '/verify-email' || location.pathname === '/reset-password';
+  const urlParams = new URLSearchParams(location.search);
+  const token = urlParams.get('token');
+
   useEffect(() => { checkAuth(); }, []);
 
   const checkAuth = async () => {
+    // First, check if server is configured
+    if (!isServerConfigured()) {
+      // No server configured, show landing page with server config
+      setShowLanding(true);
+      setCheckingAuth(false);
+      return;
+    }
+
+    // Server is configured, try to authenticate
     try {
       await getItems();
       // Fetch current user info
@@ -43,6 +61,8 @@ function AppContent() {
 
       if (isAuthError) {
         console.log('Authentication required - showing login page');
+      } else if (isNetworkError) {
+        console.log('Cannot reach server - showing landing page');
       }
     } finally {
       setCheckingAuth(false);
@@ -52,6 +72,16 @@ function AppContent() {
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
   };
+
+  // Handle special routes (email verification, password reset) without auth check
+  if (isSpecialRoute) {
+    if (location.pathname === '/verify-email') {
+      return <VerifyEmailPage token={token} onSuccess={() => { setShowLanding(true); navigate('/'); }} />;
+    }
+    if (location.pathname === '/reset-password') {
+      return <ResetPasswordPage token={token} onSuccess={() => { setShowLanding(true); navigate('/'); }} />;
+    }
+  }
 
   if (checkingAuth) {
     return (
@@ -79,6 +109,8 @@ function AppContent() {
             <Route path="/inventory" element={<InventoryPage isDark={isDark} sidebarFilters={filters} />} />
             <Route path="/add" element={<AddItemPage onBack={() => navigate('/inventory')} isDark={isDark} />} />
             <Route path="/shopping" element={<ShoppingListPage isDark={isDark} />} />
+            <Route path="/insights" element={<InsightsPage isDark={isDark} />} />
+            <Route path="/recipes" element={<RecipesPage isDark={isDark} />} />
             <Route path="/settings" element={<SettingsPage currentUser={currentUser} onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }} onBack={() => navigate('/inventory')} isDark={isDark} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

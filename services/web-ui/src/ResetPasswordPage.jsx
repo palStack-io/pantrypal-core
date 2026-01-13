@@ -6,6 +6,8 @@ function ResetPasswordPage({ token, onSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [tokenValid, setTokenValid] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
@@ -134,27 +136,49 @@ function ResetPasswordPage({ token, onSuccess }) {
             }}>
               New Password
             </label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={8}
-              autoFocus
-              style={{
-                width: '100%',
-                padding: spacing.md,
-                borderRadius: borderRadius.md,
-                border: `2px solid ${colors.border}`,
-                fontSize: '16px',
-                backgroundColor: '#ffffff',
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={8}
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: spacing.md,
+                  paddingRight: '50px',
+                  borderRadius: borderRadius.md,
+                  border: `2px solid ${colors.border}`,
+                  fontSize: '16px',
+                  backgroundColor: '#ffffff',
+                  color: '#1f2937',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '20px',
+                  padding: '4px',
+                }}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
             <p style={{ fontSize: '12px', color: colors.textSecondary, marginTop: spacing.xs, marginBottom: 0 }}>
               Minimum 8 characters
             </p>
           </div>
-          
+
           <div style={{ marginBottom: spacing.lg }}>
             <label style={{
               display: 'block',
@@ -164,20 +188,42 @@ function ResetPasswordPage({ token, onSuccess }) {
             }}>
               Confirm New Password
             </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: spacing.md,
-                borderRadius: borderRadius.md,
-                border: `2px solid ${colors.border}`,
-                fontSize: '16px',
-                backgroundColor: '#ffffff',
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: spacing.md,
+                  paddingRight: '50px',
+                  borderRadius: borderRadius.md,
+                  border: `2px solid ${colors.border}`,
+                  fontSize: '16px',
+                  backgroundColor: '#ffffff',
+                  color: '#1f2937',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '20px',
+                  padding: '4px',
+                }}
+                title={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
           </div>
           
           <button

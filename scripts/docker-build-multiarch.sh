@@ -5,6 +5,11 @@
 
 set -e
 
+# Get the directory where the script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Change to the backend directory (parent of scripts)
+cd "$SCRIPT_DIR/.."
+
 DOCKER_USER="harung43"
 SERVICES=("web-ui" "api-gateway" "inventory-service" "lookup-service" "nginx")
 PLATFORMS="linux/amd64,linux/arm64"

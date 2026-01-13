@@ -213,12 +213,21 @@ def send_verification_email(to_email: str, username: str, verification_token: st
     send_email(to_email, subject, html_content, text_content)
 
 
-def send_welcome_email(to_email: str, username: str, base_url: str):
+def send_welcome_email(to_email: str, username: str, base_url: str, reset_token: str = None):
     """
     Send welcome email to new users
+    If reset_token is provided, includes a password setup link for admin-created users
     """
     subject = "Welcome to PantryPal! 🥫"
-    
+
+    # Different content based on whether this is admin-created (with reset token) or self-registered
+    if reset_token:
+        action_button = f'<a href="{base_url}/reset-password?token={reset_token}" class="button">Set Your Password</a>'
+        intro_text = "Your account has been created by an administrator. To get started, please set your password by clicking the button below:"
+    else:
+        action_button = f'<a href="{base_url}" class="button">Open PantryPal</a>'
+        intro_text = "Your account has been created successfully. You're now ready to start managing your pantry!"
+
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -240,10 +249,10 @@ def send_welcome_email(to_email: str, username: str, base_url: str):
             </div>
             <div class="content">
                 <h2>Hi {username}! 👋</h2>
-                <p>Your account has been created successfully. You're now ready to start managing your pantry!</p>
-                
+                <p>{intro_text}</p>
+
                 <div style="text-align: center;">
-                    <a href="{base_url}" class="button">Open PantryPal</a>
+                    {action_button}
                 </div>
                 
                 <h3>What you can do:</h3>
@@ -273,21 +282,28 @@ def send_welcome_email(to_email: str, username: str, base_url: str):
     </html>
     """
     
+    if reset_token:
+        action_text = f"Set Your Password: {base_url}/reset-password?token={reset_token}"
+        intro_text_plain = "Your account has been created by an administrator. To get started, please set your password using the link below:"
+    else:
+        action_text = f"Open PantryPal: {base_url}"
+        intro_text_plain = "Your account has been created successfully. You're now ready to start managing your pantry!"
+
     text_content = f"""
     Welcome to PantryPal!
-    
+
     Hi {username}!
-    
-    Your account has been created successfully. You're now ready to start managing your pantry!
-    
-    Open PantryPal: {base_url}
-    
+
+    {intro_text_plain}
+
+    {action_text}
+
     What you can do:
     📷 Scan barcodes to quickly add items
     🔔 Get notifications about expiring items
     🏠 Integrate with Home Assistant
     📊 Track your entire pantry inventory
-    
+
     ---
     PantryPal - Part of PalStack
     Self-hosted pantry management for modern homes

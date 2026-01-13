@@ -1,6 +1,6 @@
 // Sidebar - Minimal Design with Working Navigation
 import { useState, useEffect } from 'react';
-import { Package, AlertTriangle, XCircle, Plus, ShoppingCart } from 'lucide-react';
+import { Package, AlertTriangle, XCircle, Plus, ShoppingCart, TrendingUp, ChefHat } from 'lucide-react';
 import { getColors, spacing, borderRadius, getShadows, getGradient } from '../colors';
 import { useItems } from '../hooks/useItems';
 import { getExpiryStatus } from '../utils/dateUtils';
@@ -77,6 +77,22 @@ export function Sidebar({ isOpen, currentPath, onNavigate, isDark, onFilterChang
             label="Shopping List"
             active={currentPath === '/shopping'}
             onClick={() => { onNavigate('/shopping'); }}
+            colors={colors}
+            gradient={gradient}
+          />
+          <NavItem
+            icon={<TrendingUp size={18} />}
+            label="Insights"
+            active={currentPath === '/insights'}
+            onClick={() => { onNavigate('/insights'); }}
+            colors={colors}
+            gradient={gradient}
+          />
+          <NavItem
+            icon={<ChefHat size={18} />}
+            label="Recipes"
+            active={currentPath === '/recipes'}
+            onClick={() => { onNavigate('/recipes'); }}
             colors={colors}
             gradient={gradient}
           />

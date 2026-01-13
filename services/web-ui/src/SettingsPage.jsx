@@ -44,7 +44,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
     username: '',
     email: '',
     full_name: '',
-    password: ''
+    send_welcome_email: true
   });
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteMessage, setInviteMessage] = useState('');
@@ -288,20 +288,15 @@ function SettingsPage({ onBack, currentUser, isDark }) {
     e.preventDefault();
     setInviteMessage('');
 
-    if (!inviteData.username || !inviteData.email || !inviteData.password) {
+    if (!inviteData.username || !inviteData.email) {
       setInviteMessage('❌ Please fill in all required fields');
-      return;
-    }
-
-    if (inviteData.password.length < 8) {
-      setInviteMessage('❌ Password must be at least 8 characters');
       return;
     }
 
     setInviteLoading(true);
 
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -313,14 +308,18 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       const data = await response.json();
 
       if (response.ok) {
-        setInviteMessage(`✅ User ${inviteData.username} created successfully!`);
-        setInviteData({ username: '', email: '', full_name: '', password: '' });
+        if (data.email_sent) {
+          setInviteMessage(`✅ User ${inviteData.username} created! Welcome email sent with password reset link.`);
+        } else {
+          setInviteMessage(`✅ User ${inviteData.username} created successfully!`);
+        }
+        setInviteData({ username: '', email: '', full_name: '', send_welcome_email: true });
         loadUsers();
         loadStats();
         setTimeout(() => {
           setInviteMessage('');
           setInviteFormExpanded(false);
-        }, 2000);
+        }, 3000);
       } else {
         setInviteMessage(`❌ ${data.detail || 'Failed to create user'}`);
       }
@@ -1741,28 +1740,42 @@ function SettingsPage({ onBack, currentUser, isDark }) {
 
                     <div style={{ marginBottom: spacing.md }}>
                       <label style={{
-                        display: 'block',
-                        marginBottom: spacing.sm,
-                        fontWeight: '600',
-                        color: colors.textPrimary,
-                        fontSize: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.sm,
+                        cursor: 'pointer',
+                        padding: spacing.md,
+                        borderRadius: borderRadius.md,
+                        border: `2px solid ${colors.border}`,
+                        backgroundColor: colors.card,
                       }}>
-                        Password *
+                        <input
+                          type="checkbox"
+                          checked={inviteData.send_welcome_email}
+                          onChange={(e) => setInviteData({ ...inviteData, send_welcome_email: e.target.checked })}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            cursor: 'pointer',
+                          }}
+                        />
+                        <div>
+                          <div style={{
+                            fontWeight: '600',
+                            color: colors.textPrimary,
+                            fontSize: '14px',
+                          }}>
+                            Send Welcome Email
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: colors.textSecondary,
+                            marginTop: '2px',
+                          }}>
+                            User will receive a welcome email with a link to set their password
+                          </div>
+                        </div>
                       </label>
-                      <input
-                        type="password"
-                        value={inviteData.password}
-                        onChange={(e) => setInviteData({ ...inviteData, password: e.target.value })}
-                        placeholder="Min 8 characters"
-                        style={{
-                          width: '100%',
-                          padding: spacing.md,
-                          borderRadius: borderRadius.md,
-                          border: `2px solid ${colors.border}`,
-                          backgroundColor: colors.card,
-                          color: colors.textPrimary,
-                        }}
-                      />
                     </div>
 
                     {inviteMessage && (

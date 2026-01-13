@@ -80,6 +80,24 @@ export const removeSessionToken = () => {
   storage.removeItem('SESSION_TOKEN');
 };
 
+// Server configuration functions
+export const setApiBaseUrl = (url) => {
+  const cleanUrl = url.trim().replace(/\/+$/, ''); // Remove trailing slashes
+  storage.setItem('API_BASE_URL', cleanUrl);
+};
+
+export const getApiBaseUrlFromStorage = () => {
+  return storage.getItem('API_BASE_URL') || '';
+};
+
+export const removeApiBaseUrl = () => {
+  storage.removeItem('API_BASE_URL');
+};
+
+export const isServerConfigured = () => {
+  return !!storage.getItem('API_BASE_URL');
+};
+
 // Create axios instance with dynamic base URL and API key
 const createApiInstance = () => {
   const headers = {
