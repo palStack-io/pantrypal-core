@@ -44,8 +44,8 @@ jobs:
       - name: Build and push API Gateway
         uses: docker/build-push-action@v5
         with:
-          context: ./backend/services/api-gateway
-          file: ./backend/services/api-gateway/Dockerfile
+          context: ./services/api-gateway
+          file: ./services/api-gateway/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -82,8 +82,8 @@ jobs:
       - name: Build and push Inventory Service
         uses: docker/build-push-action@v5
         with:
-          context: ./backend/services/inventory-service
-          file: ./backend/services/inventory-service/Dockerfile
+          context: ./services/inventory-service
+          file: ./services/inventory-service/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -120,8 +120,8 @@ jobs:
       - name: Build and push Lookup Service
         uses: docker/build-push-action@v5
         with:
-          context: ./backend/services/lookup-service
-          file: ./backend/services/lookup-service/Dockerfile
+          context: ./services/lookup-service
+          file: ./services/lookup-service/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -158,8 +158,8 @@ jobs:
       - name: Build and push Web UI
         uses: docker/build-push-action@v5
         with:
-          context: ./backend/services/web-ui
-          file: ./backend/services/web-ui/Dockerfile
+          context: ./services/web-ui
+          file: ./services/web-ui/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -196,8 +196,8 @@ jobs:
       - name: Build and push Nginx
         uses: docker/build-push-action@v5
         with:
-          context: ./backend/nginx
-          file: ./backend/nginx/Dockerfile
+          context: ./nginx
+          file: ./nginx/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
