@@ -265,4 +265,105 @@ export const exportItemsCSV = async () => {
   window.URL.revokeObjectURL(url);
 };
 
+// Recipe Integration
+export const getRecipeIntegration = async () => {
+  const api = createApiInstance();
+  const response = await api.get('/api/recipes/integration');
+  return response.data;
+};
+
+export const createRecipeIntegration = async (integrationData) => {
+  const api = createApiInstance();
+  const response = await api.post('/api/recipes/integration', integrationData);
+  return response.data;
+};
+
+export const deleteRecipeIntegration = async () => {
+  const api = createApiInstance();
+  const response = await api.delete('/api/recipes/integration');
+  return response.data;
+};
+
+// Recipe Import
+export const importRecipes = async (limit = 500) => {
+  const api = createApiInstance();
+  const response = await api.post('/api/recipes/import', { limit });
+  return response.data;
+};
+
+// Recipe Queries
+export const getRecipes = async (limit = 50, offset = 0, sortBy = 'match_percentage', order = 'desc', favoriteOnly = false) => {
+  const api = createApiInstance();
+  const response = await api.get('/api/recipes/', {
+    params: { limit, offset, sort_by: sortBy, order, favorite_only: favoriteOnly }
+  });
+  return response.data;
+};
+
+export const getRecipeSuggestions = async (minMatch = 50, limit = 20) => {
+  const api = createApiInstance();
+  const response = await api.get('/api/recipes/suggestions', {
+    params: { min_match: minMatch, limit }
+  });
+  return response.data;
+};
+
+export const getExpiringRecipes = async (limit = 10) => {
+  const api = createApiInstance();
+  const response = await api.get('/api/recipes/expiring', { params: { limit } });
+  return response.data;
+};
+
+export const searchRecipes = async (query, limit = 20) => {
+  const api = createApiInstance();
+  const response = await api.get('/api/recipes/search', {
+    params: { q: query, limit }
+  });
+  return response.data;
+};
+
+export const getFavoriteRecipes = async () => {
+  const api = createApiInstance();
+  const response = await api.get('/api/recipes/favorites');
+  return response.data;
+};
+
+export const getRecipe = async (recipeId) => {
+  const api = createApiInstance();
+  const response = await api.get(`/api/recipes/${recipeId}`);
+  return response.data;
+};
+
+// Recipe Matching
+export const matchRecipes = async (expiringDays = 7) => {
+  const api = createApiInstance();
+  const response = await api.post('/api/recipes/match', { expiring_days: expiringDays });
+  return response.data;
+};
+
+// Recipe Management
+export const updateRecipeNotes = async (recipeId, notes) => {
+  const api = createApiInstance();
+  const response = await api.patch(`/api/recipes/${recipeId}/notes`, { notes });
+  return response.data;
+};
+
+export const toggleFavorite = async (recipeId) => {
+  const api = createApiInstance();
+  const response = await api.post(`/api/recipes/${recipeId}/favorite`);
+  return response.data;
+};
+
+export const markCooked = async (recipeId) => {
+  const api = createApiInstance();
+  const response = await api.post(`/api/recipes/${recipeId}/cooked`);
+  return response.data;
+};
+
+export const deleteRecipe = async (recipeId) => {
+  const api = createApiInstance();
+  const response = await api.delete(`/api/recipes/${recipeId}`);
+  return response.data;
+};
+
 export default { createApiInstance };

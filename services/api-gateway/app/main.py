@@ -11,10 +11,44 @@ from .network_utils import get_client_ip, is_trusted_network
 
 # Import auth modules
 from .auth import get_current_auth, require_admin
-from . import auth_db, user_db
+from . import pg_api_keys, pg_auth
 from .email_service import send_password_reset_email, send_welcome_email, send_verification_email, is_email_configured
+from .oidc import is_oidc_enabled, get_oidc_config, oauth, extract_user_info
+
+# Import database and services
+from .database import init_db
+from .minio_service import get_minio_service
+
+# Import routers
+from .routes import images, recipes
 
 app = FastAPI(title="PantryPal API Gateway", version="2.0.0")
+
+# Startup event: Initialize database and MinIO
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables and MinIO buckets"""
+    print("🚀 Starting PantryPal API Gateway...")
+
+    # Initialize PostgreSQL database
+    try:
+        init_db()
+        print("✓ Database tables initialized")
+    except Exception as e:
+        print(f"⚠️  Database initialization warning: {e}")
+
+    # Initialize MinIO buckets
+    try:
+        minio = get_minio_service()
+        print("✓ MinIO service initialized")
+    except Exception as e:
+        print(f"⚠️  MinIO initialization warning: {e}")
+
+    print("✓ PantryPal API Gateway ready")
+
+# Include routers
+app.include_router(images.router)
+app.include_router(recipes.router)
 
 # Get AUTH_MODE for informational purposes
 AUTH_MODE = os.getenv("AUTH_MODE", "none").lower()
@@ -141,13 +175,20 @@ async def health_check():
 async def auth_status():
     """Get current authentication mode and configuration"""
     allow_registration = os.getenv("ALLOW_REGISTRATION", "true").lower() == "true"
-    return {
+    response = {
         "auth_mode": AUTH_MODE,
         "requires_login": AUTH_MODE in ["full", "smart"],
         "requires_api_key": AUTH_MODE in ["api_key_only"],
         "allow_registration": allow_registration,
         "email_configured": is_email_configured()
     }
+
+    # Add OIDC config if enabled
+    oidc_config = get_oidc_config()
+    if oidc_config:
+        response["oidc"] = oidc_config
+
+    return response
 
 # ============================================================================
 # AUTHENTICATION ENDPOINTS (Login/Logout/Register)
@@ -162,7 +203,7 @@ async def login(request: LoginRequest, response: Response, http_request: Request
             detail=f"Login not available in '{AUTH_MODE}' mode. Set AUTH_MODE=full or smart to enable."
         )
     
-    user = user_db.authenticate_user(request.username, request.password)
+    user = pg_auth.authenticate_user(request.username, request.password)
 
     if not user:
         raise HTTPException(
@@ -172,13 +213,7 @@ async def login(request: LoginRequest, response: Response, http_request: Request
 
     # Check if email is verified (only if email is configured)
     if is_email_configured():
-        conn = user_db.get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT email_verified FROM users WHERE id = ?", (user["id"],))
-        result = cursor.fetchone()
-        conn.close()
-
-        if result and not result['email_verified']:
+        if not pg_auth.is_email_verified(user["id"]):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Please verify your email address before logging in. Check your inbox for the verification link."
@@ -188,7 +223,7 @@ async def login(request: LoginRequest, response: Response, http_request: Request
     ip_address = http_request.client.host if http_request.client else None
     user_agent = http_request.headers.get("user-agent")
     
-    session_token = user_db.create_session(
+    session_token = pg_auth.create_session(
         user_id=user["id"],
         ip_address=ip_address,
         user_agent=user_agent,
@@ -250,7 +285,7 @@ async def register(request: RegisterRequest, response: Response, http_request: R
         )
     
     try:
-        user = user_db.create_user(
+        user = pg_auth.create_user(
             username=request.username,
             password=request.password,
             email=request.email,
@@ -263,7 +298,7 @@ async def register(request: RegisterRequest, response: Response, http_request: R
             try:
                 # Use APP_URL if configured, otherwise fall back to request URL
                 base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
-                verification_token = user_db.create_email_verification_token(user["id"])
+                verification_token = pg_auth.create_email_verification_token(user["id"])
                 send_verification_email(request.email, request.username, verification_token, base_url)
 
                 return {
@@ -290,17 +325,13 @@ async def register(request: RegisterRequest, response: Response, http_request: R
         else:
             # If email is not configured, auto-verify and auto-login
             # This maintains backwards compatibility for systems without email
-            conn = user_db.get_db()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (user["id"],))
-            conn.commit()
-            conn.close()
+            pg_auth.mark_email_verified(user["id"])
 
             # Auto-login after registration
             ip_address = http_request.client.host if http_request.client else None
             user_agent = http_request.headers.get("user-agent")
 
-            session_token = user_db.create_session(
+            session_token = pg_auth.create_session(
                 user_id=user["id"],
                 ip_address=ip_address,
                 user_agent=user_agent,
@@ -339,12 +370,12 @@ async def change_password(request: ChangePasswordRequest, auth = Depends(get_cur
         raise HTTPException(status_code=400, detail="Password change only available for logged-in users")
     
     # Verify current password
-    user = user_db.authenticate_user(auth["username"], request.current_password)
+    user = pg_auth.authenticate_user(auth["username"], request.current_password)
     if not user:
         raise HTTPException(status_code=401, detail="Current password is incorrect")
     
     # Update password
-    success = user_db.update_user_password(auth["user_id"], request.new_password)
+    success = pg_auth.update_user_password(auth["user_id"], request.new_password)
     
     if success:
         return {"message": "Password changed successfully"}
@@ -367,7 +398,7 @@ async def forgot_password(request: ForgotPasswordRequest, http_request: Request)
         )
     
     # Create reset token (returns None if user not found - don't reveal this)
-    token = user_db.create_password_reset_token(request.email)
+    token = pg_auth.create_password_reset_token(request.email)
     
     if token:
         try:
@@ -395,7 +426,7 @@ async def reset_password(request: ResetPasswordRequest):
             detail="Password reset not available in current auth mode"
         )
     
-    success = user_db.use_reset_token(request.token, request.new_password)
+    success = pg_auth.use_reset_token(request.token, request.new_password)
 
     if not success:
         raise HTTPException(
@@ -414,7 +445,7 @@ async def verify_email(request: VerifyEmailRequest):
             detail="Email verification not available in current auth mode"
         )
 
-    success = user_db.verify_email_token(request.token)
+    success = pg_auth.verify_email_token(request.token)
 
     if not success:
         raise HTTPException(
@@ -441,7 +472,7 @@ async def resend_verification(request: ResendVerificationRequest, http_request: 
 
     # Find user by email
     import sqlite3
-    conn = user_db.get_db()
+    conn = pg_auth.get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT id, username, email_verified FROM users WHERE email = ?", (request.email,))
     user = cursor.fetchone()
@@ -458,7 +489,7 @@ async def resend_verification(request: ResendVerificationRequest, http_request: 
     try:
         # Use APP_URL if configured, otherwise fall back to request URL
         base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
-        verification_token = user_db.create_email_verification_token(user['id'])
+        verification_token = pg_auth.create_email_verification_token(user['id'])
         send_verification_email(request.email, user['username'], verification_token, base_url)
 
         return {"message": "If that email is registered and unverified, you'll receive a verification link shortly."}
@@ -470,6 +501,142 @@ async def resend_verification(request: ResendVerificationRequest, http_request: 
         )
 
 # ============================================================================
+# OIDC AUTHENTICATION ENDPOINTS
+# ============================================================================
+
+@app.get("/api/auth/oidc/login")
+async def oidc_login(request: Request):
+    """
+    Initiate OIDC login flow
+    Redirects user to OIDC provider for authentication
+    """
+    if not is_oidc_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC authentication is not enabled"
+        )
+
+    # Build redirect URI
+    redirect_uri = request.url_for('oidc_callback')
+
+    # Initiate OAuth flow
+    return await oauth.oidc.authorize_redirect(request, redirect_uri)
+
+
+@app.get("/api/auth/oidc/callback")
+async def oidc_callback(request: Request, response: Response):
+    """
+    OIDC callback endpoint
+    Handles the redirect from OIDC provider after authentication
+    """
+    if not is_oidc_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OIDC authentication is not enabled"
+        )
+
+    try:
+        # Exchange authorization code for tokens
+        token = await oauth.oidc.authorize_access_token(request)
+
+        # Get user info from ID token or userinfo endpoint
+        user_info = token.get('userinfo')
+        if not user_info:
+            # Fetch from userinfo endpoint
+            user_info = await oauth.oidc.userinfo(token=token)
+
+        # Extract standardized user information
+        oidc_user = extract_user_info(user_info)
+
+        # Check if OIDC connection already exists
+        oidc_connection = pg_auth.find_oidc_connection('oidc', oidc_user['oidc_id'])
+
+        if oidc_connection:
+            # Existing OIDC user - log them in
+            user_id = oidc_connection['user_id']
+
+            # Check if user is active
+            if not oidc_connection['is_active']:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User account is disabled"
+                )
+
+            # Update last login
+            pg_auth.update_oidc_last_login('oidc', oidc_user['oidc_id'])
+
+        else:
+            # New OIDC user
+            from .oidc import OIDC_AUTO_LINK, OIDC_AUTO_CREATE
+
+            # Try to link by email if auto-link is enabled
+            if OIDC_AUTO_LINK and oidc_user['email']:
+                existing_user = pg_auth.find_user_by_email(oidc_user['email'])
+
+                if existing_user:
+                    # Link OIDC to existing user
+                    user_id = existing_user['id']
+                    pg_auth.create_oidc_connection(user_id, 'oidc', oidc_user['oidc_id'], oidc_user['email'])
+                elif OIDC_AUTO_CREATE:
+                    # Create new user
+                    new_user = pg_auth.create_user_from_oidc(
+                        username=oidc_user['username'],
+                        email=oidc_user['email'],
+                        full_name=oidc_user['name']
+                    )
+                    user_id = new_user['id']
+
+                    # Create OIDC connection
+                    pg_auth.create_oidc_connection(user_id, 'oidc', oidc_user['oidc_id'], oidc_user['email'])
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="No account found. Please contact an administrator."
+                    )
+            elif OIDC_AUTO_CREATE:
+                # Create new user without email linking
+                new_user = pg_auth.create_user_from_oidc(
+                    username=oidc_user['username'],
+                    email=oidc_user['email'],
+                    full_name=oidc_user['name']
+                )
+                user_id = new_user['id']
+
+                # Create OIDC connection
+                pg_auth.create_oidc_connection(user_id, 'oidc', oidc_user['oidc_id'], oidc_user['email'])
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="No account found. Please contact an administrator."
+                )
+
+        # Create session for the user
+        session_token = pg_auth.create_session(
+            user_id=user_id,
+            ip_address=get_client_ip(request),
+            user_agent=request.headers.get("user-agent")
+        )
+
+        # Set session cookie
+        response.set_cookie(
+            key="session_token",
+            value=session_token,
+            httponly=True,
+            max_age=30 * 24 * 60 * 60,  # 30 days
+            samesite="lax"
+        )
+
+        # Redirect to home page
+        return {"status": "success", "message": "Successfully logged in via OIDC"}
+
+    except Exception as e:
+        print(f"OIDC callback error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"OIDC authentication failed: {str(e)}"
+        )
+
+# ============================================================================
 # API KEY MANAGEMENT ENDPOINTS
 # ============================================================================
 
@@ -477,7 +644,7 @@ async def resend_verification(request: ResendVerificationRequest, http_request: 
 async def create_api_key(request: CreateApiKeyRequest, auth = Depends(get_current_auth)):
     """Create a new API key"""
     try:
-        key_info = auth_db.create_api_key(
+        key_info = pg_api_keys.create_api_key(
             name=request.name,
             description=request.description,
             expires_in_days=request.expires_in_days
@@ -500,7 +667,7 @@ async def create_api_key(request: CreateApiKeyRequest, auth = Depends(get_curren
 async def list_api_keys(auth = Depends(get_current_auth)):
     """List all API keys (without exposing the actual key values)"""
     try:
-        keys = auth_db.list_api_keys()
+        keys = pg_api_keys.list_api_keys()
         return {"keys": keys, "total": len(keys)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list API keys: {str(e)}")
@@ -509,7 +676,7 @@ async def list_api_keys(auth = Depends(get_current_auth)):
 async def delete_api_key(key_id: int, auth = Depends(get_current_auth)):
     """Permanently delete an API key"""
     try:
-        success = auth_db.delete_api_key(key_id)
+        success = pg_api_keys.delete_api_key(key_id)
         if not success:
             raise HTTPException(status_code=404, detail="API key not found")
         return {"message": "API key deleted successfully", "key_id": key_id}
@@ -522,7 +689,7 @@ async def delete_api_key(key_id: int, auth = Depends(get_current_auth)):
 async def revoke_api_key(key_id: int, auth = Depends(get_current_auth)):
     """Revoke (deactivate) an API key without deleting it"""
     try:
-        success = auth_db.revoke_api_key(key_id)
+        success = pg_api_keys.revoke_api_key(key_id)
         if not success:
             raise HTTPException(status_code=404, detail="API key not found")
         return {"message": "API key revoked successfully", "key_id": key_id}
@@ -539,7 +706,7 @@ async def revoke_api_key(key_id: int, auth = Depends(get_current_auth)):
 async def list_users(auth = Depends(require_admin)):
     """List all users (admin only)"""
     try:
-        users = user_db.list_users()
+        users = pg_auth.list_users()
         return {"users": users, "total": len(users)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list users: {str(e)}")
@@ -552,7 +719,7 @@ async def delete_user(user_id: int, auth = Depends(require_admin)):
         if auth.get("user_id") == user_id:
             raise HTTPException(status_code=400, detail="Cannot delete your own account")
         
-        success = user_db.delete_user(user_id)
+        success = pg_auth.delete_user(user_id)
         if not success:
             raise HTTPException(status_code=404, detail="User not found")
         return {"message": "User deleted successfully", "user_id": user_id}
@@ -1102,7 +1269,7 @@ async def update_my_profile(
         raise HTTPException(status_code=403, detail="Profile update only available for logged-in users")
 
     # Get current user from database
-    conn = user_db.get_db()
+    conn = pg_auth.get_db()
     cursor = conn.cursor()
 
     updates = []
@@ -1156,7 +1323,7 @@ async def change_my_password(
         raise HTTPException(status_code=403, detail="Password change only available for logged-in users")
     
     # Get user's current password hash
-    conn = user_db.get_db()
+    conn = pg_auth.get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT password_hash FROM users WHERE id = ?", (auth["id"],))
     user = cursor.fetchone()
@@ -1166,12 +1333,12 @@ async def change_my_password(
         raise HTTPException(status_code=404, detail="User not found")
     
     # Verify current password
-    if not user_db.verify_password(password_data.current_password, user['password_hash']):
+    if not pg_auth.verify_password(password_data.current_password, user['password_hash']):
         conn.close()
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     
     # Update password
-    new_password_hash = user_db.hash_password(password_data.new_password)
+    new_password_hash = pg_auth.hash_password(password_data.new_password)
     cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_password_hash, auth["id"]))
     conn.commit()
     conn.close()
@@ -1185,7 +1352,7 @@ async def change_my_password(
 @app.get("/api/admin/users")
 async def list_all_users(auth = Depends(require_admin)):
     """List all users (admin only)"""
-    users = user_db.list_users()
+    users = pg_auth.list_users()
     return {
         "total": len(users),
         "users": users
@@ -1194,7 +1361,7 @@ async def list_all_users(auth = Depends(require_admin)):
 @app.get("/api/admin/users/{user_id}")
 async def get_user_details(user_id: int, auth = Depends(require_admin)):
     """Get specific user details (admin only)"""
-    conn = user_db.get_db()
+    conn = pg_auth.get_db()
     cursor = conn.cursor()
     cursor.execute("""
         SELECT id, username, email, full_name, is_admin, is_active, created_at, last_login_at
@@ -1228,7 +1395,7 @@ async def update_user(
     if user_id == auth["id"]:
         raise HTTPException(status_code=400, detail="Cannot modify your own account status")
     
-    conn = user_db.get_db()
+    conn = pg_auth.get_db()
     cursor = conn.cursor()
     
     updates = []
@@ -1269,7 +1436,7 @@ async def admin_reset_password(
     auth = Depends(require_admin)
 ):
     """Reset user's password (admin only)"""
-    success = user_db.update_user_password(user_id, password_data.new_password)
+    success = pg_auth.update_user_password(user_id, password_data.new_password)
     
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
@@ -1291,7 +1458,7 @@ async def create_user_by_admin(
 
     # Check if username already exists
     import sqlite3
-    conn = user_db.get_db()
+    conn = pg_auth.get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM users WHERE username = ?", (request.username,))
     if cursor.fetchone():
@@ -1318,7 +1485,7 @@ async def create_user_by_admin(
 
     try:
         # Create the user with the temporary password
-        user = user_db.create_user(
+        user = pg_auth.create_user(
             username=request.username,
             password=temp_password,
             email=request.email,
@@ -1327,7 +1494,7 @@ async def create_user_by_admin(
         )
 
         # Mark user as email verified (admin-created users don't need verification)
-        conn = user_db.get_db()
+        conn = pg_auth.get_db()
         cursor = conn.cursor()
         cursor.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (user["id"],))
         conn.commit()
@@ -1340,7 +1507,7 @@ async def create_user_by_admin(
                 base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
 
                 # Create password reset token
-                reset_token = user_db.create_password_reset_token(request.email)
+                reset_token = pg_auth.create_password_reset_token(request.email)
 
                 # Send ONE combined welcome email with password reset link
                 send_welcome_email(request.email, request.username, base_url, reset_token)
@@ -1394,7 +1561,7 @@ async def delete_user_account(user_id: int, auth = Depends(require_admin)):
     if user_id == auth["id"]:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
-    success = user_db.delete_user(user_id)
+    success = pg_auth.delete_user(user_id)
 
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
@@ -1404,7 +1571,7 @@ async def delete_user_account(user_id: int, auth = Depends(require_admin)):
 @app.get("/api/admin/stats")
 async def get_admin_stats(auth = Depends(require_admin)):
     """Get system statistics (admin only)"""
-    users = user_db.list_users()
+    users = pg_auth.list_users()
     
     total_users = len(users)
     active_users = sum(1 for u in users if u["is_active"])

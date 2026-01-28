@@ -25,6 +25,9 @@ function LandingPage({ onLoginSuccess }) {
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
 
+  // OIDC configuration
+  const [oidcConfig, setOidcConfig] = useState(null);
+
   // Toast notifications
   const { toast, showSuccess, showError, hideToast } = useToast();
 
@@ -36,6 +39,32 @@ function LandingPage({ onLoginSuccess }) {
       setServerConfigured(true);
     }
   }, []);
+
+  useEffect(() => {
+    // Fetch OIDC configuration when server is configured
+    if (serverConfigured) {
+      fetchOidcConfig();
+    }
+  }, [serverConfigured]);
+
+  const fetchOidcConfig = async () => {
+    try {
+      const response = await fetch('/api/auth/status');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.oidc) {
+          setOidcConfig(data.oidc);
+        }
+      }
+    } catch (error) {
+      // Silently fail - OIDC is optional
+    }
+  };
+
+  const handleOidcLogin = () => {
+    // Redirect to OIDC login endpoint
+    window.location.href = '/api/auth/oidc/login';
+  };
 
   const handleConfigureServer = () => {
     if (!serverUrl.trim()) {
@@ -364,6 +393,43 @@ function LandingPage({ onLoginSuccess }) {
                   </button>
                 </div>
                 
+                {/* OIDC Login Button (if enabled) */}
+                {oidcConfig?.enabled && (
+                  <>
+                    <button
+                      onClick={handleOidcLogin}
+                      style={{
+                        width: '100%',
+                        padding: spacing.lg,
+                        borderRadius: borderRadius.lg,
+                        border: 'none',
+                        background: '#4285f4',
+                        color: 'white',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s',
+                        marginBottom: spacing.md,
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                      onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      Sign in with {oidcConfig.provider_name}
+                    </button>
+
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing.md,
+                      marginBottom: spacing.md,
+                    }}>
+                      <div style={{ flex: 1, height: '1px', background: colors.border }}></div>
+                      <span style={{ color: colors.textSecondary, fontSize: '14px' }}>or</span>
+                      <div style={{ flex: 1, height: '1px', background: colors.border }}></div>
+                    </div>
+                  </>
+                )}
+
                 <div style={{ display: 'flex', gap: spacing.md }}>
                   <button
                     onClick={() => setView('login')}
@@ -465,7 +531,44 @@ function LandingPage({ onLoginSuccess }) {
               Sign In to PantryPal
             </h2>
           </div>
-          
+
+          {/* OIDC Login Button (if enabled) */}
+          {oidcConfig?.enabled && (
+            <>
+              <button
+                onClick={handleOidcLogin}
+                style={{
+                  width: '100%',
+                  padding: spacing.lg,
+                  borderRadius: borderRadius.lg,
+                  border: 'none',
+                  background: '#4285f4',
+                  color: 'white',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s',
+                  marginBottom: spacing.md,
+                }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                Sign in with {oidcConfig.provider_name}
+              </button>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.md,
+                marginBottom: spacing.md,
+              }}>
+                <div style={{ flex: 1, height: '1px', background: colors.border }}></div>
+                <span style={{ color: colors.textSecondary, fontSize: '14px' }}>or</span>
+                <div style={{ flex: 1, height: '1px', background: colors.border }}></div>
+              </div>
+            </>
+          )}
+
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{

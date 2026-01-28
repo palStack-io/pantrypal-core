@@ -21,7 +21,7 @@ Well now we have PantryPal to solve our household's very real, very annoying pro
 
 **Learning Through Building:** My background is in data science, not software engineering. I knew Python and could wrangle data all day, but proper software architecture? Microservices? Docker orchestration? That was all new territory. PantryPal became my learning project—a real problem that justified diving deep into backend design, API development, and mobile apps.
 
-I leaned heavily on AI coding assistants (Claude, Qwen Coder, ChatGPT) to bridge the gap between "data scientist who can code" and "building production-ready applications." These tools didn't write the code for me—they taught me *why* certain architectural decisions matter, helped me debug obscure Docker networking issues at 2 AM, and explained FastAPI patterns I'd never encountered before. Each PalStack project has been a deliberate exercise in learning a new piece of the software development puzzle.
+I leaned heavily on AI coding assistants to bridge the gap between "data scientist who can code" and "building production-ready applications." These tools didn't write the code for me—they taught me *why* certain architectural decisions matter, helped me debug obscure Docker networking issues at 2 AM, and explained FastAPI patterns I'd never encountered before. Each PalStack project has been a deliberate exercise in learning a new piece of the software development puzzle.
 
 Is it over-engineered? Absolutely. Does it work? Perfectly. Did I learn a ton? Even better.
 
@@ -403,7 +403,7 @@ Copyright (c) 2025 PalStack
 
 - **My wife** - For the original suggestion to "just keep a list"
 - **Three cans of tomato sauce** - For sitting in my basement and inspiring this entire project
-- **Claude, Qwen Coder, and ChatGPT** - For being patient teachers when I had no idea what I was doing
+- **AI Coding Assistants** - For being patient teachers when I had no idea what I was doing
 - **Open Food Facts** - For the amazing product database API
 - **Home Assistant Community** - For building an incredible smart home platform
 - **Docker** - For making "but it works on my machine" a thing of the past

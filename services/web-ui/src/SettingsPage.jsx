@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Lock, Users, Shield, Activity } from 'lucide-react';
+import { User, Mail, Lock, Users, Shield, Activity, Settings as SettingsIcon } from 'lucide-react';
 import { getColors, spacing, borderRadius, getShadows } from './colors';
 import { getDefaultLocations, getDefaultCategories, saveDefaultLocations, saveDefaultCategories, DEFAULT_LOCATIONS, DEFAULT_CATEGORIES } from './defaults';
-import { getItems, addItemManual } from './api';
+import { getItems, addItemManual, getRecipeIntegration, createRecipeIntegration, deleteRecipeIntegration } from './api';
 
 function SettingsPage({ onBack, currentUser, isDark }) {
   const colors = getColors(isDark);
@@ -81,25 +81,36 @@ function SettingsPage({ onBack, currentUser, isDark }) {
     updateExisting: false,
   });
 
+  // Recipe Integration
+  const [integration, setIntegration] = useState(null);
+  const [integrationProvider, setIntegrationProvider] = useState('mealie');
+  const [integrationServerUrl, setIntegrationServerUrl] = useState('');
+  const [integrationApiToken, setIntegrationApiToken] = useState('');
+  const [integrationImportImages, setIntegrationImportImages] = useState(true);
+  const [integrationLoading, setIntegrationLoading] = useState(false);
+  const [integrationError, setIntegrationError] = useState(null);
+  const [integrationSuccess, setIntegrationSuccess] = useState(null);
+
   const isAdmin = currentUser?.is_admin;
 
   useEffect(() => {
     const stored = localStorage.getItem('API_BASE_URL') || 'http://localhost';
     setApiUrl(stored);
     setSavedUrl(stored);
-    
+
     const savedApiKey = localStorage.getItem('API_KEY');
     setCurrentApiKey(savedApiKey || '');
     setShowApiKeyInput(!!savedApiKey);
-    
+
     setLocations(getDefaultLocations());
     setCategories(getDefaultCategories());
 
     checkAuthStatus(stored);
     loadApiKeys(stored);
-    
+
     if (currentUser) {
       loadProfile();
+      loadIntegration();
       if (isAdmin) {
         loadUsers();
         loadStats();
@@ -207,6 +218,66 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       setPasswordMessage('❌ Network error');
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  // Recipe Integration functions
+  const loadIntegration = async () => {
+    try {
+      const data = await getRecipeIntegration();
+      setIntegration(data);
+      if (data.configured) {
+        setIntegrationProvider(data.provider);
+        setIntegrationServerUrl(data.server_url);
+      }
+    } catch (error) {
+      console.error('Failed to load integration:', error);
+    }
+  };
+
+  const handleSaveIntegration = async (e) => {
+    e.preventDefault();
+    setIntegrationLoading(true);
+    setIntegrationError(null);
+    setIntegrationSuccess(null);
+
+    try {
+      await createRecipeIntegration({
+        provider: integrationProvider,
+        server_url: integrationServerUrl,
+        api_token: integrationApiToken,
+        import_images: integrationImportImages
+      });
+      setIntegrationSuccess('✅ Integration configured successfully!');
+      setIntegrationApiToken(''); // Clear token after saving
+      await loadIntegration();
+      setTimeout(() => setIntegrationSuccess(null), 5000);
+    } catch (error) {
+      setIntegrationError(`❌ ${error.response?.data?.detail || error.message || 'Failed to configure integration'}`);
+    } finally {
+      setIntegrationLoading(false);
+    }
+  };
+
+  const handleDeleteIntegration = async () => {
+    if (!confirm('Are you sure you want to remove this integration? Your imported recipes will remain.')) {
+      return;
+    }
+
+    setIntegrationLoading(true);
+    setIntegrationError(null);
+
+    try {
+      await deleteRecipeIntegration();
+      setIntegrationSuccess('✅ Integration removed successfully');
+      setIntegration(null);
+      setIntegrationServerUrl('');
+      setIntegrationApiToken('');
+      setTimeout(() => setIntegrationSuccess(null), 3000);
+    } catch (error) {
+      setIntegrationError(`❌ ${error.response?.data?.detail || error.message || 'Failed to remove integration'}`);
+    } finally {
+      setIntegrationLoading(false);
     }
   };
 
@@ -739,6 +810,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
     ...(currentUser ? [
       { id: 'profile', label: '👤 Profile' },
       { id: 'security', label: '🔒 Security' },
+      { id: 'integrations', label: '🍳 Recipe Integrations' },
     ] : []),
     { id: 'preferences', label: '⚙️ Preferences' },
     { id: 'notifications', label: '🔔 Notifications' },
@@ -1492,6 +1564,268 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 fontSize: '14px',
               }}>
                 📱 <strong>Biometric Authentication</strong> is available on the mobile app. Download the PantryPal mobile app to enable Face ID or Touch ID for quick, secure access.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* INTEGRATIONS TAB */}
+        {activeTab === 'integrations' && currentUser && (
+          <div style={{
+            background: colors.card,
+            padding: spacing.xl,
+            borderRadius: borderRadius.lg,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+          }}>
+            <h2 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              🍳 Recipe Integrations
+            </h2>
+            <p style={{ color: colors.textSecondary, marginBottom: spacing.xl }}>
+              Connect to your Mealie or Tandoor recipe manager to import and sync recipes.
+            </p>
+
+            {/* Current Integration Status */}
+            {integration?.configured && (
+              <div style={{
+                padding: spacing.lg,
+                background: colors.background,
+                borderRadius: borderRadius.md,
+                marginBottom: spacing.xl,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div>
+                    <div style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.sm }}>
+                      ✅ Connected to {integration.provider === 'mealie' ? 'Mealie' : 'Tandoor'}
+                    </div>
+                    <div style={{ fontSize: '14px', color: colors.textSecondary }}>
+                      Server: {integration.server_url}
+                    </div>
+                    <div style={{ fontSize: '14px', color: colors.textSecondary }}>
+                      Recipes imported: {integration.total_recipes_imported || 0}
+                    </div>
+                    {integration.last_sync && (
+                      <div style={{ fontSize: '14px', color: colors.textSecondary }}>
+                        Last sync: {new Date(integration.last_sync).toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleDeleteIntegration}
+                    disabled={integrationLoading}
+                    style={{
+                      padding: `${spacing.sm} ${spacing.md}`,
+                      borderRadius: borderRadius.md,
+                      border: `2px solid ${colors.error || '#ef4444'}`,
+                      background: 'transparent',
+                      color: colors.error || '#ef4444',
+                      fontWeight: '600',
+                      cursor: integrationLoading ? 'not-allowed' : 'pointer',
+                      opacity: integrationLoading ? 0.6 : 1,
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Integration Setup Form */}
+            <form onSubmit={handleSaveIntegration}>
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: spacing.sm,
+                  fontWeight: '600',
+                  color: colors.textPrimary,
+                }}>
+                  Recipe Manager
+                </label>
+                <div style={{ display: 'flex', gap: spacing.md }}>
+                  <button
+                    type="button"
+                    onClick={() => setIntegrationProvider('mealie')}
+                    style={{
+                      flex: 1,
+                      padding: spacing.md,
+                      borderRadius: borderRadius.md,
+                      border: `2px solid ${integrationProvider === 'mealie' ? colors.primary : colors.border}`,
+                      background: integrationProvider === 'mealie' ? `${colors.primary}20` : 'transparent',
+                      color: colors.textPrimary,
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Mealie
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIntegrationProvider('tandoor')}
+                    style={{
+                      flex: 1,
+                      padding: spacing.md,
+                      borderRadius: borderRadius.md,
+                      border: `2px solid ${integrationProvider === 'tandoor' ? colors.primary : colors.border}`,
+                      background: integrationProvider === 'tandoor' ? `${colors.primary}20` : 'transparent',
+                      color: colors.textPrimary,
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Tandoor
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: spacing.sm,
+                  fontWeight: '600',
+                  color: colors.textPrimary,
+                }}>
+                  Server URL
+                </label>
+                <input
+                  type="url"
+                  value={integrationServerUrl}
+                  onChange={(e) => setIntegrationServerUrl(e.target.value)}
+                  placeholder="http://your-server:9000"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    borderRadius: borderRadius.md,
+                    border: `2px solid ${colors.border}`,
+                    backgroundColor: colors.card,
+                    color: colors.textPrimary,
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: spacing.sm,
+                  fontWeight: '600',
+                  color: colors.textPrimary,
+                }}>
+                  API Token
+                </label>
+                <input
+                  type="password"
+                  value={integrationApiToken}
+                  onChange={(e) => setIntegrationApiToken(e.target.value)}
+                  placeholder={integration?.configured ? "Enter new token to update" : "Your API token"}
+                  required={!integration?.configured}
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    borderRadius: borderRadius.md,
+                    border: `2px solid ${colors.border}`,
+                    backgroundColor: colors.card,
+                    color: colors.textPrimary,
+                  }}
+                />
+                <div style={{ fontSize: '12px', color: colors.textSecondary, marginTop: spacing.xs }}>
+                  {integrationProvider === 'mealie' ? (
+                    <>Go to Profile → API Tokens in Mealie to generate a token</>
+                  ) : (
+                    <>Go to Settings → API Tokens in Tandoor to generate a token</>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  cursor: 'pointer',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={integrationImportImages}
+                    onChange={(e) => setIntegrationImportImages(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <span style={{ color: colors.textPrimary }}>
+                    Download and store recipe images locally (uses MinIO storage)
+                  </span>
+                </label>
+              </div>
+
+              {integrationError && (
+                <div style={{
+                  padding: spacing.md,
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: borderRadius.md,
+                  color: '#ef4444',
+                  fontSize: '14px',
+                  marginBottom: spacing.lg,
+                }}>
+                  {integrationError}
+                </div>
+              )}
+
+              {integrationSuccess && (
+                <div style={{
+                  padding: spacing.md,
+                  background: 'rgba(34, 197, 94, 0.1)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  borderRadius: borderRadius.md,
+                  color: '#22c55e',
+                  fontSize: '14px',
+                  marginBottom: spacing.lg,
+                }}>
+                  {integrationSuccess}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={integrationLoading}
+                style={{
+                  width: '100%',
+                  padding: spacing.lg,
+                  borderRadius: borderRadius.lg,
+                  border: 'none',
+                  background: colors.primary,
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  cursor: integrationLoading ? 'not-allowed' : 'pointer',
+                  opacity: integrationLoading ? 0.6 : 1,
+                }}
+              >
+                {integrationLoading ? 'Saving...' : integration?.configured ? 'Update Integration' : 'Connect Integration'}
+              </button>
+            </form>
+
+            {/* Help Section */}
+            <div style={{
+              marginTop: spacing.xl,
+              paddingTop: spacing.xl,
+              borderTop: `1px solid ${colors.border}`,
+            }}>
+              <h3 style={{ marginTop: 0, color: colors.textPrimary }}>How to get your API token:</h3>
+              <div style={{ fontSize: '14px', color: colors.textSecondary, lineHeight: '1.6' }}>
+                <p><strong>For Mealie:</strong></p>
+                <ol>
+                  <li>Open your Mealie instance</li>
+                  <li>Click on your profile icon → Profile</li>
+                  <li>Scroll to "API Tokens"</li>
+                  <li>Click "Create API Token"</li>
+                  <li>Give it a name (e.g., "PantryPal")</li>
+                  <li>Copy the generated token</li>
+                </ol>
+
+                <p style={{ marginTop: spacing.md }}><strong>For Tandoor:</strong></p>
+                <ol>
+                  <li>Open your Tandoor instance</li>
+                  <li>Go to Settings → API Tokens</li>
+                  <li>Create a new token</li>
+                  <li>Copy the generated token</li>
+                </ol>
               </div>
             </div>
           </div>

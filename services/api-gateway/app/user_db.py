@@ -82,6 +82,21 @@ def init_db():
         )
     """)
 
+    # OIDC connections table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS oidc_connections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            provider TEXT NOT NULL DEFAULT 'oidc',
+            provider_user_id TEXT NOT NULL,
+            email TEXT,
+            created_at TIMESTAMP NOT NULL,
+            last_login_at TIMESTAMP,
+            UNIQUE(provider, provider_user_id),
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+    """)
+
     # Migration: Add email_verified column if it doesn't exist
     cursor.execute("PRAGMA table_info(users)")
     columns = [row[1] for row in cursor.fetchall()]
@@ -544,6 +559,112 @@ def create_default_admin():
 
 
     conn.close()
+
+
+# ============================================================================
+# OIDC Functions
+# ============================================================================
+
+def find_oidc_connection(provider: str, provider_user_id: str) -> Optional[Dict]:
+    """Find OIDC connection by provider and provider user ID"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT oc.*, u.username, u.email, u.is_active
+        FROM oidc_connections oc
+        JOIN users u ON oc.user_id = u.id
+        WHERE oc.provider = ? AND oc.provider_user_id = ?
+    """, (provider, provider_user_id))
+    result = cursor.fetchone()
+    conn.close()
+    return dict(result) if result else None
+
+
+def find_user_by_email(email: str) -> Optional[Dict]:
+    """Find user by email address"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT * FROM users WHERE email = ?
+    """, (email,))
+    result = cursor.fetchone()
+    conn.close()
+    return dict(result) if result else None
+
+
+def create_oidc_connection(user_id: int, provider: str, provider_user_id: str, email: Optional[str] = None) -> Dict:
+    """Create a new OIDC connection for a user"""
+    conn = get_db()
+    cursor = conn.cursor()
+    created_at = datetime.utcnow().isoformat()
+
+    cursor.execute("""
+        INSERT INTO oidc_connections (user_id, provider, provider_user_id, email, created_at, last_login_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (user_id, provider, provider_user_id, email, created_at, created_at))
+
+    conn.commit()
+    oidc_conn_id = cursor.lastrowid
+    conn.close()
+
+    return {
+        "id": oidc_conn_id,
+        "user_id": user_id,
+        "provider": provider,
+        "provider_user_id": provider_user_id,
+        "email": email,
+        "created_at": created_at
+    }
+
+
+def update_oidc_last_login(provider: str, provider_user_id: str):
+    """Update last login time for an OIDC connection"""
+    conn = get_db()
+    cursor = conn.cursor()
+    last_login = datetime.utcnow().isoformat()
+
+    cursor.execute("""
+        UPDATE oidc_connections
+        SET last_login_at = ?
+        WHERE provider = ? AND provider_user_id = ?
+    """, (last_login, provider, provider_user_id))
+
+    conn.commit()
+    conn.close()
+
+
+def create_user_from_oidc(username: str, email: Optional[str], full_name: Optional[str] = None) -> Dict:
+    """
+    Create a new user from OIDC authentication
+    Password is set to a random value since OIDC users don't use password auth
+    """
+    # Generate a random password (user won't use it)
+    random_password = secrets.token_urlsafe(32)
+    password_hash = hash_password(random_password)
+
+    conn = get_db()
+    cursor = conn.cursor()
+    created_at = datetime.utcnow().isoformat()
+
+    cursor.execute("""
+        INSERT INTO users (username, password_hash, email, full_name, is_active, is_admin, email_verified, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (username, password_hash, email, full_name, True, False, True, created_at))  # OIDC users are email-verified
+
+    conn.commit()
+    user_id = cursor.lastrowid
+    conn.close()
+
+    return {
+        "id": user_id,
+        "username": username,
+        "email": email,
+        "full_name": full_name,
+        "is_active": True,
+        "is_admin": False,
+        "email_verified": True,
+        "created_at": created_at
+    }
 
 
 # Initialize database on module import

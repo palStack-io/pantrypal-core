@@ -1,9 +1,12 @@
-from fastapi import Header, HTTPException, status, Cookie, Request
+from fastapi import Header, HTTPException, status, Cookie, Request, Depends
 from typing import Optional
+from sqlalchemy.orm import Session
 import os
-from .auth_db import validate_api_key
-from .user_db import validate_session
+from .pg_api_keys import validate_api_key
+from .pg_auth import validate_session
 from .network_utils import is_trusted_network, get_client_ip
+from .database import get_db
+from .models import User
 
 # Authentication mode: none, api_key_only, full, or smart
 AUTH_MODE = os.getenv("AUTH_MODE", "none").lower()
@@ -230,3 +233,53 @@ async def require_admin(
         )
     
     return auth
+
+
+async def get_current_user(
+    request: Request,
+    x_api_key: Optional[str] = Header(None),
+    session_token: Optional[str] = Cookie(None, alias="session_token"),
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+) -> User:
+    """
+    Get current authenticated user as User model object
+    Use this for routes that need User model (recipes, images, etc.)
+    """
+    # Get auth info
+    auth = await get_current_auth(request, x_api_key, session_token, authorization)
+
+    # For session auth, get User from database
+    if auth.get("type") == "session":
+        user_id = auth.get("id")  # Fixed: was "user_id", should be "id"
+        user = db.query(User).filter(User.id == user_id).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+
+        return user
+
+    # For AUTH_MODE=none or trusted network or API key, return a synthetic User
+    # (This is a temporary solution until full PostgreSQL migration)
+    # For now, create a mock user object for compatibility
+    elif auth.get("type") in ["none", "trusted_network", "api_key"]:
+        # Create a temporary User object for non-session access
+        user = User(
+            id="default-user-001",
+            username="default_user",
+            password_hash="",
+            email="default@pantrypal.local",
+            full_name="Default User",
+            is_active=True,
+            is_admin=False
+        )
+        return user
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
