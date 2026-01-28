@@ -1,0 +1,196 @@
+version: '3.8'
+
+services:
+  # ===================================
+  # PostgreSQL Database
+  # ===================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: pantrypal-postgres
+    environment:
+      POSTGRES_DB: pantrypal
+      POSTGRES_USER: pantrypal
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pantrypal_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pantrypal-network
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pantrypal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===================================
+  # MinIO Object Storage
+  # ===================================
+  minio:
+    image: minio/minio:latest
+    container_name: pantrypal-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - minio_data:/data
+    networks:
+      - pantrypal-network
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # Web Console
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ===================================
+  # nginx Reverse Proxy
+  # ===================================
+  nginx:
+    image: ghcr.io/palstack-io/pantrypal-nginx:latest
+    container_name: pantrypal-nginx
+    ports:
+      - "8888:80"
+    depends_on:
+      - api-gateway
+      - web-ui
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # ===================================
+  # API Gateway
+  # ===================================
+  api-gateway:
+    image: ghcr.io/palstack-io/pantrypal-api-gateway:latest
+    container_name: pantrypal-api-gateway
+    depends_on:
+      - postgres
+      - minio
+      - inventory-service
+      - lookup-service
+    environment:
+      # Service URLs
+      - INVENTORY_SERVICE_URL=http://inventory-service:8001
+      - LOOKUP_SERVICE_URL=http://lookup-service:8002
+
+      # Database (PostgreSQL)
+      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:-pantrypal_secure_password}@postgres:5432/pantrypal
+
+      # MinIO Configuration
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - MINIO_SECURE=false
+
+      # Bucket Names
+      - MINIO_BUCKET_PRODUCTS=pantrypal-products
+      - MINIO_BUCKET_USERS=pantrypal-users
+      - MINIO_BUCKET_RECEIPTS=pantrypal-receipts
+      - MINIO_BUCKET_RECIPES=pantrypal-recipes
+
+      # Recipe Integration
+      - ENABLE_RECIPE_INTEGRATION=true
+
+      # Security
+      - SECRET_KEY=${SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
+
+      # Authentication
+      - AUTH_MODE=${AUTH_MODE:-full}  # Options: none, api_key_only, full, smart
+      - ALLOW_REGISTRATION=true  # Set to false to disable new user signups
+
+      # Demo Mode
+      - DEMO_MODE=${DEMO_MODE:-false}
+      - DEMO_MEALIE_URL=${DEMO_MEALIE_URL:-}
+      - DEMO_MEALIE_TOKEN=${DEMO_MEALIE_TOKEN:-}
+
+      # CORS Configuration
+      - CORS_ORIGINS=*
+
+      # Email settings
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME}
+      - SMTP_USE_TLS=${SMTP_USE_TLS}
+
+      # Application URL
+      - APP_URL=${APP_URL}
+    volumes:
+      - ./data:/app/data
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # ===================================
+  # Inventory Service
+  # ===================================
+  inventory-service:
+    image: ghcr.io/palstack-io/pantrypal-inventory:latest
+    container_name: pantrypal-inventory-service
+    environment:
+      - DATABASE_URL=sqlite:////app/data/inventory/inventory.db
+      - BACKUP_ENABLED=false
+      - BACKUP_SCHEDULE=0 2 * * *
+      - BACKUP_RETENTION_DAYS=7
+      - BACKUP_PATH=/app/backups
+    volumes:
+      - ./data/inventory:/app/data/inventory
+      - ./backups:/app/backups
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===================================
+  # Lookup Service
+  # ===================================
+  lookup-service:
+    image: ghcr.io/palstack-io/pantrypal-lookup:latest
+    container_name: pantrypal-lookup-service
+    environment:
+      - CACHE_DB_PATH=/app/data/lookup_cache/lookup_cache.db
+      - CACHE_TTL_DAYS=30
+    volumes:
+      - ./data/lookup_cache:/app/data/lookup_cache
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===================================
+  # Web UI (React Dashboard)
+  # ===================================
+  web-ui:
+    image: ghcr.io/palstack-io/pantrypal-web:latest
+    container_name: pantrypal-web-ui
+    environment:
+      - NODE_ENV=production
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+networks:
+  pantrypal-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
+  inventory_data:
+  lookup_cache_data:
