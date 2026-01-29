@@ -30,7 +30,8 @@ def create_user(
     password: str,
     email: Optional[str] = None,
     full_name: Optional[str] = None,
-    is_admin: bool = False
+    is_admin: bool = False,
+    is_demo: bool = False
 ) -> Dict:
     """Create a new user in PostgreSQL"""
     db = SessionLocal()
@@ -53,6 +54,7 @@ def create_user(
             email=email,
             full_name=full_name,
             is_admin=is_admin,
+            is_demo=is_demo,
             is_active=True,
             email_verified=False,
             created_at=datetime.utcnow()
@@ -67,6 +69,7 @@ def create_user(
             "email": user.email,
             "full_name": user.full_name,
             "is_admin": user.is_admin,
+            "is_demo": user.is_demo,
             "created_at": user.created_at.isoformat()
         }
     finally:
@@ -100,7 +103,8 @@ def authenticate_user(username: str, password: str) -> Optional[Dict]:
             "username": user.username,
             "email": user.email,
             "full_name": user.full_name,
-            "is_admin": user.is_admin
+            "is_admin": user.is_admin,
+            "is_demo": user.is_demo
         }
     finally:
         db.close()
@@ -110,14 +114,23 @@ def create_session(
     user_id: str,
     ip_address: Optional[str] = None,
     user_agent: Optional[str] = None,
-    expires_in_days: int = 7
+    expires_in_days: int = 7,
+    expires_in_minutes: Optional[int] = None
 ) -> str:
-    """Create a new session for a user"""
+    """Create a new session for a user
+
+    Args:
+        expires_in_minutes: If set, overrides expires_in_days (used for demo accounts)
+    """
     db = SessionLocal()
     try:
         session_token = secrets.token_urlsafe(32)
         created_at = datetime.utcnow()
-        expires_at = created_at + timedelta(days=expires_in_days)
+
+        if expires_in_minutes is not None:
+            expires_at = created_at + timedelta(minutes=expires_in_minutes)
+        else:
+            expires_at = created_at + timedelta(days=expires_in_days)
 
         session = SessionModel(
             user_id=user_id,
@@ -172,7 +185,8 @@ def validate_session(session_token: str) -> Optional[Dict]:
             "username": user.username,
             "email": user.email,
             "full_name": user.full_name,
-            "is_admin": user.is_admin
+            "is_admin": user.is_admin,
+            "is_demo": user.is_demo
         }
     finally:
         db.close()
@@ -220,6 +234,7 @@ def list_users() -> list:
             "full_name": user.full_name,
             "is_active": user.is_active,
             "is_admin": user.is_admin,
+            "is_demo": user.is_demo,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
             "email_verified": user.email_verified
@@ -388,6 +403,7 @@ def get_user_by_id(user_id: str) -> Optional[Dict]:
             "full_name": user.full_name,
             "is_active": user.is_active,
             "is_admin": user.is_admin,
+            "is_demo": user.is_demo,
             "email_verified": user.email_verified
         }
     finally:
@@ -484,6 +500,7 @@ def find_user_by_email(email: str) -> Optional[Dict]:
             "full_name": user.full_name,
             "is_active": user.is_active,
             "is_admin": user.is_admin,
+            "is_demo": user.is_demo,
             "email_verified": user.email_verified
         }
     finally:

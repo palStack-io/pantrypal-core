@@ -51,3 +51,30 @@ def init_db():
     """
     from .models import Base
     Base.metadata.create_all(bind=engine)
+
+    # Run migrations for existing databases
+    run_migrations()
+
+
+def run_migrations():
+    """
+    Run database migrations for schema changes
+    This handles adding new columns to existing tables
+    """
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        # Migration: Add is_demo column to users table if it doesn't exist
+        try:
+            result = conn.execute(text("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'is_demo'
+            """))
+            if result.fetchone() is None:
+                conn.execute(text("""
+                    ALTER TABLE users ADD COLUMN is_demo BOOLEAN DEFAULT FALSE NOT NULL
+                """))
+                conn.commit()
+                print("Migration: Added is_demo column to users table")
+        except Exception as e:
+            print(f"Migration check for is_demo: {e}")

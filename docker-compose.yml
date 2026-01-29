@@ -15,8 +15,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - pantrypal-network
-    ports:
-      - "5432:5432"
+    # Port exposed only for development/debugging (comment out for production)
+    # ports:
+    #   - "5432:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pantrypal"]
@@ -38,9 +39,13 @@ services:
       - minio_data:/data
     networks:
       - pantrypal-network
-    ports:
-      - "9000:9000"  # S3 API
-      - "9001:9001"  # Web Console
+    # Ports now proxied through nginx:
+    #   - S3 API: http://localhost:8888/minio/
+    #   - Console: http://localhost:8888/minio-console/
+    # Uncomment for direct access during development:
+    # ports:
+    #   - "9000:9000"  # S3 API
+    #   - "9001:9001"  # Web Console
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -61,6 +66,7 @@ services:
     depends_on:
       - api-gateway
       - web-ui
+      - minio
     networks:
       - pantrypal-network
     restart: unless-stopped

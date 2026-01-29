@@ -22,25 +22,44 @@ def create_demo_users(db: Session):
 
     demo_users = [
         {
-            "username": "demo",
-            "email": "demo@pantrypal.com",
+            "username": "demo1",
+            "email": "demo1@pantrypal.com",
             "password": "demo123",
-            "full_name": "Demo User",
-            "is_admin": False
+            "full_name": "Demo User 1",
+            "is_admin": False,
+            "is_demo": True
+        },
+        {
+            "username": "demo2",
+            "email": "demo2@pantrypal.com",
+            "password": "demo123",
+            "full_name": "Demo User 2",
+            "is_admin": False,
+            "is_demo": True
+        },
+        {
+            "username": "demo3",
+            "email": "demo3@pantrypal.com",
+            "password": "demo123",
+            "full_name": "Demo User 3",
+            "is_admin": False,
+            "is_demo": True
+        },
+        {
+            "username": "demo4",
+            "email": "demo4@pantrypal.com",
+            "password": "demo123",
+            "full_name": "Demo User 4",
+            "is_admin": False,
+            "is_demo": True
         },
         {
             "username": "admin",
             "email": "admin@pantrypal.com",
             "password": "admin123",
             "full_name": "Admin User",
-            "is_admin": True
-        },
-        {
-            "username": "alice",
-            "email": "alice@pantrypal.com",
-            "password": "alice123",
-            "full_name": "Alice Johnson",
-            "is_admin": False
+            "is_admin": True,
+            "is_demo": False
         }
     ]
 
@@ -58,9 +77,10 @@ def create_demo_users(db: Session):
         user = User(
             username=user_data["username"],
             email=user_data["email"],
-            hashed_password=get_password_hash(user_data["password"]),
+            password_hash=get_password_hash(user_data["password"]),
             full_name=user_data["full_name"],
             is_admin=user_data["is_admin"],
+            is_demo=user_data.get("is_demo", False),
             email_verified=True  # Auto-verify demo users
         )
         db.add(user)
@@ -76,10 +96,10 @@ def create_demo_inventory(db: Session, users: list):
     """Create sample inventory items for demo users"""
     print("\nCreating demo inventory items...")
 
-    # Sample items for demo user
-    demo_user = next((u for u in users if u.username == "demo"), None)
-    if not demo_user:
-        print("⚠️  Demo user not found, skipping inventory creation")
+    # Get all demo users (demo1, demo2, demo3, demo4)
+    demo_users_list = [u for u in users if u.username.startswith("demo")]
+    if not demo_users_list:
+        print("⚠️  No demo users found, skipping inventory creation")
         return
 
     sample_items = [
@@ -247,27 +267,33 @@ def create_demo_inventory(db: Session, users: list):
         }
     ]
 
-    count = 0
-    for item_data in sample_items:
-        # Check if item already exists for this user
-        existing_item = db.query(InventoryItem).filter(
-            InventoryItem.user_id == demo_user.id,
-            InventoryItem.name == item_data["name"]
-        ).first()
+    total_count = 0
+    for demo_user in demo_users_list:
+        count = 0
+        for item_data in sample_items:
+            # Check if item already exists for this user
+            existing_item = db.query(InventoryItem).filter(
+                InventoryItem.user_id == demo_user.id,
+                InventoryItem.name == item_data["name"]
+            ).first()
 
-        if existing_item:
-            continue
+            if existing_item:
+                continue
 
-        # Create new item
-        item = InventoryItem(
-            user_id=demo_user.id,
-            **item_data
-        )
-        db.add(item)
-        count += 1
+            # Create new item
+            item = InventoryItem(
+                user_id=demo_user.id,
+                **item_data
+            )
+            db.add(item)
+            count += 1
+
+        if count > 0:
+            print(f"✓ Created {count} inventory items for user '{demo_user.username}'")
+            total_count += count
 
     db.commit()
-    print(f"✓ Created {count} inventory items for user 'demo'")
+    print(f"✓ Total: Created {total_count} inventory items for {len(demo_users_list)} demo users")
 
 
 def main():
@@ -285,12 +311,15 @@ def main():
 
         print("\n" + "=" * 50)
         print("✅ Demo data created successfully!")
-        print("\nDemo Accounts:")
-        print("  Username: demo      Password: demo123")
-        print("  Username: admin     Password: admin123  (Admin)")
-        print("  Username: alice     Password: alice123")
+        print("\nDemo Accounts (auto-logout after 10 minutes):")
+        print("  Username: demo1     Password: demo123")
+        print("  Username: demo2     Password: demo123")
+        print("  Username: demo3     Password: demo123")
+        print("  Username: demo4     Password: demo123")
+        print("\nAdmin Account:")
+        print("  Username: admin     Password: admin123")
         print("\nYou can now log in with these accounts!")
-        print("\n💡 Tip: User 'demo' has 18 sample inventory items")
+        print("\n💡 Tip: All demo users have 18 sample inventory items")
 
     except Exception as e:
         print(f"\n❌ Error creating demo data: {e}")

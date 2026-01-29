@@ -3,10 +3,13 @@ from typing import Optional
 from sqlalchemy.orm import Session
 import os
 from .pg_api_keys import validate_api_key
-from .pg_auth import validate_session
+from .pg_auth import validate_session, hash_password
 from .network_utils import is_trusted_network, get_client_ip
 from .database import get_db
 from .models import User
+
+# Re-export hash_password as get_password_hash for backwards compatibility
+get_password_hash = hash_password
 
 # Authentication mode: none, api_key_only, full, or smart
 AUTH_MODE = os.getenv("AUTH_MODE", "none").lower()
@@ -274,7 +277,8 @@ async def get_current_user(
             email="default@pantrypal.local",
             full_name="Default User",
             is_active=True,
-            is_admin=False
+            is_admin=False,
+            is_demo=False
         )
         return user
 

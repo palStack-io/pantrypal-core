@@ -175,13 +175,26 @@ async def health_check():
 async def auth_status():
     """Get current authentication mode and configuration"""
     allow_registration = os.getenv("ALLOW_REGISTRATION", "true").lower() == "true"
+    demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
+
     response = {
         "auth_mode": AUTH_MODE,
         "requires_login": AUTH_MODE in ["full", "smart"],
         "requires_api_key": AUTH_MODE in ["api_key_only"],
         "allow_registration": allow_registration,
-        "email_configured": is_email_configured()
+        "email_configured": is_email_configured(),
+        "demo_mode": demo_mode
     }
+
+    # Add demo accounts info if demo mode is enabled
+    if demo_mode:
+        response["demo_accounts"] = [
+            {"username": "demo1", "password": "demo123"},
+            {"username": "demo2", "password": "demo123"},
+            {"username": "demo3", "password": "demo123"},
+            {"username": "demo4", "password": "demo123"}
+        ]
+        response["demo_session_minutes"] = 10
 
     # Add OIDC config if enabled
     oidc_config = get_oidc_config()
@@ -222,29 +235,47 @@ async def login(request: LoginRequest, response: Response, http_request: Request
     # Create session
     ip_address = http_request.client.host if http_request.client else None
     user_agent = http_request.headers.get("user-agent")
-    
-    session_token = pg_auth.create_session(
-        user_id=user["id"],
-        ip_address=ip_address,
-        user_agent=user_agent,
-        expires_in_days=7
-    )
-    
+
+    # Demo accounts get 10-minute session, regular users get 7 days
+    is_demo_user = user.get("is_demo", False)
+    if is_demo_user:
+        session_token = pg_auth.create_session(
+            user_id=user["id"],
+            ip_address=ip_address,
+            user_agent=user_agent,
+            expires_in_minutes=10  # Demo accounts auto-logout after 10 minutes
+        )
+        max_age = 10 * 60  # 10 minutes
+    else:
+        session_token = pg_auth.create_session(
+            user_id=user["id"],
+            ip_address=ip_address,
+            user_agent=user_agent,
+            expires_in_days=7
+        )
+        max_age = 7 * 24 * 60 * 60  # 7 days
+
     # Set session cookie
     response.set_cookie(
         key="session_token",
         value=session_token,
         httponly=True,
-        max_age=7 * 24 * 60 * 60,  # 7 days
+        max_age=max_age,
         samesite="lax",
         secure=False  # Set to True in production with HTTPS
     )
-    
-    return {
+
+    response_data = {
         "message": "Login successful",
         "user": user,
         "session_token": session_token  # Also return in body for mobile apps
     }
+
+    # Add demo warning if applicable
+    if is_demo_user:
+        response_data["demo_warning"] = "Demo account - you will be automatically logged out after 10 minutes"
+
+    return response_data
 
 @app.post("/api/auth/logout")
 async def logout(response: Response, auth = Depends(get_current_auth)):
@@ -643,6 +674,13 @@ async def oidc_callback(request: Request, response: Response):
 @app.post("/api/auth/keys")
 async def create_api_key(request: CreateApiKeyRequest, auth = Depends(get_current_auth)):
     """Create a new API key"""
+    # Demo accounts cannot create API keys
+    if auth.get("is_demo", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demo accounts cannot create API keys. Please create a regular account to use API keys."
+        )
+
     try:
         key_info = pg_api_keys.create_api_key(
             name=request.name,

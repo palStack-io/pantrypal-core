@@ -26,20 +26,47 @@ init_db()
 print("✓ Database tables created")
 
 # Demo users configuration
+# 4 demo accounts for users to try the service
 demo_users = [
     {
-        "username": "demo",
-        "email": "demo@pantrypal.com",
+        "username": "demo1",
+        "email": "demo1@pantrypal.com",
         "password": "demo123",
-        "full_name": "Demo User",
-        "is_admin": False
+        "full_name": "Demo User 1",
+        "is_admin": False,
+        "is_demo": True
+    },
+    {
+        "username": "demo2",
+        "email": "demo2@pantrypal.com",
+        "password": "demo123",
+        "full_name": "Demo User 2",
+        "is_admin": False,
+        "is_demo": True
+    },
+    {
+        "username": "demo3",
+        "email": "demo3@pantrypal.com",
+        "password": "demo123",
+        "full_name": "Demo User 3",
+        "is_admin": False,
+        "is_demo": True
+    },
+    {
+        "username": "demo4",
+        "email": "demo4@pantrypal.com",
+        "password": "demo123",
+        "full_name": "Demo User 4",
+        "is_admin": False,
+        "is_demo": True
     },
     {
         "username": "admin",
         "email": "admin@pantrypal.com",
         "password": "admin123",
         "full_name": "Admin User",
-        "is_admin": True
+        "is_admin": True,
+        "is_demo": False
     }
 ]
 
@@ -108,7 +135,7 @@ async def import_demo_recipes(demo_user_id: str):
         db.close()
 
 try:
-    user_ids = {}  # Store both demo and admin user IDs
+    user_ids = {}  # Store demo and admin user IDs
 
     for user_data in demo_users:
         try:
@@ -118,7 +145,8 @@ try:
                 password=user_data["password"],
                 email=user_data["email"],
                 full_name=user_data["full_name"],
-                is_admin=user_data["is_admin"]
+                is_admin=user_data["is_admin"],
+                is_demo=user_data.get("is_demo", False)
             )
 
             # Mark email as verified for demo accounts
@@ -139,7 +167,7 @@ try:
             else:
                 raise
 
-    # Import demo recipes for both users if configured
+    # Import demo recipes for all demo users if configured
     for username, user_id in user_ids.items():
         if user_id:
             print(f"\n📥 Importing recipes for '{username}' account...")
@@ -147,9 +175,13 @@ try:
 
     print("\n" + "="*50)
     print("✅ Demo data initialized successfully!")
-    print("\nDemo Accounts:")
-    print("  Username: demo      Password: demo123")
-    print("  Username: admin     Password: admin123  (Admin)")
+    print("\nDemo Accounts (auto-logout after 10 minutes):")
+    print("  Username: demo1     Password: demo123")
+    print("  Username: demo2     Password: demo123")
+    print("  Username: demo3     Password: demo123")
+    print("  Username: demo4     Password: demo123")
+    print("\nAdmin Account:")
+    print("  Username: admin     Password: admin123")
     print("="*50 + "\n")
 
 except Exception as e:

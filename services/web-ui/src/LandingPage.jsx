@@ -28,6 +28,11 @@ function LandingPage({ onLoginSuccess }) {
   // OIDC configuration
   const [oidcConfig, setOidcConfig] = useState(null);
 
+  // Demo mode configuration
+  const [demoMode, setDemoMode] = useState(false);
+  const [demoAccounts, setDemoAccounts] = useState([]);
+  const [demoSessionMinutes, setDemoSessionMinutes] = useState(10);
+
   // Toast notifications
   const { toast, showSuccess, showError, hideToast } = useToast();
 
@@ -54,6 +59,12 @@ function LandingPage({ onLoginSuccess }) {
         const data = await response.json();
         if (data.oidc) {
           setOidcConfig(data.oidc);
+        }
+        // Set demo mode config
+        if (data.demo_mode) {
+          setDemoMode(true);
+          setDemoAccounts(data.demo_accounts || []);
+          setDemoSessionMinutes(data.demo_session_minutes || 10);
         }
       }
     } catch (error) {
@@ -392,7 +403,26 @@ function LandingPage({ onLoginSuccess }) {
                     Change server →
                   </button>
                 </div>
-                
+
+                {/* Demo Mode Banner */}
+                {demoMode && demoAccounts.length > 0 && (
+                  <div style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    padding: spacing.md,
+                    borderRadius: borderRadius.md,
+                    marginBottom: spacing.lg,
+                    textAlign: 'center',
+                  }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px', marginBottom: spacing.xs }}>
+                      Demo Mode Active
+                    </div>
+                    <p style={{ fontSize: '13px', margin: 0, opacity: 0.9 }}>
+                      Try the app with demo accounts - click Sign In to see credentials
+                    </p>
+                  </div>
+                )}
+
                 {/* OIDC Login Button (if enabled) */}
                 {oidcConfig?.enabled && (
                   <>
@@ -531,6 +561,52 @@ function LandingPage({ onLoginSuccess }) {
               Sign In to PantryPal
             </h2>
           </div>
+
+          {/* Demo Mode Banner */}
+          {demoMode && demoAccounts.length > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: spacing.lg,
+              borderRadius: borderRadius.lg,
+              marginBottom: spacing.lg,
+            }}>
+              <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: spacing.sm }}>
+                Try PantryPal with a Demo Account
+              </div>
+              <p style={{ fontSize: '14px', margin: 0, marginBottom: spacing.md, opacity: 0.9 }}>
+                Use any of these accounts to explore the app. Sessions auto-expire after {demoSessionMinutes} minutes.
+              </p>
+              <div style={{
+                background: 'rgba(255,255,255,0.15)',
+                borderRadius: borderRadius.md,
+                padding: spacing.md,
+              }}>
+                {demoAccounts.map((account, index) => (
+                  <div
+                    key={account.username}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: `${spacing.xs} 0`,
+                      borderBottom: index < demoAccounts.length - 1 ? '1px solid rgba(255,255,255,0.2)' : 'none',
+                    }}
+                  >
+                    <span style={{ fontFamily: 'monospace', fontSize: '14px' }}>
+                      {account.username}
+                    </span>
+                    <span style={{ fontFamily: 'monospace', fontSize: '14px', opacity: 0.8 }}>
+                      {account.password}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: '12px', margin: 0, marginTop: spacing.sm, opacity: 0.7 }}>
+                Note: Demo accounts cannot create API keys
+              </p>
+            </div>
+          )}
 
           {/* OIDC Login Button (if enabled) */}
           {oidcConfig?.enabled && (
