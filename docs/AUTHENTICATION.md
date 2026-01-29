@@ -54,7 +54,7 @@ PantryPal implements a flexible, multi-method authentication system designed for
 │  - Email Service                                         │
 └─────────────────────┬───────────────────────────────────┘
                       │
-                      │ SQLite
+                      │ PostgreSQL
                       │
 ┌─────────────────────▼───────────────────────────────────┐
 │                   User Database                          │
@@ -848,6 +848,57 @@ Next login:
 - Web: `/backend/services/web-ui/src/SettingsPage.jsx` (admin user form)
 - Backend: `/backend/services/api-gateway/app/main.py` (admin create endpoint)
 - Backend: `/backend/services/api-gateway/app/email_service.py` (welcome email)
+
+---
+
+### Default Admin Account
+
+On first startup, PantryPal creates a default admin account:
+
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | `admin` |
+| Admin | Yes |
+
+**Important:** You should change the default password immediately after first login.
+
+---
+
+### Registration Disabled by Default
+
+Starting with the shared household model, **self-registration is disabled by default** (`ALLOW_REGISTRATION=false`).
+
+This means:
+- New users cannot create their own accounts
+- Only admins can create new user accounts via `/api/admin/users`
+- This is appropriate for household/family deployments where the admin controls access
+
+To enable self-registration (e.g., for demo purposes):
+```bash
+ALLOW_REGISTRATION=true
+```
+
+---
+
+### Admin Promotion/Demotion
+
+Admins can promote or demote users to/from admin status via the `PATCH /api/admin/users/{user_id}` endpoint.
+
+**Request:**
+```json
+{
+  "is_admin": true
+}
+```
+
+**Safety Features:**
+- Cannot modify your own admin status (prevents accidental lockout)
+- Cannot remove admin status from the last admin user (ensures at least one admin always exists)
+
+**Use Cases:**
+- Promote a trusted family member to admin to help manage the household
+- Demote an admin who no longer needs those privileges
 
 ---
 
@@ -1790,8 +1841,8 @@ echo $APP_URL
 # Check email link format in logs
 docker logs pantrypal-api-gateway-1 | grep "verification_link"
 
-# Check database
-sqlite3 data/pantrypal.db "SELECT email_verified FROM users WHERE email='user@example.com'"
+# Check database (connect to PostgreSQL container)
+docker compose exec postgres psql -U pantrypal -d pantrypal -c "SELECT email_verified FROM users WHERE email='user@example.com'"
 ```
 
 **Fix:**
@@ -1897,7 +1948,7 @@ console.log({ hasHardware, isEnrolled, types });
 **Debug:**
 ```bash
 # Check session expiry (default 30 days)
-sqlite3 data/pantrypal.db "SELECT created_at, expires_at FROM sessions ORDER BY created_at DESC LIMIT 1"
+docker compose exec postgres psql -U pantrypal -d pantrypal -c "SELECT created_at, expires_at FROM sessions ORDER BY created_at DESC LIMIT 1"
 
 # Check if session token stored
 # Web: Check browser cookies (DevTools → Application → Cookies)

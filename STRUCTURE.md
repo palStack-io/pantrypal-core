@@ -4,9 +4,8 @@
 pantrypal/
 ├── archive/                    # Old scripts (archived)
 ├── backups/                    # Database backups
-├── data/                       # Runtime data (gitignored)
-│   ├── pantry.db              # Main database
-│   └── uploads/               # Uploaded images
+├── postgres_data/              # PostgreSQL data (Docker volume, gitignored)
+├── minio_data/                 # MinIO object storage (Docker volume, gitignored)
 ├── mobile/                     # React Native mobile app
 │   ├── assets/                # App icons, splash screens
 │   ├── src/
@@ -73,19 +72,21 @@ pantrypal/
 
 | Service | Internal Port | External Port | Description |
 |---------|--------------|---------------|-------------|
-| nginx | 80 | 80 | Reverse proxy & web UI |
+| nginx | 80 | 8888 | Reverse proxy & web UI |
 | api-gateway | 8000 | - | Main API |
 | inventory-service | 8001 | - | Inventory management |
 | lookup-service | 8002 | - | Barcode lookup |
 | web-ui | 5173 | - | React dev server (via nginx) |
+| postgres | 5432 | - | PostgreSQL database |
+| minio | 9000 | - | Object storage (recipe images) |
 
 ## Data Persistence
 
-All persistent data is stored in the `data/` directory:
-- `data/pantry.db` - SQLite database
-- `data/uploads/` - User-uploaded images
+All persistent data is stored in Docker volumes:
+- `postgres_data/` - PostgreSQL database (users, inventory, recipes)
+- `minio_data/` - MinIO object storage (recipe images)
 
-**Important:** The `data/` directory is gitignored and should be backed up separately.
+**Important:** These volumes are gitignored and should be backed up separately.
 
 ## Docker Images
 

@@ -107,7 +107,12 @@ services:
 
       # Authentication
       - AUTH_MODE=${AUTH_MODE:-full}  # Options: none, api_key_only, full, smart
-      - ALLOW_REGISTRATION=true  # Set to false to disable new user signups
+      #
+      # Shared Household Model:
+      # - Default admin account: admin/admin (change password on first login!)
+      # - Registration disabled by default (admin creates users)
+      # - Recipes and pantry shared across all users
+      - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-false}  # Default: false (admin creates users)
 
       # Demo Mode
       - DEMO_MODE=${DEMO_MODE:-false}

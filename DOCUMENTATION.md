@@ -70,10 +70,14 @@ Part of the **PalStack ecosystem** - a suite of privacy-focused, self-hosted app
 | **Email Verification** | Account verification on signup |
 | **Password Recovery** | Token-based reset flow (1-hour TTL) |
 
-### Multi-User Support
+### Multi-User Support (Shared Household Model)
 | Feature | Description |
 |---------|-------------|
-| **User Management** | Create, update, delete users |
+| **Shared Pantry** | One pantry for the whole household |
+| **Shared Recipes** | All users see imported recipes |
+| **Per-User Favorites** | Each user has their own recipe favorites |
+| **Per-User Notes** | Private recipe notes per user |
+| **User Management** | Admin creates users (registration disabled by default) |
 | **Admin Panel** | Full user administration interface |
 | **Session Management** | 30-day sessions with device tracking |
 | **Role-based Access** | Admin vs regular user permissions |
@@ -90,6 +94,11 @@ Part of the **PalStack ecosystem** - a suite of privacy-focused, self-hosted app
   - Track which recipes use expiring items
   - Add missing ingredients to shopping list
   - Image download to local MinIO storage
+- **Shared Household Model:**
+  - Integration configuration is **admin-only**
+  - Imported recipes are **shared** across all users
+  - Favorites and notes are **per-user** (private)
+  - Any user can import/delete recipes
 
 ### Home Assistant
 - **Purpose:** Smart home automation integration
@@ -129,7 +138,7 @@ Part of the **PalStack ecosystem** - a suite of privacy-focused, self-hosted app
 | Component | Technology |
 |-----------|------------|
 | Framework | Python 3.11+ / FastAPI 0.104 |
-| Database | PostgreSQL 15 + SQLite |
+| Database | PostgreSQL 15 |
 | ORM | SQLAlchemy 2.0 |
 | Auth | bcrypt, passlib, python-jose (JWT) |
 | OIDC | Authlib 1.3 |
@@ -264,11 +273,12 @@ pantrypal/
 | **APIKey** | Home Assistant and integration keys |
 | **EmailToken** | Verification and password reset tokens |
 | **OIDCConnection** | Linked OAuth provider accounts |
-| **Item** | Pantry items with barcode, expiry, location |
+| **Item** | Pantry items with barcode, expiry, location (shared) |
 | **ShoppingListItem** | Shopping list entries with check status |
 | **LookupCache** | Cached barcode product data |
-| **Recipe** | Imported recipes with ingredients |
-| **RecipeIntegration** | Connection settings for Mealie/Tandoor |
+| **Recipe** | Imported recipes with ingredients (shared) |
+| **UserRecipePreference** | Per-user favorites, notes, cooking history |
+| **RecipeIntegration** | Connection settings for Mealie/Tandoor (household-level) |
 
 ---
 
@@ -347,19 +357,49 @@ Base URL: `/api/`
 | `/shopping-list/clear-checked` | DELETE | Clear checked |
 
 ### Recipes
+| Endpoint | Methods | Purpose | Access |
+|----------|---------|---------|--------|
+| `/recipes/integration` | GET | Get integration status | All users |
+| `/recipes/integration` | POST | Configure integration | **Admin only** |
+| `/recipes/integration` | DELETE | Remove integration | **Admin only** |
+| `/recipes/import` | POST | Import from Mealie/Tandoor | All users |
+| `/recipes/match` | POST | Match recipes to pantry | All users |
+| `/recipes/` | GET | List recipes (shared) | All users |
+| `/recipes/suggestions` | GET | Get matchable recipes | All users |
+| `/recipes/expiring` | GET | Recipes using expiring items | All users |
+| `/recipes/favorites` | GET | User's favorite recipes | All users |
+| `/recipes/search` | GET | Search recipes | All users |
+| `/recipes/{id}` | GET | Recipe details (with user prefs) | All users |
+| `/recipes/{id}` | DELETE | Delete recipe (for all users) | All users |
+| `/recipes/{id}/favorite` | POST | Toggle favorite (per-user) | All users |
+| `/recipes/{id}/notes` | PATCH | Update notes (per-user) | All users |
+| `/recipes/{id}/cooked` | POST | Mark as cooked (per-user) | All users |
+
+### Admin
 | Endpoint | Methods | Purpose |
 |----------|---------|---------|
-| `/recipes/integration` | GET, POST, DELETE | Integration settings |
-| `/recipes/import` | POST | Import from Mealie/Tandoor |
-| `/recipes/match` | POST | Match recipes to pantry |
-| `/recipes/` | GET | List recipes |
-| `/recipes/suggestions` | GET | Get matchable recipes |
-| `/recipes/expiring` | GET | Recipes using expiring items |
-| `/recipes/favorites` | GET | Favorite recipes |
-| `/recipes/search` | GET | Search recipes |
-| `/recipes/{id}` | GET, DELETE | Recipe details |
-| `/recipes/{id}/favorite` | POST | Toggle favorite |
-| `/recipes/{id}/cooked` | POST | Mark as cooked |
+| `/admin/users` | GET | List all users |
+| `/admin/users` | POST | Create new user |
+| `/admin/users/{user_id}` | GET | Get user details |
+| `/admin/users/{user_id}` | PATCH | Update user (email, name, is_active, is_admin) |
+| `/admin/users/{user_id}` | DELETE | Delete user |
+| `/admin/users/{user_id}/reset-password` | POST | Send password reset email |
+| `/admin/stats` | GET | System statistics |
+
+**Admin Safety Features:**
+- Cannot modify your own `is_admin` status
+- Cannot remove `is_admin` from the last admin user
+
+### Images
+| Endpoint | Methods | Purpose |
+|----------|---------|---------|
+| `/images/product/{barcode}` | GET | Get product image by barcode |
+| `/images/custom/{item_id}` | GET | Get custom item image |
+| `/images/recipe/{recipe_id}` | GET | Get recipe image |
+| `/images/upload/custom` | POST | Upload custom item image |
+| `/images/upload/recipe` | POST | Upload recipe image |
+| `/images/custom/{item_id}` | DELETE | Delete custom item image |
+| `/images/recipe/{recipe_id}` | DELETE | Delete recipe image |
 
 ### Home Assistant
 | Endpoint | Methods | Purpose |
@@ -391,11 +431,17 @@ docker-compose up -d
 # Access at http://localhost:8888
 ```
 
+### First-Time Setup
+1. Login with default admin: `admin` / `admin`
+2. **Change admin password immediately** (Settings → Account)
+3. Create user accounts for household members (Admin → Users)
+4. Configure recipe integrations if desired (Settings → Recipes)
+
 ### Environment Variables
 | Variable | Purpose |
 |----------|---------|
 | `AUTH_MODE` | none, api_key_only, full, smart |
-| `ALLOW_REGISTRATION` | Enable/disable signup |
+| `ALLOW_REGISTRATION` | Enable/disable signup (default: `false`) |
 | `APP_URL` | Base URL for email links |
 | `SMTP_HOST`, `SMTP_PORT` | Email server |
 | `SMTP_USERNAME`, `SMTP_PASSWORD` | Email credentials |

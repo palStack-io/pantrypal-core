@@ -174,7 +174,7 @@ async def health_check():
 @app.get("/api/auth/status")
 async def auth_status():
     """Get current authentication mode and configuration"""
-    allow_registration = os.getenv("ALLOW_REGISTRATION", "true").lower() == "true"
+    allow_registration = os.getenv("ALLOW_REGISTRATION", "false").lower() == "true"
     demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
 
     response = {
@@ -301,7 +301,7 @@ async def register(request: RegisterRequest, response: Response, http_request: R
         )
     
     # Check if registration is allowed
-    allow_registration = os.getenv("ALLOW_REGISTRATION", "true").lower() == "true"
+    allow_registration = os.getenv("ALLOW_REGISTRATION", "false").lower() == "true"
     if not allow_registration:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -1269,8 +1269,9 @@ class ChangePasswordRequest(BaseModel):
 
 class AdminUpdateUserRequest(BaseModel):
     email: Optional[EmailStr] = None
-    full_name: Optional[str] = None  
+    full_name: Optional[str] = None
     is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
 
 class AdminResetPasswordRequest(BaseModel):
     new_password: str
@@ -1397,34 +1398,18 @@ async def list_all_users(auth = Depends(require_admin)):
     }
 
 @app.get("/api/admin/users/{user_id}")
-async def get_user_details(user_id: int, auth = Depends(require_admin)):
+async def get_user_details(user_id: str, auth = Depends(require_admin)):
     """Get specific user details (admin only)"""
-    conn = pg_auth.get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT id, username, email, full_name, is_admin, is_active, created_at, last_login_at
-        FROM users WHERE id = ?
-    """, (user_id,))
-    user = cursor.fetchone()
-    conn.close()
-    
+    user = pg_auth.get_user_by_id(user_id)
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    return {
-        "id": user['id'],
-        "username": user['username'],
-        "email": user['email'],
-        "full_name": user['full_name'],
-        "is_admin": bool(user['is_admin']),
-        "is_active": bool(user['is_active']),
-        "created_at": user['created_at'],
-        "last_login_at": user['last_login_at']
-    }
+
+    return user
 
 @app.patch("/api/admin/users/{user_id}")
 async def update_user(
-    user_id: int,
+    user_id: str,
     user_data: AdminUpdateUserRequest,
     auth = Depends(require_admin)
 ):
@@ -1432,44 +1417,59 @@ async def update_user(
     # Don't allow modifying yourself
     if user_id == auth["id"]:
         raise HTTPException(status_code=400, detail="Cannot modify your own account status")
-    
-    conn = pg_auth.get_db()
-    cursor = conn.cursor()
-    
-    updates = []
-    params = []
-    
-    if user_data.email is not None:
-        cursor.execute("SELECT id FROM users WHERE email = ? AND id != ?", (user_data.email, user_id))
-        if cursor.fetchone():
-            conn.close()
-            raise HTTPException(status_code=400, detail="Email already in use")
-        updates.append("email = ?")
-        params.append(user_data.email)
-    
-    if user_data.full_name is not None:
-        updates.append("full_name = ?")
-        params.append(user_data.full_name)
-    
-    if user_data.is_active is not None:
-        updates.append("is_active = ?")
-        params.append(user_data.is_active)
-    
-    if not updates:
-        conn.close()
+
+    # Check user exists
+    target_user = pg_auth.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    changes_made = False
+
+    # Update profile fields (email, full_name)
+    if user_data.email is not None or user_data.full_name is not None:
+        # Check email uniqueness if changing email
+        if user_data.email is not None:
+            existing = pg_auth.find_user_by_email(user_data.email)
+            if existing and existing["id"] != user_id:
+                raise HTTPException(status_code=400, detail="Email already in use")
+
+        success = pg_auth.update_user_profile(
+            user_id=user_id,
+            email=user_data.email,
+            full_name=user_data.full_name
+        )
+        if success:
+            changes_made = True
+
+    # Update status fields (is_active, is_admin)
+    if user_data.is_active is not None or user_data.is_admin is not None:
+        # If demoting from admin, check this isn't the last admin
+        if user_data.is_admin is False and target_user.get("is_admin"):
+            # Count current admins
+            all_users = pg_auth.list_users()
+            admin_count = sum(1 for u in all_users if u.get("is_admin"))
+            if admin_count <= 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot remove admin status from the last admin user"
+                )
+
+        success = pg_auth.update_user_status(
+            user_id=user_id,
+            is_active=user_data.is_active,
+            is_admin=user_data.is_admin
+        )
+        if success:
+            changes_made = True
+
+    if not changes_made:
         return {"message": "No changes made"}
-    
-    params.append(user_id)
-    query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
-    cursor.execute(query, params)
-    conn.commit()
-    conn.close()
-    
+
     return {"message": "User updated successfully"}
 
 @app.post("/api/admin/users/{user_id}/reset-password")
 async def admin_reset_password(
-    user_id: int,
+    user_id: str,
     password_data: AdminResetPasswordRequest,
     auth = Depends(require_admin)
 ):
@@ -1593,7 +1593,7 @@ async def create_user_by_admin(
         )
 
 @app.delete("/api/admin/users/{user_id}")
-async def delete_user_account(user_id: int, auth = Depends(require_admin)):
+async def delete_user_account(user_id: str, auth = Depends(require_admin)):
     """Delete user account (admin only)"""
     # Don't allow deleting yourself
     if user_id == auth["id"]:

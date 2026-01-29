@@ -71,8 +71,9 @@ const addToShoppingList = async (items) => {
   return results;
 };
 
-export function RecipesPage({ isDark }) {
+export function RecipesPage({ isDark, currentUser }) {
   const colors = getColors(isDark);
+  const isAdmin = currentUser?.is_admin;
 
   const [view, setView] = useState('list'); // 'list', 'detail', 'setup'
   const [recipes, setRecipes] = useState([]);
@@ -340,6 +341,40 @@ export function RecipesPage({ isDark }) {
 
   // Recipe Integration Settings View
   if (view === 'setup') {
+    // Non-admins: Show message that they need admin to configure
+    if (!isAdmin) {
+      return (
+        <div style={{ padding: spacing.xl, maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ fontSize: '64px', marginBottom: spacing.lg }}>🔌</div>
+          <h1 style={{ fontSize: '28px', fontWeight: '900', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>
+            Recipe Integration Not Configured
+          </h1>
+          <p style={{ fontSize: '16px', color: colors.textSecondary, marginBottom: spacing.xl, lineHeight: '1.6' }}>
+            An admin needs to configure the Mealie or Tandoor integration before you can import recipes.
+            Please ask your household admin to set this up in Settings → Recipe Integrations.
+          </p>
+          <div style={{
+            background: colors.background,
+            borderRadius: borderRadius.lg,
+            padding: spacing.xl,
+            textAlign: 'left',
+          }}>
+            <h3 style={{ margin: 0, marginBottom: spacing.md, color: colors.textPrimary }}>
+              What you can do once configured:
+            </h3>
+            <ul style={{ margin: 0, paddingLeft: spacing.lg, color: colors.textSecondary, lineHeight: '1.8' }}>
+              <li>Import recipes from Mealie or Tandoor</li>
+              <li>Search and browse the shared recipe library</li>
+              <li>Mark recipes as favorites (your personal list)</li>
+              <li>Add personal notes to recipes</li>
+              <li>Track which recipes you've cooked</li>
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    // Admins: Show full configuration form
     return (
       <div style={{ padding: spacing.xl, maxWidth: '900px', margin: '0 auto' }}>
         {/* Page Title */}
@@ -367,7 +402,7 @@ export function RecipesPage({ isDark }) {
             </h1>
           </div>
           <p style={{ fontSize: '16px', color: colors.textSecondary, fontWeight: '600', margin: 0 }}>
-            Connect to Mealie or Tandoor to import your recipe collection
+            Connect to Mealie or Tandoor to import your recipe collection (Admin only)
           </p>
         </div>
 
@@ -796,25 +831,28 @@ export function RecipesPage({ isDark }) {
             <RefreshCw size={16} style={matching ? { animation: 'spin 1s linear infinite' } : {}} />
             {matching ? 'Matching...' : 'Match Pantry'}
           </button>
-          <button
-            onClick={() => setView('setup')}
-            style={{
-              padding: `${spacing.sm} ${spacing.md}`,
-              borderRadius: borderRadius.md,
-              background: colors.card,
-              border: `1px solid ${colors.border}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.xs,
-              cursor: 'pointer',
-              color: colors.textPrimary,
-              fontSize: '14px',
-              fontWeight: '500',
-            }}
-          >
-            <Settings size={16} />
-            Settings
-          </button>
+          {/* Settings button - admin only */}
+          {isAdmin && (
+            <button
+              onClick={() => setView('setup')}
+              style={{
+                padding: `${spacing.sm} ${spacing.md}`,
+                borderRadius: borderRadius.md,
+                background: colors.card,
+                border: `1px solid ${colors.border}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+                cursor: 'pointer',
+                color: colors.textPrimary,
+                fontSize: '14px',
+                fontWeight: '500',
+              }}
+            >
+              <Settings size={16} />
+              Settings
+            </button>
+          )}
         </div>
       </div>
 

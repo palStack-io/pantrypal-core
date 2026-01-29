@@ -1581,10 +1581,12 @@ function SettingsPage({ onBack, currentUser, isDark }) {
               🍳 Recipe Integrations
             </h2>
             <p style={{ color: colors.textSecondary, marginBottom: spacing.xl }}>
-              Connect to your Mealie or Tandoor recipe manager to import and sync recipes.
+              {isAdmin
+                ? 'Connect to your Mealie or Tandoor recipe manager to import and sync recipes.'
+                : 'Recipe integrations are configured by admins. You can view the current status and import recipes below.'}
             </p>
 
-            {/* Current Integration Status */}
+            {/* Current Integration Status - visible to all users */}
             {integration?.configured && (
               <div style={{
                 padding: spacing.lg,
@@ -1609,27 +1611,51 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={handleDeleteIntegration}
-                    disabled={integrationLoading}
-                    style={{
-                      padding: `${spacing.sm} ${spacing.md}`,
-                      borderRadius: borderRadius.md,
-                      border: `2px solid ${colors.error || '#ef4444'}`,
-                      background: 'transparent',
-                      color: colors.error || '#ef4444',
-                      fontWeight: '600',
-                      cursor: integrationLoading ? 'not-allowed' : 'pointer',
-                      opacity: integrationLoading ? 0.6 : 1,
-                    }}
-                  >
-                    Remove
-                  </button>
+                  {/* Remove button - admin only */}
+                  {isAdmin && (
+                    <button
+                      onClick={handleDeleteIntegration}
+                      disabled={integrationLoading}
+                      style={{
+                        padding: `${spacing.sm} ${spacing.md}`,
+                        borderRadius: borderRadius.md,
+                        border: `2px solid ${colors.error || '#ef4444'}`,
+                        background: 'transparent',
+                        color: colors.error || '#ef4444',
+                        fontWeight: '600',
+                        cursor: integrationLoading ? 'not-allowed' : 'pointer',
+                        opacity: integrationLoading ? 0.6 : 1,
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Integration Setup Form */}
+            {/* No integration configured message for non-admins */}
+            {!integration?.configured && !isAdmin && (
+              <div style={{
+                padding: spacing.lg,
+                background: colors.background,
+                borderRadius: borderRadius.md,
+                marginBottom: spacing.xl,
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: spacing.md }}>🔌</div>
+                <div style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.sm }}>
+                  No Recipe Integration Configured
+                </div>
+                <div style={{ fontSize: '14px', color: colors.textSecondary }}>
+                  Ask an admin to configure Mealie or Tandoor integration to enable recipe imports.
+                </div>
+              </div>
+            )}
+
+            {/* Integration Setup Form - admin only */}
+            {isAdmin && (
+            <>
             <form onSubmit={handleSaveIntegration}>
               <div style={{ marginBottom: spacing.lg }}>
                 <label style={{
@@ -1801,7 +1827,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
               </button>
             </form>
 
-            {/* Help Section */}
+            {/* Help Section - admin only */}
             <div style={{
               marginTop: spacing.xl,
               paddingTop: spacing.xl,
@@ -1828,6 +1854,8 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 </ol>
               </div>
             </div>
+            </>
+            )}
           </div>
         )}
 

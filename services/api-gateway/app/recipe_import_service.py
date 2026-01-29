@@ -1,6 +1,11 @@
 """
 Recipe Import Service
 Handles bulk import of recipes from Mealie/Tandoor into PantryPal database
+
+Shared Household Model:
+- Recipes are shared across all users
+- import_recipes tracks who imported (imported_by_user_id) for audit
+- No user_id on recipes - one recipe per provider+external_id combination
 """
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional, Tuple
@@ -23,7 +28,7 @@ class RecipeImportService:
 
     async def import_recipes(
         self,
-        user_id: str,
+        imported_by_user_id: str,
         provider: str,
         server_url: str,
         api_token: str,
@@ -34,7 +39,7 @@ class RecipeImportService:
         Import recipes from Mealie or Tandoor
 
         Args:
-            user_id: User importing recipes
+            imported_by_user_id: User who triggered the import (for audit)
             provider: 'mealie' or 'tandoor'
             server_url: Recipe manager server URL
             api_token: API token for authentication
@@ -75,7 +80,7 @@ class RecipeImportService:
             for recipe_data in recipes:
                 try:
                     result = await self._import_recipe(
-                        user_id=user_id,
+                        imported_by_user_id=imported_by_user_id,
                         recipe_data=recipe_data,
                         import_images=import_images
                     )
@@ -98,7 +103,7 @@ class RecipeImportService:
                     })
 
             # Update integration record
-            self._update_integration_stats(user_id, provider, stats)
+            self._update_integration_stats(provider, stats)
 
             return stats
 
@@ -111,12 +116,12 @@ class RecipeImportService:
 
     async def _import_recipe(
         self,
-        user_id: str,
+        imported_by_user_id: str,
         recipe_data: Dict,
         import_images: bool
     ) -> Dict:
         """
-        Import a single recipe
+        Import a single recipe (shared across household)
 
         Returns:
             Dict with status and image_downloaded flag
@@ -126,9 +131,8 @@ class RecipeImportService:
             'image_downloaded': False
         }
 
-        # Check for existing recipe
+        # Check for existing recipe (by provider + external_id only - shared model)
         existing = self._find_existing_recipe(
-            user_id=user_id,
             provider=recipe_data['provider'],
             external_id=recipe_data['external_id']
         )
@@ -139,9 +143,9 @@ class RecipeImportService:
             if updated:
                 result['status'] = 'updated'
         else:
-            # Create new recipe
+            # Create new shared recipe
             recipe = Recipe(
-                user_id=user_id,
+                imported_by_user_id=imported_by_user_id,  # Track who imported for audit
                 external_provider=recipe_data['provider'],
                 external_id=recipe_data['external_id'],
                 external_url=recipe_data.get('source_url'),
@@ -167,7 +171,6 @@ class RecipeImportService:
             # Download and store image if requested
             if import_images and recipe_data.get('image_url'):
                 image_downloaded = await self._download_recipe_image(
-                    user_id=user_id,
                     recipe_id=recipe.id,
                     source_url=recipe_data['image_url'],
                     provider=recipe_data['provider']
@@ -223,22 +226,20 @@ class RecipeImportService:
 
     def _find_existing_recipe(
         self,
-        user_id: str,
         provider: str,
         external_id: str
     ) -> Optional[Recipe]:
         """
-        Find existing recipe by user + provider + external_id
+        Find existing recipe by provider + external_id (shared model)
+        No user_id filter - recipes are shared across the household
         """
         return self.db.query(Recipe).filter(
-            Recipe.user_id == user_id,
             Recipe.external_provider == provider,
             Recipe.external_id == external_id
         ).first()
 
     async def _download_recipe_image(
         self,
-        user_id: str,
         recipe_id: str,
         source_url: str,
         provider: str
@@ -250,9 +251,9 @@ class RecipeImportService:
             True if successful, False otherwise
         """
         try:
-            # Download and upload to MinIO
+            # Download and upload to MinIO (no user_id needed - shared images)
             object_name = await self.minio.download_recipe_image_from_url(
-                user_id=user_id,
+                user_id="shared",  # Use a fixed identifier for shared recipes
                 recipe_id=recipe_id,
                 source_url=source_url
             )
@@ -272,10 +273,9 @@ class RecipeImportService:
                 existing_image.original_url = source_url
                 existing_image.downloaded_at = datetime.utcnow()
             else:
-                # Create new image record
+                # Create new image record (no user_id - shared with recipe)
                 recipe_image = RecipeImage(
                     recipe_id=recipe_id,
-                    user_id=user_id,
                     bucket_name=self.minio.bucket_recipes,
                     object_name=object_name,
                     source=provider,
@@ -294,13 +294,11 @@ class RecipeImportService:
 
     def _update_integration_stats(
         self,
-        user_id: str,
         provider: str,
         stats: Dict
     ):
-        """Update RecipeIntegration record with import statistics"""
+        """Update RecipeIntegration record with import statistics (household-level)"""
         integration = self.db.query(RecipeIntegration).filter(
-            RecipeIntegration.user_id == user_id,
             RecipeIntegration.provider == provider
         ).first()
 
@@ -309,16 +307,17 @@ class RecipeImportService:
             integration.total_recipes_imported = stats['imported'] + stats['updated']
             self.db.commit()
 
-    async def delete_recipe(self, user_id: str, recipe_id: str) -> bool:
+    async def delete_recipe(self, recipe_id: str) -> bool:
         """
-        Delete a recipe and its associated image
+        Delete a shared recipe and its associated image
+
+        Any user can delete shared recipes (collaborative household model)
 
         Returns:
             True if deleted, False if not found
         """
         recipe = self.db.query(Recipe).filter(
-            Recipe.id == recipe_id,
-            Recipe.user_id == user_id
+            Recipe.id == recipe_id
         ).first()
 
         if not recipe:
@@ -335,69 +334,11 @@ class RecipeImportService:
                 object_name=recipe_image.object_name
             )
 
-        # Delete recipe (cascade will delete image record)
+        # Delete recipe (cascade will delete image record and user preferences)
         self.db.delete(recipe)
         self.db.commit()
 
         return True
-
-    def update_recipe_notes(
-        self,
-        user_id: str,
-        recipe_id: str,
-        notes: str
-    ) -> Optional[Recipe]:
-        """Update user notes for a recipe"""
-        recipe = self.db.query(Recipe).filter(
-            Recipe.id == recipe_id,
-            Recipe.user_id == user_id
-        ).first()
-
-        if recipe:
-            recipe.notes = notes
-            recipe.updated_at = datetime.utcnow()
-            self.db.commit()
-
-        return recipe
-
-    def toggle_favorite(
-        self,
-        user_id: str,
-        recipe_id: str
-    ) -> Optional[bool]:
-        """
-        Toggle favorite status for a recipe
-
-        Returns:
-            New favorite status, or None if recipe not found
-        """
-        recipe = self.db.query(Recipe).filter(
-            Recipe.id == recipe_id,
-            Recipe.user_id == user_id
-        ).first()
-
-        if recipe:
-            recipe.favorite = not recipe.favorite
-            recipe.updated_at = datetime.utcnow()
-            self.db.commit()
-            return recipe.favorite
-
-        return None
-
-    def mark_cooked(self, user_id: str, recipe_id: str) -> Optional[Recipe]:
-        """Mark a recipe as cooked (increment counter)"""
-        recipe = self.db.query(Recipe).filter(
-            Recipe.id == recipe_id,
-            Recipe.user_id == user_id
-        ).first()
-
-        if recipe:
-            recipe.times_cooked += 1
-            recipe.last_cooked = datetime.utcnow()
-            recipe.updated_at = datetime.utcnow()
-            self.db.commit()
-
-        return recipe
 
 
 def get_recipe_import_service(db: Session, minio_service: MinIOService) -> RecipeImportService:

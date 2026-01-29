@@ -43,9 +43,9 @@ class User(Base):
     # Relationships
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     oidc_connections = relationship("OIDCConnection", back_populates="user", cascade="all, delete-orphan")
-    recipes = relationship("Recipe", back_populates="user", cascade="all, delete-orphan")
     user_images = relationship("UserImage", back_populates="user", cascade="all, delete-orphan")
-    recipe_integration = relationship("RecipeIntegration", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    recipe_preferences = relationship("UserRecipePreference", back_populates="user", cascade="all, delete-orphan")
+    imported_recipes = relationship("Recipe", back_populates="imported_by_user", foreign_keys="Recipe.imported_by_user_id")
 
 
 class Session(Base):
@@ -186,12 +186,11 @@ class UserImage(Base):
 
 
 class RecipeImage(Base):
-    """Recipe images stored in MinIO"""
+    """Recipe images stored in MinIO (shared with recipes)"""
     __tablename__ = "recipe_images"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     recipe_id = Column(String(36), ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     # MinIO storage
     bucket_name = Column(String(100), default="pantrypal-recipes", nullable=False)
@@ -212,7 +211,6 @@ class RecipeImage(Base):
     __table_args__ = (
         UniqueConstraint('recipe_id', name='uq_recipe_image'),
         Index('idx_recipe_images_recipe', 'recipe_id'),
-        Index('idx_recipe_images_user', 'user_id'),
     )
 
 
@@ -221,13 +219,12 @@ class RecipeImage(Base):
 # ============================================
 
 class RecipeIntegration(Base):
-    """User's recipe integration settings (Mealie/Tandoor)"""
+    """Household-level recipe integration settings (Mealie/Tandoor) - one per provider"""
     __tablename__ = "recipe_integrations"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
 
-    provider = Column(String(50), nullable=False)  # 'mealie', 'tandoor', 'none'
+    provider = Column(String(50), unique=True, nullable=False)  # 'mealie', 'tandoor' - one integration per provider
     server_url = Column(String(255))
     api_token_encrypted = Column(Text)
     enabled = Column(Boolean, default=True)
@@ -241,30 +238,28 @@ class RecipeIntegration(Base):
     last_sync = Column(DateTime)
     total_recipes_imported = Column(Integer, default=0)
 
+    # Audit: who configured this integration
+    configured_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationships
-    user = relationship("User", back_populates="recipe_integration")
-
-    __table_args__ = (
-        Index('idx_recipe_integrations_user', 'user_id'),
-    )
-
 
 class Recipe(Base):
-    """User's imported recipes (permanent, user-owned)"""
+    """Shared recipes for the household (any user can view/delete)"""
     __tablename__ = "recipes"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Audit: who imported this recipe (nullable for audit purposes)
+    imported_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # External source tracking (optional)
     external_provider = Column(String(50))  # 'mealie', 'tandoor', 'manual', null
     external_id = Column(String(255))
     external_url = Column(String(500))
 
-    # Recipe data (owned by user)
+    # Recipe data (shared across household)
     name = Column(String(255), nullable=False)
     description = Column(Text)
     ingredients = Column(JSON, nullable=False)  # List of ingredient dicts
@@ -285,21 +280,6 @@ class Recipe(Base):
     image_bucket = Column(String(100))
     image_object_name = Column(String(500))
 
-    # Match metadata (calculated by pantryPal)
-    match_percentage = Column(DECIMAL(5, 2))
-    uses_expiring_items = Column(Boolean, default=False)
-    expiring_ingredient_count = Column(Integer, default=0)
-    available_ingredient_count = Column(Integer, default=0)
-    missing_ingredient_count = Column(Integer, default=0)
-    missing_ingredients = Column(JSON)
-    expiring_ingredients = Column(JSON)
-
-    # User customization
-    notes = Column(Text)
-    favorite = Column(Boolean, default=False)
-    times_cooked = Column(Integer, default=0)
-    last_cooked = Column(DateTime)
-
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -307,20 +287,19 @@ class Recipe(Base):
     last_synced = Column(DateTime)
 
     # Relationships
-    user = relationship("User", back_populates="recipes")
+    imported_by_user = relationship("User", back_populates="imported_recipes", foreign_keys=[imported_by_user_id])
+    user_preferences = relationship("UserRecipePreference", back_populates="recipe", cascade="all, delete-orphan")
 
     __table_args__ = (
-        UniqueConstraint('user_id', 'external_provider', 'external_id', name='uq_user_external_recipe'),
-        Index('idx_recipes_user', 'user_id'),
-        Index('idx_recipes_match', 'user_id', 'match_percentage'),
-        Index('idx_recipes_expiring', 'user_id', 'uses_expiring_items'),
-        Index('idx_recipes_favorite', 'user_id', 'favorite'),
+        # Unique constraint: one recipe per external_provider + external_id combination
+        UniqueConstraint('external_provider', 'external_id', name='uq_external_recipe'),
         Index('idx_recipes_external', 'external_provider', 'external_id'),
+        Index('idx_recipes_name', 'name'),
     )
 
-    def to_dict(self):
-        """Convert recipe to dictionary"""
-        return {
+    def to_dict(self, user_prefs=None):
+        """Convert recipe to dictionary, optionally with user preferences"""
+        result = {
             'id': self.id,
             'name': self.name,
             'description': self.description,
@@ -335,20 +314,77 @@ class Recipe(Base):
             'tags': self.tags,
             'category': self.category,
             'image_url': self.image_url,
-            'match_percentage': float(self.match_percentage) if self.match_percentage else 0,
-            'uses_expiring_items': self.uses_expiring_items,
-            'expiring_ingredient_count': self.expiring_ingredient_count,
-            'available_ingredient_count': self.available_ingredient_count,
-            'missing_ingredient_count': self.missing_ingredient_count,
-            'missing_ingredients': self.missing_ingredients or [],
-            'expiring_ingredients': self.expiring_ingredients or [],
-            'notes': self.notes,
-            'favorite': self.favorite,
-            'times_cooked': self.times_cooked,
-            'last_cooked': self.last_cooked.isoformat() if self.last_cooked else None,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'imported_at': self.imported_at.isoformat() if self.imported_at else None,
             'external_provider': self.external_provider,
             'external_url': self.external_url,
+            'imported_by_user_id': self.imported_by_user_id,
+            # Default values for user-specific fields (will be overridden if user_prefs provided)
+            'match_percentage': 0,
+            'uses_expiring_items': False,
+            'expiring_ingredient_count': 0,
+            'available_ingredient_count': 0,
+            'missing_ingredient_count': 0,
+            'missing_ingredients': [],
+            'expiring_ingredients': [],
+            'notes': None,
+            'favorite': False,
+            'times_cooked': 0,
+            'last_cooked': None,
         }
+
+        # Override with user-specific preferences if provided
+        if user_prefs:
+            result['match_percentage'] = float(user_prefs.match_percentage) if user_prefs.match_percentage else 0
+            result['uses_expiring_items'] = user_prefs.uses_expiring_items or False
+            result['expiring_ingredient_count'] = user_prefs.expiring_ingredient_count or 0
+            result['available_ingredient_count'] = user_prefs.available_ingredient_count or 0
+            result['missing_ingredient_count'] = user_prefs.missing_ingredient_count or 0
+            result['missing_ingredients'] = user_prefs.missing_ingredients or []
+            result['expiring_ingredients'] = user_prefs.expiring_ingredients or []
+            result['notes'] = user_prefs.notes
+            result['favorite'] = user_prefs.favorite or False
+            result['times_cooked'] = user_prefs.times_cooked or 0
+            result['last_cooked'] = user_prefs.last_cooked.isoformat() if user_prefs.last_cooked else None
+
+        return result
+
+
+class UserRecipePreference(Base):
+    """User-specific preferences for shared recipes"""
+    __tablename__ = "user_recipe_preferences"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    recipe_id = Column(String(36), ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False)
+
+    # User-specific preferences
+    favorite = Column(Boolean, default=False)
+    notes = Column(Text)
+    times_cooked = Column(Integer, default=0)
+    last_cooked = Column(DateTime)
+
+    # Per-user match data (based on shared pantry, but stored per-user for flexibility)
+    match_percentage = Column(DECIMAL(5, 2))
+    uses_expiring_items = Column(Boolean, default=False)
+    expiring_ingredient_count = Column(Integer, default=0)
+    available_ingredient_count = Column(Integer, default=0)
+    missing_ingredient_count = Column(Integer, default=0)
+    missing_ingredients = Column(JSON)
+    expiring_ingredients = Column(JSON)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="recipe_preferences")
+    recipe = relationship("Recipe", back_populates="user_preferences")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'recipe_id', name='uq_user_recipe_preference'),
+        Index('idx_user_recipe_prefs_user', 'user_id'),
+        Index('idx_user_recipe_prefs_recipe', 'recipe_id'),
+        Index('idx_user_recipe_prefs_favorite', 'user_id', 'favorite'),
+        Index('idx_user_recipe_prefs_match', 'user_id', 'match_percentage'),
+    )

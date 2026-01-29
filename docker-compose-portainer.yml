@@ -1,11 +1,78 @@
 version: '3.8'
 
+# ===================================
+# PantryPal - Portainer Stack
+# ===================================
+# This file is optimized for deployment via Portainer.
+# Update the volume paths below to match your host system.
+#
+# Required: Create a .env file or set these in Portainer:
+#   - DB_PASSWORD: PostgreSQL password
+#   - SECRET_KEY: Application secret key
+#   - MINIO_ROOT_USER: MinIO admin username
+#   - MINIO_ROOT_PASSWORD: MinIO admin password
+#
+# Optional environment variables:
+#   - SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD
+#   - SMTP_FROM_EMAIL, SMTP_FROM_NAME, SMTP_USE_TLS
+#   - APP_URL: Public URL for email links
+#   - AUTH_MODE: none, api_key_only, full, smart (default: full)
+#   - DEMO_MODE: Enable demo mode (default: false)
+# ===================================
+
 services:
+  # ===================================
+  # PostgreSQL Database
+  # ===================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: pantrypal-postgres
+    environment:
+      POSTGRES_DB: pantrypal
+      POSTGRES_USER: pantrypal
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pantrypal_secure_password}
+    volumes:
+      # UPDATE THIS PATH for your system
+      - /path/to/pantrypal/postgres:/var/lib/postgresql/data
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pantrypal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===================================
+  # MinIO Object Storage
+  # ===================================
+  minio:
+    image: minio/minio:latest
+    container_name: pantrypal-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      # UPDATE THIS PATH for your system
+      - /path/to/pantrypal/minio:/data
+    networks:
+      - pantrypal-network
+    ports:
+      - "9000:9000"  # S3 API (optional - only needed for external access)
+      - "9001:9001"  # Web Console (optional - only needed for admin access)
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
   # ===================================
   # nginx Reverse Proxy
   # ===================================
   nginx:
-    image: harung43/pantrypal-nginx:latest
+    image: ghcr.io/palstack-io/pantrypal-nginx:latest
     container_name: pantrypal-nginx
     ports:
       - "8080:80"
@@ -25,32 +92,81 @@ services:
   # API Gateway
   # ===================================
   api-gateway:
-    image: harung43/pantrypal-api-gateway:latest
+    image: ghcr.io/palstack-io/pantrypal-api-gateway:latest
     container_name: pantrypal-api-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      inventory-service:
+        condition: service_started
+      lookup-service:
+        condition: service_started
     environment:
+      # Service URLs
       - INVENTORY_SERVICE_URL=http://inventory-service:8001
       - LOOKUP_SERVICE_URL=http://lookup-service:8002
-      - AUTH_MODE=full  # Options: none, api_key_only, full, smart
+
+      # Database (PostgreSQL)
+      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:-pantrypal_secure_password}@postgres:5432/pantrypal
+
+      # MinIO Configuration
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - MINIO_SECURE=false
+
+      # Bucket Names
+      - MINIO_BUCKET_PRODUCTS=pantrypal-products
+      - MINIO_BUCKET_USERS=pantrypal-users
+      - MINIO_BUCKET_RECEIPTS=pantrypal-receipts
+      - MINIO_BUCKET_RECIPES=pantrypal-recipes
+
+      # Recipe Integration
+      - ENABLE_RECIPE_INTEGRATION=true
+
+      # Security
+      - SECRET_KEY=${SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
+
+      # Authentication
+      # Options: none, api_key_only, full, smart
       # none: No authentication (open access)
       # api_key_only: API keys required for all requests
       # full: Login required for UI, API keys OR session for API
-      # smart: Local network = open, external = login/API key required (uses TRUSTED_NETWORKS)
-      - ALLOW_REGISTRATION=false  # Set to false to disable new user signups
-      # CORS Configuration - Use "*" for wildcard or specify origins
-      - CORS_ORIGINS=*
-      # Database paths - store all DBs in the mounted data directory
-      - USERS_DB_PATH=/app/data/users.db
-      - API_KEYS_DB_PATH=/app/data/api_keys.db
-      # Email settings (for password reset and notifications)
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USERNAME=hqhinge@gmail.com
-      - SMTP_PASSWORD=frtodkfuxtxwrkpr
-      - SMTP_FROM_EMAIL=hqhinge@gmail.com
-      - SMTP_FROM_NAME=PantryPal
-      - SMTP_USE_TLS=true
+      # smart: Local network = open, external = login/API key required
+      - AUTH_MODE=${AUTH_MODE:-full}
+      #
+      # Shared Household Model:
+      # - Default admin account: admin/admin (CHANGE PASSWORD ON FIRST LOGIN!)
+      # - Registration disabled by default (admin creates users)
+      # - Recipes and pantry shared across all household members
+      # - Favorites, notes, and cooking history are per-user
+      # - Mealie/Tandoor integration is admin-only to configure
+      - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-false}
+
+      # Demo Mode
+      - DEMO_MODE=${DEMO_MODE:-false}
+      - DEMO_MEALIE_URL=${DEMO_MEALIE_URL:-}
+      - DEMO_MEALIE_TOKEN=${DEMO_MEALIE_TOKEN:-}
+
+      # CORS Configuration
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+
+      # Email settings (optional - for password reset)
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-PantryPal}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
+
+      # Application URL (for email links)
+      - APP_URL=${APP_URL:-}
     volumes:
-      - /home/harungunasekaran/Documents/docket_mnt/pantrypal/data:/app/data
+      # UPDATE THIS PATH for your system
+      - /path/to/pantrypal/data:/app/data
     networks:
       - pantrypal-network
     restart: unless-stopped
@@ -64,19 +180,19 @@ services:
   # Inventory Service
   # ===================================
   inventory-service:
-    image: harung43/pantrypal-inventory-service:latest
+    image: ghcr.io/palstack-io/pantrypal-inventory:latest
     container_name: pantrypal-inventory-service
     environment:
       - DATABASE_URL=sqlite:////app/data/inventory/inventory.db
       # Backup Configuration (optional)
-      - BACKUP_ENABLED=false
-      - BACKUP_SCHEDULE=0 2 * * *
-      - BACKUP_RETENTION_DAYS=7
+      - BACKUP_ENABLED=${BACKUP_ENABLED:-false}
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 2 * * *}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
       - BACKUP_PATH=/app/backups
     volumes:
-      - /home/harungunasekaran/Documents/docket_mnt/pantrypal/data/inventory:/app/data/inventory
-      # Uncomment below if BACKUP_ENABLED=true
-      # - /home/harungunasekaran/Documents/docket_mnt/pantrypal/backups:/app/backups
+      # UPDATE THESE PATHS for your system
+      - /path/to/pantrypal/data/inventory:/app/data/inventory
+      - /path/to/pantrypal/backups:/app/backups
     networks:
       - pantrypal-network
     restart: unless-stopped
@@ -85,13 +201,14 @@ services:
   # Lookup Service
   # ===================================
   lookup-service:
-    image: harung43/pantrypal-lookup-service:latest
+    image: ghcr.io/palstack-io/pantrypal-lookup:latest
     container_name: pantrypal-lookup-service
     environment:
       - CACHE_DB_PATH=/app/data/lookup_cache/lookup_cache.db
-      - CACHE_TTL_DAYS=30
+      - CACHE_TTL_DAYS=${CACHE_TTL_DAYS:-30}
     volumes:
-      - /home/harungunasekaran/Documents/docket_mnt/pantrypal/data/lookup_cache:/app/data/lookup_cache
+      # UPDATE THIS PATH for your system
+      - /path/to/pantrypal/data/lookup_cache:/app/data/lookup_cache
     networks:
       - pantrypal-network
     restart: unless-stopped
@@ -100,7 +217,7 @@ services:
   # Web UI (React Dashboard)
   # ===================================
   web-ui:
-    image: harung43/pantrypal-web-ui:latest
+    image: ghcr.io/palstack-io/pantrypal-web:latest
     container_name: pantrypal-web-ui
     environment:
       - NODE_ENV=production
@@ -111,8 +228,3 @@ services:
 networks:
   pantrypal-network:
     driver: bridge
-
-# Note: The volumes section below is not needed since we're using bind mounts
-# volumes:
-#   inventory_data:
-#   lookup_cache_data:

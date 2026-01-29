@@ -2,6 +2,11 @@
 """
 Initialize demo data on container startup
 Creates demo users and optionally imports recipes from Mealie
+
+Shared Household Model:
+- Demo users share the same recipes (imported once)
+- Each demo user has their own favorites/notes/cooking history
+- Recipe integration is configured at household level (one per provider)
 """
 import os
 import sys
@@ -70,8 +75,15 @@ demo_users = [
     }
 ]
 
-async def import_demo_recipes(demo_user_id: str):
-    """Import recipes from Mealie if configured"""
+async def setup_demo_recipes(admin_user_id: str):
+    """
+    Set up shared recipe integration and import recipes.
+
+    With the shared household model:
+    - Recipe integration is configured once at household level (by admin)
+    - Recipes are imported once and shared across all users
+    - Each user maintains their own favorites/notes/cooking history
+    """
     mealie_url = os.getenv("DEMO_MEALIE_URL")
     mealie_token = os.getenv("DEMO_MEALIE_TOKEN")
 
@@ -79,42 +91,43 @@ async def import_demo_recipes(demo_user_id: str):
         print("ℹ️  No demo Mealie configuration found (DEMO_MEALIE_URL/DEMO_MEALIE_TOKEN)")
         return
 
-    print(f"🍳 Importing demo recipes from Mealie: {mealie_url}")
+    print(f"🍳 Setting up shared recipe integration from Mealie: {mealie_url}")
 
     db = SessionLocal()
     try:
-        # Check if integration already exists
+        # Check if integration already exists for this provider (household-level)
         existing = db.query(RecipeIntegration).filter(
-            RecipeIntegration.user_id == demo_user_id
+            RecipeIntegration.provider == 'mealie'
         ).first()
 
         if existing:
-            print("✓ Recipe integration already configured")
+            print("✓ Mealie recipe integration already configured")
         else:
-            # Create recipe integration
+            # Create recipe integration (household-level, one per provider)
             security = get_security_service()
             encrypted_token = security.encrypt_api_token(mealie_token)
 
             integration = RecipeIntegration(
-                user_id=demo_user_id,
                 provider='mealie',
                 server_url=mealie_url,
                 api_token_encrypted=encrypted_token,
                 enabled=True,
                 import_images=True,
                 auto_sync=False,
+                configured_by_user_id=admin_user_id,  # Track who configured it
                 created_at=datetime.utcnow()
             )
             db.add(integration)
             db.commit()
-            print("✅ Recipe integration configured")
+            print("✅ Mealie recipe integration configured (household-level)")
 
-        # Import recipes
+        # Import recipes (shared across all users)
         minio = get_minio_service()
         import_service = RecipeImportService(db, minio)
 
+        print("📥 Importing shared recipes...")
         stats = await import_service.import_recipes(
-            user_id=demo_user_id,
+            imported_by_user_id=admin_user_id,  # Track who imported for audit
             provider='mealie',
             server_url=mealie_url,
             api_token=mealie_token,
@@ -126,6 +139,7 @@ async def import_demo_recipes(demo_user_id: str):
         print(f"   Downloaded {stats['images_downloaded']} images")
         if stats['failed'] > 0:
             print(f"   ⚠️  {stats['failed']} failed")
+        print("   Recipes are now shared across all demo users")
 
     except Exception as e:
         print(f"❌ Recipe import error: {e}")
@@ -136,6 +150,7 @@ async def import_demo_recipes(demo_user_id: str):
 
 try:
     user_ids = {}  # Store demo and admin user IDs
+    admin_user_id = None
 
     for user_data in demo_users:
         try:
@@ -154,8 +169,10 @@ try:
 
             print(f"✅ Created user '{user_data['username']}' (password: {user_data['password']})")
 
-            # Save user IDs for recipe import
+            # Save user IDs
             user_ids[user_data["username"]] = user["id"]
+            if user_data["is_admin"]:
+                admin_user_id = user["id"]
 
         except ValueError as e:
             if "already exists" in str(e):
@@ -164,17 +181,25 @@ try:
                 existing = find_user_by_email(user_data["email"])
                 if existing:
                     user_ids[user_data["username"]] = existing["id"]
+                    if user_data["is_admin"]:
+                        admin_user_id = existing["id"]
             else:
                 raise
 
-    # Import demo recipes for all demo users if configured
-    for username, user_id in user_ids.items():
-        if user_id:
-            print(f"\n📥 Importing recipes for '{username}' account...")
-            asyncio.run(import_demo_recipes(user_id))
+    # Import demo recipes ONCE for the household (using admin account)
+    # With shared model, recipes only need to be imported once
+    if admin_user_id:
+        print("\n📥 Setting up shared recipes for the household...")
+        asyncio.run(setup_demo_recipes(admin_user_id))
+    else:
+        print("\n⚠️  No admin user found, skipping recipe import")
 
     print("\n" + "="*50)
     print("✅ Demo data initialized successfully!")
+    print("\n📋 Shared Household Model:")
+    print("   - All demo users share the same pantry")
+    print("   - All demo users share the same recipes")
+    print("   - Favorites, notes, and cooking history are per-user")
     print("\nDemo Accounts (auto-logout after 10 minutes):")
     print("  Username: demo1     Password: demo123")
     print("  Username: demo2     Password: demo123")

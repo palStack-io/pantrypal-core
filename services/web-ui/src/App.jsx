@@ -110,7 +110,7 @@ function AppContent() {
             <Route path="/add" element={<AddItemPage onBack={() => navigate('/inventory')} isDark={isDark} />} />
             <Route path="/shopping" element={<ShoppingListPage isDark={isDark} />} />
             <Route path="/insights" element={<InsightsPage isDark={isDark} />} />
-            <Route path="/recipes" element={<RecipesPage isDark={isDark} />} />
+            <Route path="/recipes" element={<RecipesPage isDark={isDark} currentUser={currentUser} />} />
             <Route path="/settings" element={<SettingsPage currentUser={currentUser} onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }} onBack={() => navigate('/inventory')} isDark={isDark} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

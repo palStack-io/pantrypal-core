@@ -1,16 +1,23 @@
 """
 Recipe API Routes
 Handles recipe management, import, search, and matching
+
+Shared Household Model:
+- Recipes are shared across all users (any user can view/delete)
+- Integration configuration is admin-only (one per provider for the household)
+- User preferences (favorites, notes, times_cooked) are per-user
+- Recipe matching stores results in UserRecipePreference
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import desc, asc
 from typing import List, Optional
 from pydantic import BaseModel
 import httpx
 
 from ..database import get_db
-from ..models import User, Recipe, RecipeIntegration
-from ..auth import get_current_user
+from ..models import User, Recipe, RecipeIntegration, UserRecipePreference
+from ..auth import get_current_user, require_admin
 from ..minio_service import get_minio_service, MinIOService
 from ..recipe_import_service import get_recipe_import_service, RecipeImportService
 from ..recipe_matcher import get_recipe_matcher, RecipeMatcher
@@ -55,17 +62,43 @@ class MatchRecipesRequest(BaseModel):
 
 
 # ============================================
-# Recipe Integration Endpoints
+# Helper Functions
+# ============================================
+
+def get_user_preference(db: Session, user_id: str, recipe_id: str) -> Optional[UserRecipePreference]:
+    """Get user's preference for a recipe, or None if not exists"""
+    return db.query(UserRecipePreference).filter(
+        UserRecipePreference.user_id == user_id,
+        UserRecipePreference.recipe_id == recipe_id
+    ).first()
+
+
+def get_or_create_user_preference(db: Session, user_id: str, recipe_id: str) -> UserRecipePreference:
+    """Get or create user's preference for a recipe"""
+    pref = get_user_preference(db, user_id, recipe_id)
+    if not pref:
+        pref = UserRecipePreference(
+            user_id=user_id,
+            recipe_id=recipe_id
+        )
+        db.add(pref)
+        db.flush()
+    return pref
+
+
+# ============================================
+# Recipe Integration Endpoints (Admin Only for POST/DELETE)
 # ============================================
 
 @router.post("/integration")
 async def create_recipe_integration(
     integration_data: RecipeIntegrationCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),  # Admin only
     db: Session = Depends(get_db)
 ):
     """
     Create or update recipe integration (Mealie/Tandoor)
+    Admin only - one integration per provider for the household
     """
     # Validate provider
     if integration_data.provider not in ['mealie', 'tandoor']:
@@ -86,6 +119,8 @@ async def create_recipe_integration(
                 detail=f"Failed to connect: {test_result.get('error', 'Unknown error')}"
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Connection test failed: {str(e)}")
 
@@ -93,31 +128,31 @@ async def create_recipe_integration(
     security = get_security_service()
     encrypted_token = security.encrypt_api_token(integration_data.api_token)
 
-    # Check if integration already exists
+    # Check if integration for this provider already exists
     existing = db.query(RecipeIntegration).filter(
-        RecipeIntegration.user_id == current_user.id
+        RecipeIntegration.provider == integration_data.provider
     ).first()
 
     if existing:
         # Update existing
-        existing.provider = integration_data.provider
         existing.server_url = integration_data.server_url
         existing.api_token_encrypted = encrypted_token
         existing.import_images = integration_data.import_images
         existing.auto_sync = integration_data.auto_sync
         existing.enabled = True
+        existing.configured_by_user_id = current_user.id
         db.commit()
         return {"success": True, "message": "Integration updated", "total_recipes": test_result.get('total_recipes', 0)}
     else:
         # Create new
         new_integration = RecipeIntegration(
-            user_id=current_user.id,
             provider=integration_data.provider,
             server_url=integration_data.server_url,
             api_token_encrypted=encrypted_token,
             enabled=True,
             import_images=integration_data.import_images,
-            auto_sync=integration_data.auto_sync
+            auto_sync=integration_data.auto_sync,
+            configured_by_user_id=current_user.id
         )
         db.add(new_integration)
         db.commit()
@@ -126,49 +161,78 @@ async def create_recipe_integration(
 
 @router.get("/integration")
 async def get_recipe_integration(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),  # Any authenticated user can view
     db: Session = Depends(get_db)
 ):
     """
     Get current recipe integration settings
+    Any authenticated user can view (read-only)
     """
-    integration = db.query(RecipeIntegration).filter(
-        RecipeIntegration.user_id == current_user.id
-    ).first()
+    # Get all enabled integrations (there's one per provider)
+    integrations = db.query(RecipeIntegration).filter(
+        RecipeIntegration.enabled == True
+    ).all()
 
-    if not integration:
-        return {"configured": False}
+    if not integrations:
+        return {"configured": False, "integrations": []}
+
+    # Return list of integrations (could be mealie and/or tandoor)
+    integration_list = []
+    for integration in integrations:
+        integration_list.append({
+            "provider": integration.provider,
+            "server_url": integration.server_url,
+            "enabled": integration.enabled,
+            "import_images": integration.import_images,
+            "auto_sync": integration.auto_sync,
+            "last_sync": integration.last_sync.isoformat() if integration.last_sync else None,
+            "total_recipes_imported": integration.total_recipes_imported
+        })
 
     return {
         "configured": True,
-        "provider": integration.provider,
-        "server_url": integration.server_url,
-        "enabled": integration.enabled,
-        "import_images": integration.import_images,
-        "auto_sync": integration.auto_sync,
-        "last_sync": integration.last_sync.isoformat() if integration.last_sync else None,
-        "total_recipes_imported": integration.total_recipes_imported
+        "integrations": integration_list,
+        # For backwards compatibility, also return first integration's data at top level
+        "provider": integrations[0].provider if integrations else None,
+        "server_url": integrations[0].server_url if integrations else None,
+        "enabled": integrations[0].enabled if integrations else False,
+        "import_images": integrations[0].import_images if integrations else True,
+        "auto_sync": integrations[0].auto_sync if integrations else False,
+        "last_sync": integrations[0].last_sync.isoformat() if integrations and integrations[0].last_sync else None,
+        "total_recipes_imported": integrations[0].total_recipes_imported if integrations else 0
     }
 
 
 @router.delete("/integration")
 async def delete_recipe_integration(
-    current_user: User = Depends(get_current_user),
+    provider: Optional[str] = Query(None, description="Provider to delete (mealie/tandoor). If not specified, deletes all."),
+    current_user: User = Depends(require_admin),  # Admin only
     db: Session = Depends(get_db)
 ):
     """
     Delete recipe integration (keeps imported recipes)
+    Admin only
     """
-    integration = db.query(RecipeIntegration).filter(
-        RecipeIntegration.user_id == current_user.id
-    ).first()
+    if provider:
+        # Delete specific provider
+        integration = db.query(RecipeIntegration).filter(
+            RecipeIntegration.provider == provider
+        ).first()
 
-    if not integration:
-        raise HTTPException(status_code=404, detail="No integration configured")
+        if not integration:
+            raise HTTPException(status_code=404, detail=f"No {provider} integration configured")
 
-    db.delete(integration)
+        db.delete(integration)
+    else:
+        # Delete all integrations
+        integrations = db.query(RecipeIntegration).all()
+        if not integrations:
+            raise HTTPException(status_code=404, detail="No integration configured")
+
+        for integration in integrations:
+            db.delete(integration)
+
     db.commit()
-
     return {"success": True, "message": "Integration deleted. Imported recipes remain."}
 
 
@@ -179,18 +243,20 @@ async def delete_recipe_integration(
 @router.post("/import")
 async def import_recipes(
     import_request: RecipeImportRequest,
-    current_user: User = Depends(get_current_user),
+    provider: Optional[str] = Query(None, description="Provider to import from (mealie/tandoor)"),
+    current_user: User = Depends(get_current_user),  # Any user can import
     db: Session = Depends(get_db),
     minio: MinIOService = Depends(get_minio_service)
 ):
     """
     Import recipes from configured integration
+    Any user can import - recipes become shared across household
     """
-    # Get integration
-    integration = db.query(RecipeIntegration).filter(
-        RecipeIntegration.user_id == current_user.id,
-        RecipeIntegration.enabled == True
-    ).first()
+    # Get integration (optionally filtered by provider)
+    query = db.query(RecipeIntegration).filter(RecipeIntegration.enabled == True)
+    if provider:
+        query = query.filter(RecipeIntegration.provider == provider)
+    integration = query.first()
 
     if not integration:
         raise HTTPException(status_code=400, detail="No recipe integration configured")
@@ -203,7 +269,7 @@ async def import_recipes(
     import_service = get_recipe_import_service(db, minio)
 
     stats = await import_service.import_recipes(
-        user_id=current_user.id,
+        imported_by_user_id=current_user.id,  # Track who imported for audit
         provider=integration.provider,
         server_url=integration.server_url,
         api_token=api_token,
@@ -233,31 +299,51 @@ async def get_recipes(
     favorite_only: bool = Query(False)
 ):
     """
-    Get user's recipes with pagination and sorting
+    Get all shared recipes with pagination and sorting
+    User preferences (favorites, match%) are per-user
     """
-    query = db.query(Recipe).filter(Recipe.user_id == current_user.id)
+    # Query all recipes with LEFT JOIN to user preferences
+    from sqlalchemy.orm import aliased
+
+    # Build base query
+    query = db.query(Recipe, UserRecipePreference).outerjoin(
+        UserRecipePreference,
+        (Recipe.id == UserRecipePreference.recipe_id) &
+        (UserRecipePreference.user_id == current_user.id)
+    )
 
     if favorite_only:
-        query = query.filter(Recipe.favorite == True)
+        query = query.filter(UserRecipePreference.favorite == True)
 
     # Apply sorting
+    order_func = desc if order == "desc" else asc
     if sort_by == "match_percentage":
-        query = query.order_by(Recipe.match_percentage.desc() if order == "desc" else Recipe.match_percentage.asc())
+        query = query.order_by(order_func(UserRecipePreference.match_percentage))
     elif sort_by == "name":
-        query = query.order_by(Recipe.name.desc() if order == "desc" else Recipe.name.asc())
+        query = query.order_by(order_func(Recipe.name))
     elif sort_by == "created_at":
-        query = query.order_by(Recipe.created_at.desc() if order == "desc" else Recipe.created_at.asc())
+        query = query.order_by(order_func(Recipe.created_at))
     elif sort_by == "last_cooked":
-        query = query.order_by(Recipe.last_cooked.desc() if order == "desc" else Recipe.last_cooked.asc())
+        query = query.order_by(order_func(UserRecipePreference.last_cooked))
 
-    total = query.count()
-    recipes = query.offset(offset).limit(limit).all()
+    # Get total count (without pagination)
+    total = db.query(Recipe).count()
+    if favorite_only:
+        total = query.count()
+
+    # Apply pagination
+    results = query.offset(offset).limit(limit).all()
+
+    # Convert to dict with user preferences
+    recipes = []
+    for recipe, user_pref in results:
+        recipes.append(recipe.to_dict(user_prefs=user_pref))
 
     return {
         "total": total,
         "limit": limit,
         "offset": offset,
-        "recipes": [recipe.to_dict() for recipe in recipes]
+        "recipes": recipes
     }
 
 
@@ -272,7 +358,7 @@ async def get_recipe_suggestions(
     Get recipe suggestions based on pantry matches
     """
     matcher = get_recipe_matcher(db)
-    recipes = matcher.get_recipe_suggestions(
+    results = matcher.get_recipe_suggestions(
         user_id=current_user.id,
         min_match_percentage=min_match,
         prioritize_expiring=True,
@@ -280,8 +366,8 @@ async def get_recipe_suggestions(
     )
 
     return {
-        "count": len(recipes),
-        "recipes": [recipe.to_dict() for recipe in recipes]
+        "count": len(results),
+        "recipes": [recipe.to_dict(user_prefs=pref) for recipe, pref in results]
     }
 
 
@@ -295,14 +381,14 @@ async def get_recipes_using_expiring(
     Get recipes that use items expiring soon
     """
     matcher = get_recipe_matcher(db)
-    recipes = matcher.get_recipes_using_expiring(
+    results = matcher.get_recipes_using_expiring(
         user_id=current_user.id,
         limit=limit
     )
 
     return {
-        "count": len(recipes),
-        "recipes": [recipe.to_dict() for recipe in recipes]
+        "count": len(results),
+        "recipes": [recipe.to_dict(user_prefs=pref) for recipe, pref in results]
     }
 
 
@@ -317,7 +403,7 @@ async def search_recipes(
     Search recipes by name, description, or cuisine
     """
     matcher = get_recipe_matcher(db)
-    recipes = matcher.search_recipes(
+    results = matcher.search_recipes(
         user_id=current_user.id,
         query=q,
         limit=limit
@@ -325,8 +411,8 @@ async def search_recipes(
 
     return {
         "query": q,
-        "count": len(recipes),
-        "recipes": [recipe.to_dict() for recipe in recipes]
+        "count": len(results),
+        "recipes": [recipe.to_dict(user_prefs=pref) for recipe, pref in results]
     }
 
 
@@ -339,11 +425,11 @@ async def get_favorite_recipes(
     Get user's favorite recipes
     """
     matcher = get_recipe_matcher(db)
-    recipes = matcher.get_favorites(user_id=current_user.id)
+    results = matcher.get_favorites(user_id=current_user.id)
 
     return {
-        "count": len(recipes),
-        "recipes": [recipe.to_dict() for recipe in recipes]
+        "count": len(results),
+        "recipes": [recipe.to_dict(user_prefs=pref) for recipe, pref in results]
     }
 
 
@@ -354,17 +440,17 @@ async def get_recipe(
     db: Session = Depends(get_db)
 ):
     """
-    Get single recipe by ID
+    Get single recipe by ID (shared recipe, with user's preferences)
     """
-    recipe = db.query(Recipe).filter(
-        Recipe.id == recipe_id,
-        Recipe.user_id == current_user.id
-    ).first()
+    recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
 
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
-    return recipe.to_dict()
+    # Get user's preferences for this recipe
+    user_pref = get_user_preference(db, current_user.id, recipe_id)
+
+    return recipe.to_dict(user_prefs=user_pref)
 
 
 # ============================================
@@ -379,6 +465,7 @@ async def match_recipes_to_pantry(
 ):
     """
     Calculate match percentages for all recipes based on current pantry
+    Results stored in UserRecipePreference for the current user
     """
     import os
     inventory_url = os.getenv("INVENTORY_SERVICE_URL", "http://inventory-service:8001")
@@ -419,21 +506,20 @@ async def update_recipe_notes(
     recipe_id: str,
     notes_update: RecipeNotesUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    minio: MinIOService = Depends(get_minio_service)
+    db: Session = Depends(get_db)
 ):
     """
-    Update recipe notes
+    Update user's notes for a recipe (stored in UserRecipePreference)
     """
-    import_service = get_recipe_import_service(db, minio)
-    recipe = import_service.update_recipe_notes(
-        user_id=current_user.id,
-        recipe_id=recipe_id,
-        notes=notes_update.notes
-    )
-
+    # Verify recipe exists
+    recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
+
+    # Get or create user preference
+    pref = get_or_create_user_preference(db, current_user.id, recipe_id)
+    pref.notes = notes_update.notes
+    db.commit()
 
     return {"success": True, "message": "Notes updated"}
 
@@ -442,25 +528,25 @@ async def update_recipe_notes(
 async def toggle_favorite(
     recipe_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    minio: MinIOService = Depends(get_minio_service)
+    db: Session = Depends(get_db)
 ):
     """
-    Toggle favorite status for a recipe
+    Toggle favorite status for a recipe (stored in UserRecipePreference)
     """
-    import_service = get_recipe_import_service(db, minio)
-    new_status = import_service.toggle_favorite(
-        user_id=current_user.id,
-        recipe_id=recipe_id
-    )
-
-    if new_status is None:
+    # Verify recipe exists
+    recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
+    if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
+
+    # Get or create user preference
+    pref = get_or_create_user_preference(db, current_user.id, recipe_id)
+    pref.favorite = not (pref.favorite or False)
+    db.commit()
 
     return {
         "success": True,
-        "favorite": new_status,
-        "message": "Added to favorites" if new_status else "Removed from favorites"
+        "favorite": pref.favorite,
+        "message": "Added to favorites" if pref.favorite else "Removed from favorites"
     }
 
 
@@ -468,43 +554,44 @@ async def toggle_favorite(
 async def mark_cooked(
     recipe_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    minio: MinIOService = Depends(get_minio_service)
+    db: Session = Depends(get_db)
 ):
     """
-    Mark recipe as cooked (increment counter)
+    Mark recipe as cooked (stored in UserRecipePreference)
     """
-    import_service = get_recipe_import_service(db, minio)
-    recipe = import_service.mark_cooked(
-        user_id=current_user.id,
-        recipe_id=recipe_id
-    )
+    from datetime import datetime
 
+    # Verify recipe exists
+    recipe = db.query(Recipe).filter(Recipe.id == recipe_id).first()
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
+    # Get or create user preference
+    pref = get_or_create_user_preference(db, current_user.id, recipe_id)
+    pref.times_cooked = (pref.times_cooked or 0) + 1
+    pref.last_cooked = datetime.utcnow()
+    db.commit()
+
     return {
         "success": True,
-        "times_cooked": recipe.times_cooked,
-        "last_cooked": recipe.last_cooked.isoformat()
+        "times_cooked": pref.times_cooked,
+        "last_cooked": pref.last_cooked.isoformat()
     }
 
 
 @router.delete("/{recipe_id}")
 async def delete_recipe(
     recipe_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),  # Any user can delete shared recipes
     db: Session = Depends(get_db),
     minio: MinIOService = Depends(get_minio_service)
 ):
     """
-    Delete a recipe and its image
+    Delete a shared recipe and its image
+    Any authenticated user can delete (collaborative household model)
     """
     import_service = get_recipe_import_service(db, minio)
-    deleted = await import_service.delete_recipe(
-        user_id=current_user.id,
-        recipe_id=recipe_id
-    )
+    deleted = await import_service.delete_recipe(recipe_id=recipe_id)
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Recipe not found")

@@ -62,10 +62,12 @@ But here's the thing—once you solve one household problem with code, you start
 - **Barcode Scanning**: Quick item entry via mobile camera
 - **Manual Entry**: Add items without barcodes
 - **Expiry Tracking**: Know what's expiring before it goes bad
-- **Multi-User Support**: Family members can all access and update
+- **Shared Household Pantry**: One pantry for the whole family to access and update
+- **Recipe Integration**: Import recipes from Mealie or Tandoor
+- **Personal Preferences**: Your favorites and notes are private to you
 - **Beautiful Web Dashboard**: Minimal, clean interface with dark mode
 - **Mobile App**: Native iOS app with biometric authentication (Face ID/Touch ID)
-- **User Authentication**: Secure account-based access with session management
+- **User Authentication**: Secure account-based access with admin management
 
 ### For Home Assistant Fans
 - **REST API Integration**: Pull pantry data into Home Assistant
@@ -127,9 +129,10 @@ docker-compose -f docker-compose-hub.yml up -d
 
 **First Time Setup:**
 1. Open http://localhost in your browser
-2. Click "Sign Up" to create your account
-3. Set your username and password
-4. Configure default location and categories in Settings
+2. Login with default admin credentials: `admin` / `admin`
+3. **Change the admin password immediately** via Settings → Account
+4. Create user accounts for your household via Admin → Users
+5. Configure recipe integrations (Mealie/Tandoor) if desired via Settings
 
 ### Option 2: Build from Source
 
@@ -152,7 +155,7 @@ docker-compose up -d
 - (Optional) SMTP for email notifications
 - For iOS app: Request TestFlight access (email: palstack4u@gmail.com)
 
-**That's it!** Open http://localhost in your browser and create your account.
+**That's it!** Open http://localhost and login as `admin` / `admin` (change password immediately!).
 
 ---
 
@@ -171,7 +174,7 @@ nginx (reverse proxy)
 - Backend: Python 3.11 + FastAPI
 - Frontend: React 18 + Vite
 - Mobile: React Native + Expo
-- Database: SQLite (simple, portable, no setup)
+- Database: PostgreSQL (reliable, scalable)
 - Reverse Proxy: nginx
 - Barcode Data: Open Food Facts API
 
@@ -195,6 +198,54 @@ PantryPal supports flexible authentication to fit different use cases. Configure
 - **Biometric authentication** on mobile (Face ID, Touch ID, Fingerprint)
 - **Password reset** via email
 - **Multi-user support** with admin capabilities
+
+---
+
+## Shared Household Model
+
+PantryPal is designed for **household use** - one instance serves one household with shared data and individual preferences.
+
+### How It Works
+
+| Data Type | Scope | Description |
+|-----------|-------|-------------|
+| **Pantry Items** | Shared | One pantry for the whole household |
+| **Recipes** | Shared | All users see the same recipes |
+| **Favorites** | Per-user | Each user has their own favorites |
+| **Recipe Notes** | Per-user | Personal notes visible only to you |
+| **Recipe Integrations** | Admin-only | Mealie/Tandoor setup requires admin |
+
+### User Management
+
+**Registration is disabled by default.** The admin creates accounts for household members:
+
+1. Admin logs in and goes to **Admin → Users**
+2. Click **Create User** and enter their email
+3. User receives an email invitation to set their password
+4. User logs in and can immediately access the shared pantry and recipes
+
+### Admin Responsibilities
+
+Admins can:
+- Create, edit, and delete user accounts
+- Promote/demote users to admin status
+- Configure recipe integrations (Mealie, Tandoor)
+- Access system statistics
+
+**Important:** The last admin cannot be demoted - there must always be at least one admin.
+
+### Recipe Integrations
+
+Connect to external recipe managers to import recipes for the whole household:
+
+- **Mealie** - Self-hosted recipe manager
+- **Tandoor** - Self-hosted recipe manager
+
+Only admins can configure integrations, but all users can:
+- View imported recipes
+- Add recipes to favorites
+- Add personal notes
+- Mark recipes as cooked
 
 ---
 
@@ -333,7 +384,7 @@ pantrypal/
 │   ├── lookup-service/        # Barcode lookup
 │   └── web-ui/                # React dashboard
 ├── mobile/                     # React Native app
-└── data/                       # SQLite databases (created on first run)
+└── postgres_data/              # PostgreSQL data (created on first run)
 ```
 
 ---
@@ -349,7 +400,7 @@ pantrypal/
 **Future:**
 - [ ] Meal planning based on inventory
 - [ ] Nutrition tracking
-- [ ] Recipe suggestions based on available items
+- [x] Recipe suggestions based on available items (via Mealie/Tandoor integration)
 - [ ] PropertyPal & BudgetPal integration
 
 ---

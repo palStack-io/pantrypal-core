@@ -121,7 +121,13 @@ services:
       # api_key_only: API keys required for all requests
       # full: Login required for UI, API keys OR session for API
       # smart: Local network = open, external = login/API key required (uses TRUSTED_NETWORKS)
-      - ALLOW_REGISTRATION=true  # Set to false to disable new user signups
+      #
+      # Shared Household Model:
+      # - Default admin account: admin/admin (change password on first login!)
+      # - Registration disabled by default (admin creates users)
+      # - Recipes and pantry shared across all users
+      # - Favorites, notes, and cooking history are per-user
+      - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-false}  # Default: false (admin creates users)
 
       # Demo Mode (creates demo accounts on startup: demo/demo123, admin/admin123)
       - DEMO_MODE=${DEMO_MODE:-false}

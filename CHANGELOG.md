@@ -1,5 +1,40 @@
 # PantryPal Changelog
 
+## [1.4.0] - 2026-01-29
+
+### Added
+- **Shared Household Model**: Complete rewrite of data isolation model
+  - **Shared Pantry**: One pantry for the whole household
+  - **Shared Recipes**: Imported recipes visible to all users
+  - **Per-User Preferences**: Favorites, notes, and cooking history are private per user
+  - **New `UserRecipePreference` model** for storing per-user recipe data
+
+- **Admin Promotion/Demotion**: Admins can now promote/demote users
+  - Added `is_admin` field to user update endpoint
+  - Safety: Cannot modify your own admin status
+  - Safety: Cannot remove the last admin
+
+- **Test Script**: Added `test_shared_household.sh` for verifying all features
+
+### Changed
+- **Registration Disabled by Default**: `ALLOW_REGISTRATION` now defaults to `false`
+  - Admins create user accounts via Admin panel
+  - More secure for household deployments
+
+- **Recipe Integration Admin-Only**: Mealie/Tandoor configuration requires admin
+  - All users can still import and view recipes
+  - Only admins can configure the integration endpoints
+
+- **Database**: Migrated from SQLite to PostgreSQL
+  - Automatic migration for existing data
+  - Recipe deduplication during migration
+
+### Security
+- Default admin credentials: `admin` / `admin` (change immediately!)
+- Last admin protection prevents accidental lockout
+
+---
+
 ## [Unreleased] - 2026-01-21
 
 ### Fixed
@@ -44,8 +79,8 @@
 - Smart authentication mode (network-based access control)
 
 ### Services
-- API Gateway (FastAPI) - Authentication, authorization, routing
-- Inventory Service (FastAPI + SQLite) - Item management, shopping lists
+- API Gateway (FastAPI + PostgreSQL) - Authentication, authorization, routing
+- Inventory Service (FastAPI + PostgreSQL) - Item management, shopping lists
 - Lookup Service (FastAPI + Open Food Facts) - Barcode lookup with caching
 - Web UI (React + Vite) - Desktop/tablet dashboard
 - Mobile App (React Native + Expo) - iOS app with barcode scanning

@@ -2,14 +2,19 @@
 Recipe Matcher Service
 Matches recipes against user's pantry inventory
 Calculates match percentages and identifies expiring items
+
+Shared Household Model:
+- Recipes are shared across all users
+- Match results stored in UserRecipePreference (per-user)
+- Query methods return (Recipe, UserRecipePreference) tuples
 """
 from sqlalchemy.orm import Session
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional, Set, Tuple
 from datetime import datetime, timedelta
 from decimal import Decimal
 import re
 
-from .models import Recipe
+from .models import Recipe, UserRecipePreference
 
 
 class RecipeMatcher:
@@ -18,6 +23,23 @@ class RecipeMatcher:
     def __init__(self, db: Session):
         self.db = db
 
+    def _get_or_create_preference(self, user_id: str, recipe_id: str) -> UserRecipePreference:
+        """Get or create user preference record for a recipe"""
+        pref = self.db.query(UserRecipePreference).filter(
+            UserRecipePreference.user_id == user_id,
+            UserRecipePreference.recipe_id == recipe_id
+        ).first()
+
+        if not pref:
+            pref = UserRecipePreference(
+                user_id=user_id,
+                recipe_id=recipe_id
+            )
+            self.db.add(pref)
+            self.db.flush()
+
+        return pref
+
     async def calculate_matches(
         self,
         user_id: str,
@@ -25,20 +47,19 @@ class RecipeMatcher:
         expiring_days: int = 7
     ) -> Dict:
         """
-        Calculate match percentages for all user recipes
+        Calculate match percentages for all recipes (shared across household)
+        Stores results in UserRecipePreference for the specific user
 
         Args:
-            user_id: User ID
+            user_id: User ID (for storing preferences)
             pantry_items: List of pantry items from inventory service
             expiring_days: Days threshold for expiring items
 
         Returns:
             Statistics about matching
         """
-        # Get all user recipes
-        recipes = self.db.query(Recipe).filter(
-            Recipe.user_id == user_id
-        ).all()
+        # Get all recipes (shared across household - no user_id filter)
+        recipes = self.db.query(Recipe).all()
 
         # Prepare pantry data
         pantry_ingredients = self._normalize_pantry_items(pantry_items)
@@ -59,8 +80,8 @@ class RecipeMatcher:
                 expiring_items=expiring_soon
             )
 
-            # Update recipe with match data
-            updated = self._update_recipe_match(recipe, match_result)
+            # Store match result in UserRecipePreference
+            updated = self._update_user_preference(user_id, recipe.id, match_result)
 
             if updated:
                 stats['recipes_updated'] += 1
@@ -143,21 +164,23 @@ class RecipeMatcher:
             'uses_expiring_items': len(expiring_ingredients) > 0
         }
 
-    def _update_recipe_match(self, recipe: Recipe, match_result: Dict) -> bool:
+    def _update_user_preference(self, user_id: str, recipe_id: str, match_result: Dict) -> bool:
         """
-        Update recipe with match results
+        Update UserRecipePreference with match results
 
         Returns:
             True if updated
         """
-        recipe.match_percentage = Decimal(str(match_result['match_percentage']))
-        recipe.available_ingredient_count = match_result['available_count']
-        recipe.missing_ingredient_count = match_result['missing_count']
-        recipe.expiring_ingredient_count = match_result['expiring_count']
-        recipe.missing_ingredients = match_result['missing_ingredients']
-        recipe.expiring_ingredients = match_result['expiring_ingredients']
-        recipe.uses_expiring_items = match_result['uses_expiring_items']
-        recipe.updated_at = datetime.utcnow()
+        pref = self._get_or_create_preference(user_id, recipe_id)
+
+        pref.match_percentage = Decimal(str(match_result['match_percentage']))
+        pref.available_ingredient_count = match_result['available_count']
+        pref.missing_ingredient_count = match_result['missing_count']
+        pref.expiring_ingredient_count = match_result['expiring_count']
+        pref.missing_ingredients = match_result['missing_ingredients']
+        pref.expiring_ingredients = match_result['expiring_ingredients']
+        pref.uses_expiring_items = match_result['uses_expiring_items']
+        pref.updated_at = datetime.utcnow()
 
         return True
 
@@ -299,7 +322,7 @@ class RecipeMatcher:
         min_match_percentage: float = 50.0,
         prioritize_expiring: bool = True,
         limit: int = 20
-    ) -> List[Recipe]:
+    ) -> List[Tuple[Recipe, Optional[UserRecipePreference]]]:
         """
         Get recipe suggestions based on pantry matches
 
@@ -310,20 +333,24 @@ class RecipeMatcher:
             limit: Maximum recipes to return
 
         Returns:
-            List of Recipe objects
+            List of (Recipe, UserRecipePreference) tuples
         """
-        query = self.db.query(Recipe).filter(
-            Recipe.user_id == user_id,
-            Recipe.match_percentage >= min_match_percentage
+        # Join Recipe with UserRecipePreference for this user
+        query = self.db.query(Recipe, UserRecipePreference).outerjoin(
+            UserRecipePreference,
+            (Recipe.id == UserRecipePreference.recipe_id) &
+            (UserRecipePreference.user_id == user_id)
+        ).filter(
+            UserRecipePreference.match_percentage >= min_match_percentage
         )
 
         if prioritize_expiring:
             query = query.order_by(
-                Recipe.uses_expiring_items.desc(),
-                Recipe.match_percentage.desc()
+                UserRecipePreference.uses_expiring_items.desc(),
+                UserRecipePreference.match_percentage.desc()
             )
         else:
-            query = query.order_by(Recipe.match_percentage.desc())
+            query = query.order_by(UserRecipePreference.match_percentage.desc())
 
         return query.limit(limit).all()
 
@@ -331,19 +358,22 @@ class RecipeMatcher:
         self,
         user_id: str,
         limit: int = 10
-    ) -> List[Recipe]:
+    ) -> List[Tuple[Recipe, Optional[UserRecipePreference]]]:
         """
         Get recipes that use items expiring soon
 
         Returns:
-            List of Recipe objects
+            List of (Recipe, UserRecipePreference) tuples
         """
-        return self.db.query(Recipe).filter(
-            Recipe.user_id == user_id,
-            Recipe.uses_expiring_items == True
+        return self.db.query(Recipe, UserRecipePreference).outerjoin(
+            UserRecipePreference,
+            (Recipe.id == UserRecipePreference.recipe_id) &
+            (UserRecipePreference.user_id == user_id)
+        ).filter(
+            UserRecipePreference.uses_expiring_items == True
         ).order_by(
-            Recipe.expiring_ingredient_count.desc(),
-            Recipe.match_percentage.desc()
+            UserRecipePreference.expiring_ingredient_count.desc(),
+            UserRecipePreference.match_percentage.desc()
         ).limit(limit).all()
 
     def search_recipes(
@@ -351,35 +381,43 @@ class RecipeMatcher:
         user_id: str,
         query: str,
         limit: int = 20
-    ) -> List[Recipe]:
+    ) -> List[Tuple[Recipe, Optional[UserRecipePreference]]]:
         """
-        Search recipes by name, description, or ingredients
+        Search recipes by name, description, or ingredients (shared across household)
 
         Args:
-            user_id: User ID
+            user_id: User ID (for preferences)
             query: Search query string
             limit: Maximum results
 
         Returns:
-            List of Recipe objects
+            List of (Recipe, UserRecipePreference) tuples
         """
         search_term = f"%{query.lower()}%"
 
-        return self.db.query(Recipe).filter(
-            Recipe.user_id == user_id,
+        return self.db.query(Recipe, UserRecipePreference).outerjoin(
+            UserRecipePreference,
+            (Recipe.id == UserRecipePreference.recipe_id) &
+            (UserRecipePreference.user_id == user_id)
+        ).filter(
             (
                 Recipe.name.ilike(search_term) |
                 Recipe.description.ilike(search_term) |
                 Recipe.cuisine.ilike(search_term)
             )
-        ).order_by(Recipe.match_percentage.desc()).limit(limit).all()
+        ).order_by(
+            UserRecipePreference.match_percentage.desc().nullslast()
+        ).limit(limit).all()
 
-    def get_favorites(self, user_id: str) -> List[Recipe]:
-        """Get user's favorite recipes"""
-        return self.db.query(Recipe).filter(
-            Recipe.user_id == user_id,
-            Recipe.favorite == True
-        ).order_by(Recipe.updated_at.desc()).all()
+    def get_favorites(self, user_id: str) -> List[Tuple[Recipe, UserRecipePreference]]:
+        """Get user's favorite recipes (per-user preferences)"""
+        return self.db.query(Recipe, UserRecipePreference).join(
+            UserRecipePreference,
+            (Recipe.id == UserRecipePreference.recipe_id) &
+            (UserRecipePreference.user_id == user_id)
+        ).filter(
+            UserRecipePreference.favorite == True
+        ).order_by(UserRecipePreference.updated_at.desc()).all()
 
 
 def get_recipe_matcher(db: Session) -> RecipeMatcher:
