@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Initialize demo data on container startup
-Creates demo users and optionally imports recipes from Mealie
+Initialize admin user and optionally demo data on container startup
+- Admin user is ALWAYS created (production-safe)
+- Demo users only created when DEMO_MODE=true
+- Recipe imports only happen in DEMO_MODE
 
 Shared Household Model:
 - Demo users share the same recipes (imported once)
@@ -23,15 +25,71 @@ from app.security import get_security_service
 from app.minio_service import get_minio_service
 from app.recipe_import_service import RecipeImportService
 
-print("🌱 Initializing demo data...")
+print("🔐 Initializing PantryPal...")
 
 # Initialize database tables first
 print("📦 Creating database tables...")
 init_db()
 print("✓ Database tables created")
 
+# ============================================
+# ALWAYS CREATE ADMIN USER (Production-safe)
+# ============================================
+print("\n🔐 Checking for admin user...")
+
+admin_data = {
+    "username": "admin",
+    "email": "admin@pantrypal.com",
+    "password": "admin",
+    "full_name": "Admin User",
+    "is_admin": True,
+    "is_demo": False
+}
+
+admin_user_id = None
+
+try:
+    user = create_user(
+        username=admin_data["username"],
+        password=admin_data["password"],
+        email=admin_data["email"],
+        full_name=admin_data["full_name"],
+        is_admin=admin_data["is_admin"],
+        is_demo=admin_data["is_demo"]
+    )
+    mark_email_verified(user["id"])
+    admin_user_id = user["id"]
+    
+    print(f"✅ Created default admin user")
+    print(f"   Username: admin")
+    print(f"   Password: admin")
+    print(f"   ⚠️  CHANGE THIS PASSWORD IMMEDIATELY AFTER FIRST LOGIN!")
+    
+except ValueError as e:
+    if "already exists" in str(e):
+        print("✓ Admin user already exists")
+        existing = find_user_by_email(admin_data["email"])
+        if existing:
+            admin_user_id = existing["id"]
+    else:
+        print(f"❌ Error creating admin user: {e}")
+        raise
+
+# ============================================
+# DEMO MODE: Create demo users and recipes
+# ============================================
+DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+
+if not DEMO_MODE:
+    print("\nℹ️  DEMO_MODE disabled - Skipping demo users and recipes")
+    print("\n" + "="*50)
+    print("✅ Admin user initialized")
+    print("="*50 + "\n")
+    sys.exit(0)
+
+print("\n🌱 DEMO_MODE enabled - Creating demo data...")
+
 # Demo users configuration
-# 4 demo accounts for users to try the service
 demo_users = [
     {
         "username": "demo1",
@@ -64,14 +122,6 @@ demo_users = [
         "full_name": "Demo User 4",
         "is_admin": False,
         "is_demo": True
-    },
-    {
-        "username": "admin",
-        "email": "admin@pantrypal.com",
-        "password": "admin123",
-        "full_name": "Admin User",
-        "is_admin": True,
-        "is_demo": False
     }
 ]
 
@@ -114,7 +164,7 @@ async def setup_demo_recipes(admin_user_id: str):
                 enabled=True,
                 import_images=True,
                 auto_sync=False,
-                configured_by_user_id=admin_user_id,  # Track who configured it
+                configured_by_user_id=admin_user_id,
                 created_at=datetime.utcnow()
             )
             db.add(integration)
@@ -127,12 +177,12 @@ async def setup_demo_recipes(admin_user_id: str):
 
         print("📥 Importing shared recipes...")
         stats = await import_service.import_recipes(
-            imported_by_user_id=admin_user_id,  # Track who imported for audit
+            imported_by_user_id=admin_user_id,
             provider='mealie',
             server_url=mealie_url,
             api_token=mealie_token,
             import_images=True,
-            limit=100  # Import up to 100 recipes
+            limit=100
         )
 
         print(f"✅ Imported {stats['imported']} recipes, updated {stats['updated']}")
@@ -149,12 +199,10 @@ async def setup_demo_recipes(admin_user_id: str):
         db.close()
 
 try:
-    user_ids = {}  # Store demo and admin user IDs
-    admin_user_id = None
+    user_ids = {}
 
     for user_data in demo_users:
         try:
-            # Try to create user (will fail if already exists)
             user = create_user(
                 username=user_data["username"],
                 password=user_data["password"],
@@ -164,30 +212,21 @@ try:
                 is_demo=user_data.get("is_demo", False)
             )
 
-            # Mark email as verified for demo accounts
             mark_email_verified(user["id"])
-
-            print(f"✅ Created user '{user_data['username']}' (password: {user_data['password']})")
-
-            # Save user IDs
             user_ids[user_data["username"]] = user["id"]
-            if user_data["is_admin"]:
-                admin_user_id = user["id"]
+
+            print(f"✅ Created demo user '{user_data['username']}' (password: {user_data['password']})")
 
         except ValueError as e:
             if "already exists" in str(e):
-                print(f"✓ User '{user_data['username']}' already exists")
-                # Get existing user ID
+                print(f"✓ Demo user '{user_data['username']}' already exists")
                 existing = find_user_by_email(user_data["email"])
                 if existing:
                     user_ids[user_data["username"]] = existing["id"]
-                    if user_data["is_admin"]:
-                        admin_user_id = existing["id"]
             else:
                 raise
 
     # Import demo recipes ONCE for the household (using admin account)
-    # With shared model, recipes only need to be imported once
     if admin_user_id:
         print("\n📥 Setting up shared recipes for the household...")
         asyncio.run(setup_demo_recipes(admin_user_id))
@@ -206,7 +245,7 @@ try:
     print("  Username: demo3     Password: demo123")
     print("  Username: demo4     Password: demo123")
     print("\nAdmin Account:")
-    print("  Username: admin     Password: admin123")
+    print("  Username: admin     Password: admin4389)")
     print("="*50 + "\n")
 
 except Exception as e:
