@@ -42,6 +42,27 @@ function LandingPage({ onLoginSuccess }) {
     if (stored) {
       setServerUrl(stored);
       setServerConfigured(true);
+    } else {
+      // Auto-detect: try to reach the API at the current origin
+      // This allows hosted deployments to skip the server URL screen
+      const checkSameOriginApi = async () => {
+        try {
+          const response = await fetch('/api/auth/status', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+          });
+          if (response.ok) {
+            // API is available at current origin - auto-configure
+            localStorage.setItem('API_BASE_URL', window.location.origin);
+            setServerUrl(window.location.origin);
+            setServerConfigured(true);
+          }
+        } catch (error) {
+          // API not available at current origin - show server URL screen
+          console.log('API not found at current origin, showing server configuration');
+        }
+      };
+      checkSameOriginApi();
     }
   }, []);
 

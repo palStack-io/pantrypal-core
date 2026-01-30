@@ -504,8 +504,199 @@ def scheduled_backup():
     finally:
         db.close()
 
+DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+
+# Demo inventory items - comprehensive list across different locations and categories
+DEMO_INVENTORY_ITEMS = [
+    # ============ REFRIGERATOR ============
+    # Dairy
+    {"name": "Whole Milk", "brand": "Organic Valley", "category": "Dairy", "location": "Refrigerator", "quantity": 1, "expiry_days": 5, "notes": "1 gallon"},
+    {"name": "Greek Yogurt", "brand": "Chobani", "category": "Dairy", "location": "Refrigerator", "quantity": 4, "expiry_days": 12, "notes": "Vanilla flavor"},
+    {"name": "Butter", "brand": "Kerrygold", "category": "Dairy", "location": "Refrigerator", "quantity": 2, "expiry_days": 45, "notes": "Salted"},
+    {"name": "Cheddar Cheese", "brand": "Tillamook", "category": "Dairy", "location": "Refrigerator", "quantity": 1, "expiry_days": 30, "notes": "Sharp, block"},
+    {"name": "Cream Cheese", "brand": "Philadelphia", "category": "Dairy", "location": "Refrigerator", "quantity": 1, "expiry_days": 21},
+    {"name": "Eggs", "brand": "Happy Egg Co", "category": "Dairy", "location": "Refrigerator", "quantity": 12, "expiry_days": 28, "notes": "Large, free-range"},
+    {"name": "Heavy Cream", "brand": "Organic Valley", "category": "Dairy", "location": "Refrigerator", "quantity": 1, "expiry_days": 14},
+    {"name": "Parmesan Cheese", "brand": "BelGioioso", "category": "Dairy", "location": "Refrigerator", "quantity": 1, "expiry_days": 60, "notes": "Wedge"},
+
+    # Produce
+    {"name": "Spinach", "brand": "Earthbound Farm", "category": "Produce", "location": "Refrigerator", "quantity": 1, "expiry_days": 4, "notes": "Baby spinach, 5oz"},
+    {"name": "Carrots", "brand": "Bolthouse Farms", "category": "Produce", "location": "Refrigerator", "quantity": 1, "expiry_days": 21, "notes": "Baby carrots, 1lb bag"},
+    {"name": "Bell Peppers", "brand": None, "category": "Produce", "location": "Refrigerator", "quantity": 3, "expiry_days": 10, "notes": "Red, yellow, orange"},
+    {"name": "Celery", "brand": None, "category": "Produce", "location": "Refrigerator", "quantity": 1, "expiry_days": 14},
+    {"name": "Lemons", "brand": None, "category": "Produce", "location": "Refrigerator", "quantity": 4, "expiry_days": 21},
+    {"name": "Fresh Herbs - Cilantro", "brand": None, "category": "Produce", "location": "Refrigerator", "quantity": 1, "expiry_days": 5},
+    {"name": "Broccoli", "brand": None, "category": "Produce", "location": "Refrigerator", "quantity": 1, "expiry_days": 7},
+
+    # Proteins
+    {"name": "Chicken Breast", "brand": "Perdue", "category": "Meat & Seafood", "location": "Refrigerator", "quantity": 2, "expiry_days": 3, "notes": "Boneless, skinless"},
+    {"name": "Ground Beef", "brand": "Grass Run Farms", "category": "Meat & Seafood", "location": "Refrigerator", "quantity": 1, "expiry_days": 2, "notes": "85% lean, 1lb"},
+    {"name": "Bacon", "brand": "Applegate", "category": "Meat & Seafood", "location": "Refrigerator", "quantity": 1, "expiry_days": 7, "notes": "Uncured"},
+    {"name": "Smoked Salmon", "brand": "Echo Falls", "category": "Meat & Seafood", "location": "Refrigerator", "quantity": 1, "expiry_days": 10},
+
+    # Condiments & Sauces
+    {"name": "Mayonnaise", "brand": "Hellmann's", "category": "Condiments", "location": "Refrigerator", "quantity": 1, "expiry_days": 90},
+    {"name": "Dijon Mustard", "brand": "Grey Poupon", "category": "Condiments", "location": "Refrigerator", "quantity": 1, "expiry_days": 180},
+    {"name": "Sriracha", "brand": "Huy Fong", "category": "Condiments", "location": "Refrigerator", "quantity": 1, "expiry_days": 365},
+    {"name": "Salsa", "brand": "Pace", "category": "Condiments", "location": "Refrigerator", "quantity": 1, "expiry_days": 14, "notes": "Medium, opened"},
+
+    # ============ FREEZER ============
+    {"name": "Frozen Blueberries", "brand": "Wyman's", "category": "Frozen", "location": "Freezer", "quantity": 2, "expiry_days": 180},
+    {"name": "Frozen Pizza", "brand": "DiGiorno", "category": "Frozen", "location": "Freezer", "quantity": 2, "expiry_days": 120, "notes": "Supreme"},
+    {"name": "Ice Cream", "brand": "Häagen-Dazs", "category": "Frozen", "location": "Freezer", "quantity": 1, "expiry_days": 60, "notes": "Vanilla Bean"},
+    {"name": "Frozen Vegetables Mix", "brand": "Birds Eye", "category": "Frozen", "location": "Freezer", "quantity": 3, "expiry_days": 240},
+    {"name": "Chicken Tenders", "brand": "Tyson", "category": "Frozen", "location": "Freezer", "quantity": 1, "expiry_days": 180},
+    {"name": "Frozen Shrimp", "brand": "SeaPak", "category": "Frozen", "location": "Freezer", "quantity": 1, "expiry_days": 150, "notes": "Peeled & deveined"},
+    {"name": "Frozen Waffles", "brand": "Eggo", "category": "Frozen", "location": "Freezer", "quantity": 1, "expiry_days": 120},
+    {"name": "Ground Turkey", "brand": "Jennie-O", "category": "Frozen", "location": "Freezer", "quantity": 2, "expiry_days": 90, "notes": "1lb packs"},
+
+    # ============ PANTRY ============
+    # Grains & Pasta
+    {"name": "Spaghetti", "brand": "Barilla", "category": "Pasta & Grains", "location": "Pantry", "quantity": 3, "expiry_days": 730, "notes": "16oz boxes"},
+    {"name": "Penne Pasta", "brand": "De Cecco", "category": "Pasta & Grains", "location": "Pantry", "quantity": 2, "expiry_days": 730},
+    {"name": "Jasmine Rice", "brand": "Royal", "category": "Pasta & Grains", "location": "Pantry", "quantity": 1, "expiry_days": 365, "notes": "5lb bag"},
+    {"name": "Quinoa", "brand": "Ancient Harvest", "category": "Pasta & Grains", "location": "Pantry", "quantity": 1, "expiry_days": 365},
+    {"name": "Oatmeal", "brand": "Quaker", "category": "Pasta & Grains", "location": "Pantry", "quantity": 1, "expiry_days": 365, "notes": "Old fashioned"},
+    {"name": "Bread Crumbs", "brand": "Progresso", "category": "Pasta & Grains", "location": "Pantry", "quantity": 1, "expiry_days": 180, "notes": "Italian style"},
+
+    # Canned Goods
+    {"name": "Diced Tomatoes", "brand": "Muir Glen", "category": "Canned Goods", "location": "Pantry", "quantity": 4, "expiry_days": 730, "notes": "14.5oz organic"},
+    {"name": "Black Beans", "brand": "Goya", "category": "Canned Goods", "location": "Pantry", "quantity": 3, "expiry_days": 730},
+    {"name": "Chickpeas", "brand": "Goya", "category": "Canned Goods", "location": "Pantry", "quantity": 2, "expiry_days": 730},
+    {"name": "Coconut Milk", "brand": "Thai Kitchen", "category": "Canned Goods", "location": "Pantry", "quantity": 3, "expiry_days": 540},
+    {"name": "Chicken Broth", "brand": "Swanson", "category": "Canned Goods", "location": "Pantry", "quantity": 4, "expiry_days": 730, "notes": "Low sodium"},
+    {"name": "Tuna", "brand": "Wild Planet", "category": "Canned Goods", "location": "Pantry", "quantity": 3, "expiry_days": 1095, "notes": "Albacore in water"},
+    {"name": "Tomato Paste", "brand": "Cento", "category": "Canned Goods", "location": "Pantry", "quantity": 2, "expiry_days": 730},
+    {"name": "Corn", "brand": "Green Giant", "category": "Canned Goods", "location": "Pantry", "quantity": 2, "expiry_days": 730},
+
+    # Oils & Vinegars
+    {"name": "Extra Virgin Olive Oil", "brand": "California Olive Ranch", "category": "Oils & Vinegars", "location": "Pantry", "quantity": 1, "expiry_days": 540},
+    {"name": "Vegetable Oil", "brand": "Crisco", "category": "Oils & Vinegars", "location": "Pantry", "quantity": 1, "expiry_days": 365},
+    {"name": "Balsamic Vinegar", "brand": "Colavita", "category": "Oils & Vinegars", "location": "Pantry", "quantity": 1, "expiry_days": 1095},
+    {"name": "Apple Cider Vinegar", "brand": "Bragg", "category": "Oils & Vinegars", "location": "Pantry", "quantity": 1, "expiry_days": 1825},
+    {"name": "Sesame Oil", "brand": "Kadoya", "category": "Oils & Vinegars", "location": "Pantry", "quantity": 1, "expiry_days": 365},
+
+    # Baking
+    {"name": "All-Purpose Flour", "brand": "King Arthur", "category": "Baking", "location": "Pantry", "quantity": 1, "expiry_days": 365, "notes": "5lb bag"},
+    {"name": "Sugar", "brand": "Domino", "category": "Baking", "location": "Pantry", "quantity": 1, "expiry_days": 730, "notes": "Granulated, 4lb"},
+    {"name": "Brown Sugar", "brand": "Domino", "category": "Baking", "location": "Pantry", "quantity": 1, "expiry_days": 730, "notes": "Light"},
+    {"name": "Baking Powder", "brand": "Clabber Girl", "category": "Baking", "location": "Pantry", "quantity": 1, "expiry_days": 365},
+    {"name": "Baking Soda", "brand": "Arm & Hammer", "category": "Baking", "location": "Pantry", "quantity": 1, "expiry_days": 730},
+    {"name": "Vanilla Extract", "brand": "McCormick", "category": "Baking", "location": "Pantry", "quantity": 1, "expiry_days": 1095, "notes": "Pure"},
+    {"name": "Chocolate Chips", "brand": "Ghirardelli", "category": "Baking", "location": "Pantry", "quantity": 2, "expiry_days": 365, "notes": "Semi-sweet"},
+
+    # Snacks
+    {"name": "Tortilla Chips", "brand": "Tostitos", "category": "Snacks", "location": "Pantry", "quantity": 1, "expiry_days": 60},
+    {"name": "Peanut Butter", "brand": "Jif", "category": "Snacks", "location": "Pantry", "quantity": 1, "expiry_days": 270, "notes": "Creamy"},
+    {"name": "Mixed Nuts", "brand": "Planters", "category": "Snacks", "location": "Pantry", "quantity": 1, "expiry_days": 180},
+    {"name": "Crackers", "brand": "Ritz", "category": "Snacks", "location": "Pantry", "quantity": 2, "expiry_days": 120},
+    {"name": "Granola Bars", "brand": "KIND", "category": "Snacks", "location": "Pantry", "quantity": 1, "expiry_days": 180, "notes": "Dark Chocolate Nuts"},
+    {"name": "Popcorn Kernels", "brand": "Orville Redenbacher's", "category": "Snacks", "location": "Pantry", "quantity": 1, "expiry_days": 730},
+
+    # Sauces & Condiments (shelf-stable)
+    {"name": "Soy Sauce", "brand": "Kikkoman", "category": "Condiments", "location": "Pantry", "quantity": 1, "expiry_days": 1095},
+    {"name": "Hot Sauce", "brand": "Tabasco", "category": "Condiments", "location": "Pantry", "quantity": 1, "expiry_days": 1825},
+    {"name": "Worcestershire Sauce", "brand": "Lea & Perrins", "category": "Condiments", "location": "Pantry", "quantity": 1, "expiry_days": 1095},
+    {"name": "Pasta Sauce", "brand": "Rao's", "category": "Condiments", "location": "Pantry", "quantity": 2, "expiry_days": 540, "notes": "Marinara"},
+    {"name": "Honey", "brand": "Local Beekeeper", "category": "Condiments", "location": "Pantry", "quantity": 1, "expiry_days": 730, "notes": "Raw, 16oz"},
+    {"name": "Maple Syrup", "brand": "365", "category": "Condiments", "location": "Pantry", "quantity": 1, "expiry_days": 365, "notes": "Grade A"},
+
+    # Spices
+    {"name": "Salt", "brand": "Morton", "category": "Spices", "location": "Pantry", "quantity": 1, "expiry_days": 1825, "notes": "Kosher"},
+    {"name": "Black Pepper", "brand": "McCormick", "category": "Spices", "location": "Pantry", "quantity": 1, "expiry_days": 730, "notes": "Whole peppercorns"},
+    {"name": "Garlic Powder", "brand": "McCormick", "category": "Spices", "location": "Pantry", "quantity": 1, "expiry_days": 730},
+    {"name": "Paprika", "brand": "McCormick", "category": "Spices", "location": "Pantry", "quantity": 1, "expiry_days": 730, "notes": "Smoked"},
+    {"name": "Cumin", "brand": "McCormick", "category": "Spices", "location": "Pantry", "quantity": 1, "expiry_days": 730, "notes": "Ground"},
+    {"name": "Italian Seasoning", "brand": "McCormick", "category": "Spices", "location": "Pantry", "quantity": 1, "expiry_days": 730},
+    {"name": "Cinnamon", "brand": "McCormick", "category": "Spices", "location": "Pantry", "quantity": 1, "expiry_days": 730, "notes": "Ground"},
+    {"name": "Red Pepper Flakes", "brand": "McCormick", "category": "Spices", "location": "Pantry", "quantity": 1, "expiry_days": 730},
+
+    # Beverages
+    {"name": "Coffee", "brand": "Peet's", "category": "Beverages", "location": "Pantry", "quantity": 1, "expiry_days": 180, "notes": "Major Dickason's, whole bean"},
+    {"name": "Green Tea", "brand": "Tazo", "category": "Beverages", "location": "Pantry", "quantity": 1, "expiry_days": 365, "notes": "20 bags"},
+    {"name": "Sparkling Water", "brand": "LaCroix", "category": "Beverages", "location": "Pantry", "quantity": 12, "expiry_days": 365, "notes": "Lime"},
+
+    # ============ COUNTER ============
+    {"name": "Bananas", "brand": None, "category": "Produce", "location": "Counter", "quantity": 6, "expiry_days": 4},
+    {"name": "Avocados", "brand": None, "category": "Produce", "location": "Counter", "quantity": 3, "expiry_days": 3, "notes": "Ripen on counter"},
+    {"name": "Tomatoes", "brand": None, "category": "Produce", "location": "Counter", "quantity": 4, "expiry_days": 5, "notes": "Roma"},
+    {"name": "Onions", "brand": None, "category": "Produce", "location": "Counter", "quantity": 3, "expiry_days": 30, "notes": "Yellow"},
+    {"name": "Garlic", "brand": None, "category": "Produce", "location": "Counter", "quantity": 2, "expiry_days": 21, "notes": "Heads"},
+    {"name": "Potatoes", "brand": None, "category": "Produce", "location": "Counter", "quantity": 5, "expiry_days": 21, "notes": "Russet"},
+    {"name": "Sweet Potatoes", "brand": None, "category": "Produce", "location": "Counter", "quantity": 3, "expiry_days": 14},
+    {"name": "Apples", "brand": "Honeycrisp", "category": "Produce", "location": "Counter", "quantity": 6, "expiry_days": 14},
+    {"name": "Bread", "brand": "Dave's Killer Bread", "category": "Bakery", "location": "Counter", "quantity": 1, "expiry_days": 5, "notes": "21 Whole Grains"},
+
+    # ============ BASEMENT PANTRY (bulk storage) ============
+    {"name": "Paper Towels", "brand": "Bounty", "category": "Household", "location": "Basement Pantry", "quantity": 8, "expiry_days": None, "notes": "12-pack"},
+    {"name": "Toilet Paper", "brand": "Charmin", "category": "Household", "location": "Basement Pantry", "quantity": 24, "expiry_days": None},
+    {"name": "Canned Soup Variety", "brand": "Progresso", "category": "Canned Goods", "location": "Basement Pantry", "quantity": 6, "expiry_days": 730, "notes": "Chicken noodle, minestrone"},
+    {"name": "Pasta (Bulk)", "brand": "Barilla", "category": "Pasta & Grains", "location": "Basement Pantry", "quantity": 5, "expiry_days": 730, "notes": "Various shapes"},
+    {"name": "Rice (Bulk)", "brand": "Mahatma", "category": "Pasta & Grains", "location": "Basement Pantry", "quantity": 2, "expiry_days": 730, "notes": "20lb bags"},
+    {"name": "Bottled Water", "brand": "Poland Spring", "category": "Beverages", "location": "Basement Pantry", "quantity": 24, "expiry_days": 730, "notes": "Emergency supply"},
+    {"name": "Canned Vegetables Assorted", "brand": "Del Monte", "category": "Canned Goods", "location": "Basement Pantry", "quantity": 8, "expiry_days": 730},
+]
+
+def seed_demo_inventory(db: Session):
+    """Seed demo inventory items if DEMO_MODE is enabled and no items exist"""
+    # Check if items already exist
+    existing_count = db.query(ItemDB).count()
+    if existing_count > 0:
+        logger.info(f"Inventory already has {existing_count} items, skipping demo seed")
+        return
+
+    logger.info("🌱 Seeding demo inventory data...")
+
+    items_added = 0
+    today = date.today()
+
+    for item_data in DEMO_INVENTORY_ITEMS:
+        # Calculate expiry date from days if provided
+        expiry_date = None
+        if item_data.get("expiry_days"):
+            expiry_date = today + timedelta(days=item_data["expiry_days"])
+
+        db_item = ItemDB(
+            name=item_data["name"],
+            brand=item_data.get("brand"),
+            category=item_data.get("category", "Uncategorized"),
+            location=item_data.get("location", "Pantry"),
+            quantity=item_data.get("quantity", 1),
+            expiry_date=expiry_date,
+            notes=item_data.get("notes"),
+            manually_added=True,
+            added_date=datetime.utcnow(),
+            updated_date=datetime.utcnow()
+        )
+        db.add(db_item)
+        items_added += 1
+
+    db.commit()
+
+    # Log summary
+    locations = {}
+    categories = {}
+    for item in DEMO_INVENTORY_ITEMS:
+        loc = item.get("location", "Pantry")
+        cat = item.get("category", "Uncategorized")
+        locations[loc] = locations.get(loc, 0) + 1
+        categories[cat] = categories.get(cat, 0) + 1
+
+    logger.info(f"✅ Added {items_added} demo inventory items")
+    logger.info(f"   Locations: {dict(locations)}")
+    logger.info(f"   Categories: {dict(categories)}")
+
 @app.on_event("startup")
 async def startup_event():
+    # Seed demo inventory if DEMO_MODE is enabled
+    if DEMO_MODE:
+        logger.info("🎭 DEMO_MODE enabled - checking inventory...")
+        db = SessionLocal()
+        try:
+            seed_demo_inventory(db)
+        finally:
+            db.close()
+
     if BACKUP_ENABLED:
         logger.info(f"Backup enabled with schedule: {BACKUP_SCHEDULE}")
         logger.info(f"Backup retention: {BACKUP_RETENTION_DAYS} days")
