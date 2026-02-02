@@ -1340,7 +1340,7 @@ async def change_my_password(
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
     # Update password using pg_auth helper
-    success = pg_auth.update_user_password(auth["user_id"], password_data.new_password)
+    success = pg_auth.update_user_password(auth["id"], password_data.new_password)
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
 
