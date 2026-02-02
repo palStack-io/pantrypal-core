@@ -507,6 +507,28 @@ def find_user_by_email(email: str) -> Optional[Dict]:
         db.close()
 
 
+def find_user_by_username(username: str) -> Optional[Dict]:
+    """Find user by username"""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.username == username).first()
+        if not user:
+            return None
+
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active,
+            "is_admin": user.is_admin,
+            "is_demo": user.is_demo,
+            "email_verified": user.email_verified
+        }
+    finally:
+        db.close()
+
+
 def create_default_admin():
     """Create default admin user if no users exist"""
     db = SessionLocal()
@@ -645,3 +667,7 @@ def create_user_from_oidc(username: str, email: Optional[str], full_name: Option
         }
     finally:
         db.close()
+
+
+# Initialize default admin on module load
+create_default_admin()

@@ -118,7 +118,7 @@ export function InsightsPage({ isDark }) {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: colors.background }}>
-        <div style={{ fontSize: '48px' }}>🥫</div>
+        <img src="/pantryPal.png" alt="Loading..." style={{ width: '48px', height: '48px' }} />
       </div>
     );
   }

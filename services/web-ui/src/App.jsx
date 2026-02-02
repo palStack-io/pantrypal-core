@@ -87,8 +87,8 @@ function AppContent() {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: isDark ? '#0c0a09' : '#fafaf9' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🥫</div>
-          <div style={{ fontSize: '18px', color: isDark ? '#d6d3d1' : '#78716c' }}>Loading PantryPal...</div>
+          <img src="/pantryPal.png" alt="pantryPal" style={{ width: '48px', height: '48px', marginBottom: '16px' }} />
+          <div style={{ fontSize: '18px', color: isDark ? '#d6d3d1' : '#78716c' }}>Loading pantryPal...</div>
         </div>
       </div>
     );

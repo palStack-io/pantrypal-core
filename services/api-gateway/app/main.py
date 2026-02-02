@@ -501,13 +501,8 @@ async def resend_verification(request: ResendVerificationRequest, http_request: 
             detail="Email service is not configured"
         )
 
-    # Find user by email
-    import sqlite3
-    conn = pg_auth.get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, username, email_verified FROM users WHERE email = ?", (request.email,))
-    user = cursor.fetchone()
-    conn.close()
+    # Find user by email using pg_auth helper
+    user = pg_auth.find_user_by_email(request.email)
 
     if not user:
         # Don't reveal if email exists
@@ -1307,50 +1302,28 @@ async def update_my_profile(
     if auth.get("type") != "session":
         raise HTTPException(status_code=403, detail="Profile update only available for logged-in users")
 
-    # Get current user from database
-    conn = pg_auth.get_db()
-    cursor = conn.cursor()
+    # Validate username if provided
+    if profile.username is not None and len(profile.username.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
 
-    updates = []
-    params = []
-
-    if profile.username is not None:
-        # Validate username
-        if len(profile.username.strip()) < 3:
-            conn.close()
-            raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
-        # Check if username already taken
-        cursor.execute("SELECT id FROM users WHERE username = ? AND id != ?", (profile.username, auth["id"]))
-        if cursor.fetchone():
-            conn.close()
-            raise HTTPException(status_code=400, detail="Username already in use")
-        updates.append("username = ?")
-        params.append(profile.username)
-
-    if profile.email is not None:
-        # Check if email already taken
-        cursor.execute("SELECT id FROM users WHERE email = ? AND id != ?", (profile.email, auth["id"]))
-        if cursor.fetchone():
-            conn.close()
-            raise HTTPException(status_code=400, detail="Email already in use")
-        updates.append("email = ?")
-        params.append(profile.email)
-
-    if profile.full_name is not None:
-        updates.append("full_name = ?")
-        params.append(profile.full_name)
-
-    if not updates:
-        conn.close()
+    # Check if any updates provided
+    if profile.username is None and profile.email is None and profile.full_name is None:
         return {"message": "No changes made"}
 
-    params.append(auth["id"])
-    query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
-    cursor.execute(query, params)
-    conn.commit()
-    conn.close()
-
-    return {"message": "Profile updated successfully"}
+    # Use pg_auth helper to update profile (handles uniqueness checks)
+    try:
+        success = pg_auth.update_user_profile(
+            user_id=auth["user_id"],
+            username=profile.username,
+            email=profile.email,
+            full_name=profile.full_name
+        )
+        if success:
+            return {"message": "Profile updated successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="User not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/users/me/change-password")
 async def change_my_password(
@@ -1360,28 +1333,17 @@ async def change_my_password(
     """Change current user's password"""
     if auth.get("type") != "session":
         raise HTTPException(status_code=403, detail="Password change only available for logged-in users")
-    
-    # Get user's current password hash
-    conn = pg_auth.get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT password_hash FROM users WHERE id = ?", (auth["id"],))
-    user = cursor.fetchone()
-    
+
+    # Verify current password using pg_auth helper
+    user = pg_auth.authenticate_user(auth["username"], password_data.current_password)
     if not user:
-        conn.close()
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Verify current password
-    if not pg_auth.verify_password(password_data.current_password, user['password_hash']):
-        conn.close()
         raise HTTPException(status_code=400, detail="Current password is incorrect")
-    
-    # Update password
-    new_password_hash = pg_auth.hash_password(password_data.new_password)
-    cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_password_hash, auth["id"]))
-    conn.commit()
-    conn.close()
-    
+
+    # Update password using pg_auth helper
+    success = pg_auth.update_user_password(auth["user_id"], password_data.new_password)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+
     return {"message": "Password changed successfully"}
 
 # ============================================
@@ -1494,27 +1456,19 @@ async def create_user_by_admin(
             detail="User creation not available in current auth mode"
         )
 
-    # Check if username already exists
-    import sqlite3
-    conn = pg_auth.get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM users WHERE username = ?", (request.username,))
-    if cursor.fetchone():
-        conn.close()
+    # Check if username already exists using pg_auth helper
+    if pg_auth.find_user_by_username(request.username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already exists"
         )
 
-    # Check if email already exists
-    cursor.execute("SELECT id FROM users WHERE email = ?", (request.email,))
-    if cursor.fetchone():
-        conn.close()
+    # Check if email already exists using pg_auth helper
+    if pg_auth.find_user_by_email(request.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already in use"
         )
-    conn.close()
 
     # Generate a temporary random password (user will reset it via email)
     import secrets
@@ -1532,11 +1486,7 @@ async def create_user_by_admin(
         )
 
         # Mark user as email verified (admin-created users don't need verification)
-        conn = pg_auth.get_db()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (user["id"],))
-        conn.commit()
-        conn.close()
+        pg_auth.mark_email_verified(user["id"])
 
         # Send welcome email with password reset link if email is configured
         if request.send_welcome_email and is_email_configured():

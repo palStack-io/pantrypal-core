@@ -1,49 +1,116 @@
-# PantryPal
-
-**A self-hosted pantry management system built to solve a real household problem**
-
-[![Status](https://img.shields.io/badge/Status-Production%20Ready-success)](https://github.com/harung1993/pantrypal)
-[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Web-blue)](https://github.com/harung1993/pantrypal)
-[![License](https://img.shields.io/badge/License-Personal%20Use-orange)](LICENSE)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Ready-41BDF5)](https://www.home-assistant.io/)
+<div align="center">
+  <img width="200" height="200" alt="pantryPal" src="https://github.com/user-attachments/assets/093c2a98-c327-4d28-be71-210840f69893" />
+  
+  <h1>pantryPal</h1>
+  <h3>Never waste food again</h3>
+  
+  <p>
+    <a href="https://pantrypal.palstack.io"><strong>Try Demo →</strong></a> |
+    <a href="https://pantrypal.palstack.io/docs">Documentation</a> |
+    <a href="https://palstack.io">More Tools</a>
+  </p>
+</div>
 
 ---
 
-## The Story Behind PantryPal
+**Open source, privacy-first pantry management from palStack**
 
-My wife and I have a pantry in the basement. Like many couples, we kept buying duplicate items because we genuinely couldn't remember what we already had down there. Worse, we'd regularly discover expired food we'd completely forgotten about—wasted money and wasted food.
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-success)](https://github.com/palStack-io/pantrypal-core)
+[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Web-blue)](https://github.com/palStack-io/pantrypal-core)
+[![License](https://img.shields.io/badge/License-AGPL--3.0-blue)](LICENSE)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Ready-41BDF5)](https://www.home-assistant.io/)
+[![GHCR](https://img.shields.io/badge/GHCR-Containers-2496ED)](https://github.com/orgs/palStack-io/packages)
+[![Docs](https://img.shields.io/badge/Docs-pantrypal.palstack.io-orange)](https://pantrypal.palstack.io/docs)
 
-One day, after bringing home our third can of tomato sauce in a month, my wife suggested: "Can't you just... build something?"
+**Part of [palStack](https://palstack.io)** - Privacy-first tools for everyday life
 
-Well now we have PantryPal to solve our household's very real, very annoying problem. It integrates with our Home Assistant setup and lets us quickly scan barcodes to track what we have. We can check our inventory from anywhere, get alerts before things expire, and finally stop the duplicate-buying madness.
+---
 
-**The Home Automation Touch:** I installed contact sensors on our basement pantry doors. Now, whenever someone opens the pantry, Home Assistant sends me a persistent notification reminding me to update the inventory. No more "I took something out but forgot to log it" moments. It's a gentle nudge that keeps our pantry data accurate without being annoying.
+## The Story Behind pantryPal
 
-**Learning Through Building:** My background is in data science, not software engineering. I knew Python and could wrangle data all day, but proper software architecture? Microservices? Docker orchestration? That was all new territory. PantryPal became my learning project—a real problem that justified diving deep into backend design, API development, and mobile apps.
+We're **palStack**—a small team building privacy-first tools for everyday life. pantryPal is where it all started.
 
-I leaned heavily on AI coding assistants to bridge the gap between "data scientist who can code" and "building production-ready applications." These tools didn't write the code for me—they taught me *why* certain architectural decisions matter, helped me debug obscure Docker networking issues at 2 AM, and explained FastAPI patterns I'd never encountered before. Each PalStack project has been a deliberate exercise in learning a new piece of the software development puzzle.
+The problem was simple and annoying: one of us kept buying duplicate groceries. Three cans of tomato sauce in a month. Expired food forgotten in the basement. Wasted money, wasted food, endless frustration.
 
-Is it over-engineered? Absolutely. Does it work? Perfectly. Did I learn a ton? Even better.
+"Can't you just... build something?"
 
-But here's the thing—once you solve one household problem with code, you start seeing them everywhere. PantryPal became the first piece of something bigger: **PalStack**, a collection of privacy-first, self-hosted tools for managing everyday life.
+So we did. 
 
-### The PalStack Family
+What started as a fix for one household's pantry chaos quickly caught on with friends. They saw it working and wanted in. Before we knew it, we were running pantryPal for multiple households—each with their own setup, preferences, and stories about the food waste they'd avoided.
 
-**Released:**
-- **[PantryPal](https://github.com/harung1993/pantryPal_Selfhosted)** - You're here! Never buy duplicate groceries again
-- **[DollarDollar Bill Y'all](https://github.com/harung1993/dollardollar)** - The original debt repayment tracker that started it all
+That's when it clicked: this isn't just our problem. It's *everyone's* problem.
 
-**In Development:**
-- **PropertyPal** - Track home maintenance, warranties, and that HVAC filter you always forget to change
-- **DebtFree** - Gamified debt management (evolved from DollarDollar Bill Y'all with achievements, progress tracking, and motivation)
-- **MinglePal** - Club and group management for hobby groups, book clubs, and community organizations
-- **BudgetPal** - Comprehensive household budgeting built on the DollarDollar foundation
+**The Home Automation Touch**  
+We added contact sensors to pantry doors. Open the pantry, get a gentle Home Assistant notification reminding you to log what you took out. No more "I grabbed something but forgot to update it" moments. Our friends loved this trick and started doing it too.
+
+**Learning as We Go**  
+Here's the honest truth: none of us came from software engineering backgrounds. We're learning this stuff as we build it—backend design, microservices, mobile apps, Docker networking. Some days it's FastAPI patterns. Other days it's debugging why containers won't talk to each other at 2 AM.
+
+We use AI coding assistants heavily. Not to write the code *for* us, but to help us understand *why* things work the way they do. It's like having a patient teacher who doesn't judge when you ask the same question three different ways.
+
+Is pantryPal over-engineered for what it does? Probably. Does it work? Absolutely. Are we still figuring things out? Every single day.
+
+**Why Open Source?**  
+As more friends adopted pantryPal, we kept refining it—better multi-user support, smoother mobile experience, easier self-hosting. Eventually we realized: why keep this just for people we know?
+
+We founded **palStack** to share these tools with anyone who wants them. pantryPal is our first production-ready Pal, built on a simple idea: everyday problems deserve privacy-first, self-hosted solutions that actually work.
+
+Once you solve one household problem with code, you start seeing opportunities everywhere. pantryPal was just the beginning—a collection of practical tools for managing everyday life without giving up your data.
+
+### The palStack Family
+
+**Production Ready:**
+- **[pantryPal](https://pantrypal.palstack.io)** - You're here! Never buy duplicate groceries again
+
+**Final Testing Stage:**
+- **[finPal](https://finpal.palstack.io)** - Personal finance tracking with privacy-first design (web ready, mobile in development)
+
+**In Active Development:**
+- **[propertyPal](https://propertypal.palstack.io)** - Track home maintenance, warranties, documents, plus **petPal** (pet care) and **carPal** (vehicle maintenance)
+- **[clubPal](https://clubpal.palstack.io)** - Group coordination for dining, activities, and social clubs
+
+**Learn more at [palstack.io](https://palstack.io)**
 
 *Why "Pal"? Because that's what these tools are—friendly helpers for the everyday stuff we all struggle with.*
 
 ---
 
-## What PantryPal Does
+## 🚀 Hosting Options
+
+**Self-Host (Available Now)**  
+Deploy pantryPal on your own infrastructure with our one-command setup. Full features, complete control, free forever.
+
+**Managed Hosting (Coming Soon!)**  
+Don't want to manage servers? We're launching a managed hosting service where we handle everything:
+- ✅ Automatic updates and backups
+- ✅ 99.9% uptime guarantee  
+- ✅ Professional support
+- ✅ Same features as self-hosted
+- ✅ Subscription-based pricing
+
+**Stay updated:** [palstack.io](https://palstack.io) | Email: palstack4u@gmail.com
+
+---
+
+## Screenshots
+
+<div align="center">
+  
+  ### Dashboard & Inventory
+  <img width="45%" alt="Dashboard Overview" src="https://github.com/user-attachments/assets/b3109d68-cfad-4234-8929-0f2a85dcd975" />
+  <img width="45%" alt="Inventory Management" src="https://github.com/user-attachments/assets/82579f65-7769-4e30-8530-4d9dea269c6d" />
+  
+  ### Recipe Matching & Analytics
+  <img width="45%" alt="Recipe Matching" src="https://github.com/user-attachments/assets/9059608b-95a3-417d-9103-a86e3120d863" />
+  <img width="45%" alt="Pantry Insights" src="https://github.com/user-attachments/assets/1efefdf3-7e99-4436-a7db-8ae5a857d03c" />
+  
+</div>
+
+> **Try it live:** [pantrypal.palstack.io](https://pantrypal.palstack.io)
+
+---
+
+## What pantryPal Does
 
 **The Core Problem:** "Do we have tomato sauce, or should I buy it?"
 
@@ -51,64 +118,84 @@ But here's the thing—once you solve one household problem with code, you start
 - Scan barcodes with your phone to add items instantly
 - Get notified before things expire
 - Integrate with Home Assistant for automations
-- Voice control: "Hey Google, do we have pasta?" (coming soon)
+- Voice control ready (foundation in place)
 - Multi-user support so the whole family can contribute
+- Built by people who actually use it daily
 
 ---
 
 ## Key Features
 
 ### For Everyday Use
-- **Barcode Scanning**: Quick item entry via mobile camera
-- **Manual Entry**: Add items without barcodes
-- **Expiry Tracking**: Know what's expiring before it goes bad
+- **Barcode Scanning**: Real-time camera-based scanning with product lookup from Open Food Facts
+- **Manual Entry**: Add items without barcodes for custom products
+- **Multi-location Support**: Track items across fridge, pantry, freezer, and custom locations
+- **Expiry Tracking**: 4-level severity alerts (expired, critical, warning, upcoming)
 - **Shared Household Pantry**: One pantry for the whole family to access and update
-- **Recipe Integration**: Import recipes from Mealie or Tandoor
+- **Smart Shopping Lists**: Auto-suggest low-stock items, move checked items to inventory
+- **Recipe Integration**: Import recipes from Mealie or Tandoor recipe managers
+- **Pantry Matching**: See which recipes you can make with available ingredients
+- **Expiring Recipes**: Find recipes that use items about to expire
 - **Personal Preferences**: Your favorites and notes are private to you
+- **Category Organization**: Organize items by dairy, produce, grains, and custom categories
+- **CSV Export**: Download your entire inventory for backup
 - **Beautiful Web Dashboard**: Minimal, clean interface with dark mode
-- **Mobile App**: Native iOS app with biometric authentication (Face ID/Touch ID)
-- **User Authentication**: Secure account-based access with admin management
+- **Native Mobile App**: iOS app with biometric authentication (Face ID/Touch ID) - Android in development
+- **Image Caching**: Recipe images stored locally in MinIO for fast loading
 
 ### For Home Assistant Fans
-- **REST API Integration**: Pull pantry data into Home Assistant
-- **Automation Support**: Trigger notifications, shopping lists, etc.
+- **REST API Integration**: Pull pantry data and expiring items into Home Assistant
+- **Shopping List Sync**: Bi-directional sync with Home Assistant shopping lists
+- **Automation Support**: Trigger notifications, shopping lists, and custom automations
 - **Voice Control Ready**: Foundation laid for Google Assistant/Alexa integration
-- **Self-Hosted**: No cloud dependencies, runs on your network
+- **Self-Hosted**: No cloud dependencies, runs entirely on your network
 - **API Key Support**: Secure service-to-service authentication
 
 ### Privacy & Control
 - **100% Self-Hosted**: Your data never leaves your network
-- **No Subscriptions**: Free and open for personal use
+- **No Subscriptions**: Free and open source (AGPL-3.0)
 - **No Tracking**: No analytics, no telemetry, no phone-home
-- **Full Control**: Modify anything you want
+- **Full Control**: Modify anything you want, it's your code
 - **Secure by Default**: Multiple authentication modes for different use cases
+- **OIDC Support**: Single Sign-On with Google, Microsoft, Keycloak, Authentik
+
+### Advanced Features
+- **MinIO Object Storage**: Scalable image storage for recipe photos
+- **Multi-architecture Support**: AMD64 and ARM64 Docker images
+- **Microservices Architecture**: Separate services for inventory, lookup, and gateway
+- **30-day Barcode Cache**: Reduce API calls with intelligent caching
+- **Email Notifications**: Password recovery and account verification
+- **Session Management**: 30-day sessions with device tracking
+- **Batch Operations**: Bulk edit, delete, and filter inventory items
 
 ---
 
-## Screenshots
+## System Requirements
 
-### Web Dashboard (Light Mode)
-Clean, minimal interface with warm color scheme showing all your items at a glance
+**Minimum:**
+- 1GB RAM
+- 2GB disk space
+- Docker & Docker Compose
+- (Optional) Home Assistant instance
+- (Optional) SMTP server for email notifications
 
-### Web Dashboard (Dark Mode)
-Easy on the eyes for evening pantry checks with full dark mode support
-
-### Mobile App
-Native iOS experience with barcode scanning and biometric authentication
-
-### Home Assistant Integration
-Pantry stats and expiring items right in your dashboard
+**Recommended:**
+- 2GB RAM for better performance
+- 5GB disk space (includes recipe images)
+- Home server, NAS, or VPS
+- Reverse proxy with SSL (Nginx, Caddy, Traefik)
 
 ---
 
 ## Quick Start
 
-### Option 1: Docker Hub (Easiest - Recommended)
+### Deploy with GitHub Container Registry (Recommended)
 
-Pull pre-built images from Docker Hub - no need to clone the repo!
+Pull pre-built images from GitHub Container Registry:
+
 ```bash
 # Download docker-compose file
-curl -O https://raw.githubusercontent.com/harung1993/pantrypal/main/docker-compose-hub.yml
+curl -O https://raw.githubusercontent.com/palStack-io/pantrypal-core/main/docker-compose.yml
 
 # (Optional) Create .env file for email notifications
 cat > .env << 'EOF'
@@ -117,101 +204,187 @@ SMTP_PORT=587
 SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-gmail-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
-SMTP_FROM_NAME=PantryPal
+SMTP_FROM_NAME=pantryPal
 SMTP_USE_TLS=true
 EOF
 
-# Start PantryPal
-docker-compose -f docker-compose-hub.yml up -d
+# Start pantryPal
+docker-compose up -d
 
-# Access at http://localhost
+# Access at http://localhost:8888
 ```
 
 **First Time Setup:**
-1. Open http://localhost in your browser
+1. Open http://localhost:8888 in your browser
 2. Login with default admin credentials: `admin` / `admin`
 3. **Change the admin password immediately** via Settings → Account
 4. Create user accounts for your household via Admin → Users
 5. Configure recipe integrations (Mealie/Tandoor) if desired via Settings
 
-### Option 2: Build from Source
+**📚 For comprehensive installation, configuration, and deployment guides, visit:**
+**[pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)**
 
-For developers or if you want to customize:
-```bash
-# Clone repository
-git clone https://github.com/harung1993/pantrypal.git
-cd pantrypal
-
-# Start services (builds automatically)
-./start-pantrypal.sh
-
-# Or manually
-docker-compose up -d
-```
-
-### Prerequisites (for both options)
-- Docker and Docker Compose
-- (Optional) Home Assistant instance
-- (Optional) SMTP for email notifications
+### Prerequisites
+- Docker and Docker Compose installed
+- Port 8888 available (default, or configure custom port)
+- (Optional) SMTP server for email features:
+  - Account verification
+  - Password reset
+  - User invitations
+- (Optional) Home Assistant instance for smart home integration
+- (Optional) Mealie or Tandoor for recipe management
 - For iOS app: Request TestFlight access (email: palstack4u@gmail.com)
+- For OIDC: OAuth2 provider credentials (Google, Microsoft, etc.)
 
-**That's it!** Open http://localhost and login as `admin` / `admin` (change password immediately!).
+**📚 Detailed setup guides available at [pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)**
+
+**That's it!** Open http://localhost:8888 and login as `admin` / `admin` (change password immediately!).
 
 ---
 
 ## Architecture
 
 Built with a microservices architecture for easy maintenance and future expansion:
+
 ```
 nginx (reverse proxy)
-├── api-gateway (FastAPI)     # Authentication, routing, email notifications
-├── inventory-service         # Item CRUD operations
-├── lookup-service            # Barcode to product info lookup
+├── api-gateway (FastAPI)     # Authentication, routing, email, OIDC, recipes
+├── inventory-service         # Item CRUD, shopping lists, locations
+├── lookup-service            # Barcode to product info (cached)
+├── minio                     # Object storage for recipe images
 └── web-ui (React)            # Dashboard interface
 ```
 
 **Tech Stack:**
-- Backend: Python 3.11 + FastAPI
-- Frontend: React 18 + Vite
-- Mobile: React Native + Expo
-- Database: PostgreSQL (reliable, scalable)
-- Reverse Proxy: nginx
-- Barcode Data: Open Food Facts API
+- **Backend**: Python 3.11+ / FastAPI 0.104
+- **Frontend**: React 19.1 + Vite
+- **Mobile**: React Native 0.81 / Expo SDK 54
+- **Database**: PostgreSQL 15
+- **Object Storage**: MinIO
+- **Reverse Proxy**: nginx
+- **Barcode Data**: Open Food Facts API + UPCitemDB fallback
+- **Authentication**: bcrypt, JWT tokens, OIDC (Authlib 1.3)
+- **Email**: aiosmtplib 3.0 (async SMTP)
+- **Multi-arch**: AMD64 + ARM64 Docker images
 
 ---
 
 ## Authentication Modes
 
-PantryPal supports flexible authentication to fit different use cases. Configure `AUTH_MODE` in `docker-compose.yml`:
+pantryPal supports flexible authentication to fit different use cases. Configure `AUTH_MODE` in `docker-compose.yml`:
 
 | Mode | Best For | Home Network | External Access |
 |------|----------|--------------|-----------------|
 | **full** | Maximum security (recommended) | Login required | Login required |
-| **none** | Single user only | Open | Open (insecure) |
-| **api_key_only** | API integrations | API key only | API key only |
+| **smart** | Convenience + security | Auto-login on home network | Login required externally |
+| **api_key_only** | API integrations only | API key required | API key required |
+| **none** | Single user only (not recommended) | Open access | Open access (insecure) |
 
 **Default Mode:** `full` - All users must create accounts and login, ensuring secure access from anywhere.
 
 ### Authentication Features
-- **Session-based authentication** for web and mobile
+- **Session-based authentication** for web and mobile (30-day sessions)
 - **API key support** for Home Assistant and service integrations
 - **Biometric authentication** on mobile (Face ID, Touch ID, Fingerprint)
-- **Password reset** via email
+- **OIDC/OAuth2 support** for Single Sign-On:
+  - Google
+  - Microsoft
+  - Keycloak
+  - Authentik
+  - Auto account linking by email
+  - PKCE flow with state validation
+- **Email verification** for new accounts
+- **Password reset** via email (1-hour token TTL)
 - **Multi-user support** with admin capabilities
+- **Device tracking** for active sessions
+
+---
+
+## Configuration
+
+### Environment Variables
+
+pantryPal can be configured via environment variables in your `.env` file or `docker-compose.yml`:
+
+#### Authentication & Security
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTH_MODE` | `full` | Authentication mode: `full`, `smart`, `api_key_only`, `none` |
+| `ALLOW_REGISTRATION` | `false` | Enable public user registration |
+| `APP_URL` | `http://localhost:8888` | Base URL for email links |
+
+#### Email Configuration
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SMTP_HOST` | - | SMTP server hostname |
+| `SMTP_PORT` | `587` | SMTP server port |
+| `SMTP_USERNAME` | - | SMTP authentication username |
+| `SMTP_PASSWORD` | - | SMTP authentication password |
+| `SMTP_FROM_EMAIL` | - | Sender email address |
+| `SMTP_FROM_NAME` | `pantryPal` | Sender display name |
+| `SMTP_USE_TLS` | `true` | Enable TLS encryption |
+
+#### OIDC/OAuth2 (Optional)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OIDC_ENABLED` | `false` | Enable OIDC authentication |
+| `OIDC_CLIENT_ID` | - | OAuth2 client ID |
+| `OIDC_CLIENT_SECRET` | - | OAuth2 client secret |
+| `OIDC_DISCOVERY_URL` | - | OIDC discovery endpoint |
+| `OIDC_PROVIDER_NAME` | `OIDC` | Display name for provider |
+
+#### MinIO Object Storage
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MINIO_ENDPOINT` | `minio:9000` | MinIO server endpoint |
+| `MINIO_ACCESS_KEY` | `minioadmin` | MinIO access key |
+| `MINIO_SECRET_KEY` | `minioadmin` | MinIO secret key |
+| `MINIO_BUCKET` | `pantrypal` | Bucket name for images |
+
+#### Advanced
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CORS_ORIGINS` | `*` | Allowed CORS origins (comma-separated) |
+| `DATABASE_URL` | - | PostgreSQL connection string (auto-configured) |
+
+### Example Configuration
+
+```bash
+# .env file
+AUTH_MODE=full
+ALLOW_REGISTRATION=false
+APP_URL=https://pantry.yourdomain.com
+
+# Email notifications
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM_EMAIL=your-email@gmail.com
+SMTP_FROM_NAME=pantryPal
+
+# Optional: Google OAuth
+OIDC_ENABLED=true
+OIDC_CLIENT_ID=your-google-client-id
+OIDC_CLIENT_SECRET=your-google-client-secret
+OIDC_DISCOVERY_URL=https://accounts.google.com/.well-known/openid-configuration
+OIDC_PROVIDER_NAME=Google
+```
 
 ---
 
 ## Shared Household Model
 
-PantryPal is designed for **household use** - one instance serves one household with shared data and individual preferences.
+pantryPal is designed for **household use** - one instance serves one household with shared data and individual preferences.
 
 ### How It Works
 
 | Data Type | Scope | Description |
 |-----------|-------|-------------|
 | **Pantry Items** | Shared | One pantry for the whole household |
-| **Recipes** | Shared | All users see the same recipes |
-| **Favorites** | Per-user | Each user has their own favorites |
+| **Shopping List** | Shared | Everyone adds to and checks off the same list |
+| **Recipes** | Shared | All users see the same imported recipes |
+| **Recipe Favorites** | Per-user | Each user has their own favorites list |
 | **Recipe Notes** | Per-user | Personal notes visible only to you |
 | **Recipe Integrations** | Admin-only | Mealie/Tandoor setup requires admin |
 
@@ -228,9 +401,10 @@ PantryPal is designed for **household use** - one instance serves one household 
 
 Admins can:
 - Create, edit, and delete user accounts
-- Promote/demote users to admin status
+- Promote/demote users to admin status (must have at least one admin)
 - Configure recipe integrations (Mealie, Tandoor)
-- Access system statistics
+- Configure OIDC authentication providers
+- Access system statistics and user management
 
 **Important:** The last admin cannot be demoted - there must always be at least one admin.
 
@@ -243,31 +417,28 @@ Connect to external recipe managers to import recipes for the whole household:
 
 Only admins can configure integrations, but all users can:
 - View imported recipes
-- Add recipes to favorites
-- Add personal notes
+- Import new recipes (any user)
+- Delete recipes (any user)
+- Add recipes to their personal favorites
+- Add private recipe notes
 - Mark recipes as cooked
+- See which recipes can be made with available ingredients
+- Find recipes that use expiring items
+- Add missing ingredients to shopping list
 
 ---
 
 ## Mobile App Access
 
-The iOS app is distributed via TestFlight for family and early testers.
+The iOS app is currently in TestFlight for community testing. Android app is in active development.
 
 **Features:**
-- Native iOS experience
+- Native iOS experience (Android coming soon)
 - Barcode scanning with camera
-- Biometric authentication (Face ID/Touch ID)
+- Biometric authentication (Face ID/Touch ID/Fingerprint)
 - Self-hosted server configuration
 - Full inventory management on the go
-
-**Request Access:**
-- Email: palstack4u@gmail.com
-- Subject: "PantryPal TestFlight Request"
-- Include: Your Apple ID email
-
-You'll receive an invitation within 24-48 hours.
-
-**Note:** This is a personal project for family use, not a commercial app. No App Store release is planned for now.
+- Tested and refined by our growing community of users
 
 ---
 
@@ -276,6 +447,7 @@ You'll receive an invitation within 24-48 hours.
 ### Quick Setup
 
 Add this to your `configuration.yaml`:
+
 ```yaml
 sensor:
   - platform: rest
@@ -300,6 +472,7 @@ sensor:
 6. Copy the key and use it in your Home Assistant configuration
 
 ### Example Automation
+
 ```yaml
 automation:
   - alias: "Morning Pantry Check"
@@ -319,89 +492,22 @@ automation:
 
 ---
 
-## The PalStack Vision
-
-PantryPal is part of a larger ecosystem of self-hosted life management tools I'm building:
-
-### PantryPal (This Project)
-**Status:** Production Ready
-**Purpose:** Never buy duplicate groceries again
-**Integrations:** Home Assistant, mobile apps
-
-### PropertyPal (In Development)
-**Purpose:** Track home maintenance, warranties, and property documents
-**Why:** Because I can never remember when I last changed the HVAC filter
-
-### BudgetPal (Planned)
-**Purpose:** Household budgeting with focus on debt repayment
-**Based on:** DollarDollar Bill Y'all methodology
-**Why:** Making finances manageable and transparent for couples
-
-All three share the same philosophy:
-- **Privacy-first**: Self-hosted, no cloud dependencies
-- **Family-focused**: Multi-user, easy for everyone to use
-- **Smart home ready**: Built with Home Assistant integration in mind
-- **Open source**: Free for personal use, with commercial hosting reserved
-
----
-
-## Development
-
-### Local Development
-```bash
-# Backend services
-docker-compose up -d
-
-# Web UI (with hot reload)
-cd services/web-ui
-npm install
-npm run dev
-
-# Mobile app
-cd mobile
-npm install
-npx expo start
-```
-
-### Building for Production
-```bash
-# Build all Docker images
-docker-compose up -d --build
-
-# Build iOS app
-cd mobile
-eas build --platform ios --profile production
-```
-
-### Project Structure
-```
-pantrypal/
-├── docker-compose.yml          # Main orchestration file
-├── nginx/                      # Reverse proxy configuration
-├── services/
-│   ├── api-gateway/           # Authentication and routing
-│   ├── inventory-service/     # Item management
-│   ├── lookup-service/        # Barcode lookup
-│   └── web-ui/                # React dashboard
-├── mobile/                     # React Native app
-└── postgres_data/              # PostgreSQL data (created on first run)
-```
-
----
-
 ## Roadmap
 
 **Near Term:**
+- [ ] Android native app (currently in development)
 - [ ] Home Assistant voice control integration
 - [ ] Receipt scanning with LLM processing for bulk entry
-- [ ] Android native app (currently Expo Go only)
 - [ ] Shopping list generation from pantry
 
 **Future:**
 - [ ] Meal planning based on inventory
 - [ ] Nutrition tracking
 - [x] Recipe suggestions based on available items (via Mealie/Tandoor integration)
-- [ ] PropertyPal & BudgetPal integration
+- [ ] Cross-Pal integration (propertyPal, finPal, clubPal)
+
+**palStack Vision:**
+All our Pals will eventually work together seamlessly—imagine your grocery spending syncing with finPal, or maintenance costs flowing into your budget automatically.
 
 ---
 
@@ -423,26 +529,72 @@ Self-hosting means:
 
 ## Contributing
 
-This is a personal project built for my household, but:
+pantryPal is open source and welcomes contributions!
 
-- **Bug reports** are welcome via GitHub Issues
-- **Feature suggestions** appreciated
-- **Forks encouraged** for personal customization
-- **Pull requests** considered for features that benefit the community
+**How to Contribute:**
+- **Bug reports** - Submit via [GitHub Issues](https://github.com/palStack-io/pantrypal-core/issues)
+- **Feature requests** - Open a discussion to propose new features
+- **Pull requests** - Code contributions welcome (see requirements below)
 
-By contributing, you agree that your contributions will be licensed under the same terms as the project.
+**Pull Request Requirements:**
+- All PRs require approval from **2 palStack developers**
+- Review process typically takes **24-48 hours**
+- Include clear description of changes and why they're needed
+- Ensure all tests pass and documentation is updated
+- Follow existing code patterns and style
+
+**📚 For detailed contribution guidelines, visit [pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)**
+
+By contributing, you agree that your contributions will be licensed under AGPL-3.0.
 
 ---
 
 ## License
 
-**Personal Use License**
+**Dual Licensed: Open Source Core + Proprietary Premium**
 
-Copyright (c) 2025 PalStack
+### pantryPal Core (AGPL-3.0) - This Repository
 
-**Free for Personal Use:** PantryPal is freely available for personal, non-commercial, self-hosted use. You can install it, modify it, and use it in your home.
+The self-hosted version is **free and open source** under AGPL-3.0:
+- ✅ **Free for personal use** - No cost, ever
+- ✅ **Free for commercial use** - Use in your business
+- ✅ **All core features included** - Nothing held back
+- ✅ **Modify and distribute freely** - Fork it, customize it
+- ⚠️ **Must share modifications** - AGPL copyleft requirement
+- ⚠️ **Network use counts as distribution** - Must provide source to users
 
-**Commercial & Hosted Services:** PalStack reserves the exclusive right to offer PantryPal as a hosted service or commercial product. If you want to offer PantryPal as a service, integrate it into a commercial product, or deploy it in a business setting, please contact us for licensing.
+**What's included in Core:**
+- All barcode scanning and inventory management
+- Expiry tracking with alerts
+- Recipe integration (Mealie/Tandoor)
+- Shopping list management
+- Home Assistant integration
+- Multi-user household support
+- All current features you see in this repository
+
+### pantryPal Premium (Proprietary) - Managed Hosting Only
+
+Our managed hosting service will include **proprietary premium features**:
+- 🤖 **AI-powered receipt scanning** - Photo to pantry in seconds
+- 📊 **Advanced analytics** - Food waste insights and patterns
+- 🍳 **Smart meal planning** - AI-suggested meals from inventory
+- 🛒 **Auto-reordering** - Integration with grocery delivery services
+- 📧 **Enhanced notifications** - Smarter expiry alerts
+- ⚡ **Priority support** - Direct access to the team
+
+**Premium features are:**
+- Available **only** via managed hosting subscription
+- **Not open source** (proprietary code)
+- Used to fund development of the free Core version
+- Coming soon at [pantrypal.palstack.io](https://pantrypal.palstack.io)
+
+### Why Dual Licensing?
+
+We believe in **both** open source **and** sustainable business:
+
+**Self-hosters get:** Powerful pantry tools, free forever, full control  
+**Managed subscribers get:** Extra convenience features + support our work  
+**Everyone wins:** Premium revenue funds Core development
 
 **Full License:** See [LICENSE](LICENSE) file for complete terms.
 
@@ -452,89 +604,98 @@ Copyright (c) 2025 PalStack
 
 ## Acknowledgments
 
-- **My wife** - For the original suggestion to "just keep a list"
-- **Three cans of tomato sauce** - For sitting in my basement and inspiring this entire project
-- **AI Coding Assistants** - For being patient teachers when I had no idea what I was doing
-- **Open Food Facts** - For the amazing product database API
-- **Home Assistant Community** - For building an incredible smart home platform
+- **Our friends** - For enthusiastically adopting pantryPal and providing invaluable feedback that shaped it into a real product
+- **Three cans of tomato sauce** - For sitting in a basement and inspiring this entire journey
+- **The open source community** - For showing us that building in public and sharing freely creates better software
+- **AI Coding Assistants** - For being patient teachers bridging the gap from data science to software engineering
+- **Open Food Facts** - For the amazing product database API that makes barcode scanning possible
+- **Home Assistant Community** - For building an incredible smart home platform and proving privacy-first automation works
 - **Docker** - For making "but it works on my machine" a thing of the past
-- **Everyone who said "just use Google Keep"** - You're not wrong
+- **Everyone who said "just use Google Keep"** - You motivated us to prove there's a better way
 
 ---
 
-## Contact
+## About palStack
 
-**Project Maintainer:** Harun Gunasekaran  
-**Email:** palstack4u@gmail.com  
-**GitHub:** [@harung1993](https://github.com/harung1993)
+**Privacy-first tools for everyday life.** That's what pals do—they show up and help with the everyday stuff.
 
-**PalStack Projects:**
-- PantryPal - This project
-- PropertyPal - Coming soon
-- DebtFree - Coming soon
-- MinglePal - Coming soon
-- BudgetPal - Planned
+We're not building engagement platforms or harvesting data. We solve real problems we've experienced, then share the solution.
+
+**Core Values:**
+- **Your Data**: Zero telemetry, no tracking, privacy by design
+- **Open Source**: AGPL-3.0, free forever, improvements benefit everyone  
+- **Human-Centered**: Plain English, accessible design, forgiving UX
+- **AI-Assisted**: LLM-agnostic (Claude, ChatGPT, Qwen), all code human-reviewed
+- **Dog-Fooded**: We use what we build daily
+
+**Two Paths:**
+1. **Self-Host** - Free forever, full features, community support
+2. **Managed Hosting** - Coming soon! We handle infrastructure, you enjoy the app
+
+We're building sustainable tools that help people, not chasing unicorns. If we can pay our bills doing it—and sleep well at night—that's success.
+
+---
+
+## The palStack Ecosystem
+
+**Production Ready:**
+- **[pantryPal](https://pantrypal.palstack.io)** - Food waste reduction | [Docs](https://pantrypal.palstack.io/docs) | [GitHub](https://github.com/palStack-io/pantrypal-core)
+
+**Final Testing:**
+- **[finPal](https://finpal.palstack.io)** - Personal finance tracking | [GitHub](https://github.com/palStack-io/finpal-core)
+
+**In Development:**
+- **[propertyPal](https://propertypal.palstack.io)** - Home, pet, and vehicle tracking | [GitHub](https://github.com/palStack-io/propertypal-core)
+- **[clubPal](https://clubpal.palstack.io)** - Group coordination | [GitHub](https://github.com/palStack-io/clubpal-core)
+
+*Privacy-first • Family-focused • Home Assistant ready • AGPL-3.0*
+
+**Explore:** [palstack.io](https://palstack.io)
+
+---
+
+## The Team
+
+- **Harun Gunasekaran** - Founder & Lead Developer
+- **Chris Macioci** - Co-Founder & Lead DevOps
+- **Rachel Surette** - Co-Founder, Marketing & Branding
+- **Elle Russel Chopra** - Co-Founder, Lead UI/UX Designer
+- **Chaitanya Gunupudi** - Senior Advisor, Cybersecurity & DevOps
+- **AI Assistants** - LLM-agnostic: Claude, ChatGPT, Qwen (all code human-reviewed)
+
+---
+
+## Contact & Community
+
+**Get in Touch:**
+- 🌐 Website: [palstack.io](https://palstack.io)
+- 📧 Email: palstack4u@gmail.com
+- 💻 GitHub: [@palStack-io](https://github.com/palStack-io)
+- 📦 Containers: [GitHub Packages](https://github.com/orgs/palStack-io/packages)
+- 📚 Docs: [pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)
+
+**Join the Community:**
+
+We're building a community of privacy-focused, self-hosting enthusiasts who believe everyday tools shouldn't compromise your data. Whether you're a developer, a user with ideas, or someone who just wants to reduce food waste—you're welcome here.
+
+**Ways to Get Involved:**
+- 🍽️ Use pantryPal and share your food-saving success stories
+- 💻 Contribute code via pull requests on GitHub
+- 🐛 Report bugs to help us improve
+- 💡 Request features that solve real problems
+- 📣 Spread the word about privacy-first alternatives
+
+**Support the Project:**
+- [GitHub Sponsors](https://github.com/sponsors/harung1993)
+- [Buy Me a Coffee](https://buymeacoffee.com/cCFW6gZz28)
+
+**Learn More:**
+- [Our Methodology](https://palstack.io/methodology) - How we build
+- [The Team](https://palstack.io/team) - Who we are
+- [All Projects](https://palstack.io) - Explore the full palStack suite
 
 ---
 
 *"That's what pals do - they show up and help with the everyday stuff."*
 
-Built for households tired of buying duplicate groceries.
----
-
-## Version Management & Deployment
-
-PantryPal includes automated scripts for version management and deployment across mobile and web platforms.
-
-### Quick Version Bump
-
-Automatically update versions across all platforms:
-
-```bash
-npm run bump-version patch   # Bug fixes: 1.3.0 -> 1.3.1
-npm run bump-version minor   # New features: 1.3.0 -> 1.4.0
-npm run bump-version major   # Breaking changes: 1.3.0 -> 2.0.0
-```
-
-This automatically updates:
-- Mobile app version (`mobile/app.json`)
-- iOS build number (auto-incremented)
-- Web UI version (`services/web-ui/package.json`)
-
-### Docker Deployment
-
-```bash
-npm run docker:build        # Build all Docker images
-npm run docker:push         # Push to Docker Hub (harung43/pantrypal-*)
-npm run docker:deploy       # Build and push in one command
-```
-
-### Mobile App Builds
-
-```bash
-npm run mobile:build:ios       # Build and submit to App Store
-npm run mobile:build:android   # Build and submit to Play Store
-npm run mobile:build:all       # Build for both platforms
-```
-
-### Complete Release Workflow
-
-```bash
-# 1. Bump version and build Docker images
-npm run release:patch
-
-# 2. Push Docker images to hub
-npm run docker:push
-
-# 3. Build and submit mobile apps
-npm run mobile:build:all
-
-# 4. Commit and tag
-git add .
-git commit -m "chore: release v1.3.1"
-git tag v1.3.1
-git push && git push --tags
-```
-
-See `scripts/README.md` for detailed documentation.
-
+**Built by the open source community, for the open source community.**

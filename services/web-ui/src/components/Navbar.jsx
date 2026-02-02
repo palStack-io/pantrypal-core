@@ -34,10 +34,10 @@ export function Navbar({ onMenuClick, currentUser, onLogout, onSettingsClick }) 
           <Menu size={24} />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-          <span style={{ fontSize: '32px' }}>🥫</span>
+          <img src="/pantryPal.png" alt="pantryPal" style={{ width: '32px', height: '32px' }} />
           <div>
             <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: colors.textPrimary }}>
-              PantryPal
+              pantryPal
             </h1>
             <p style={{ margin: 0, fontSize: '12px', color: colors.textSecondary }}>
               Self-hosted pantry management

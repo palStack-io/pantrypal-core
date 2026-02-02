@@ -1098,7 +1098,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
               marginBottom: spacing.lg,
             }}>
               <h2 style={{ marginTop: 0, color: colors.textPrimary }}>🔐 API Keys Management</h2>
-              <p style={{ color: colors.textSecondary }}>Manage API keys for accessing PantryPal</p>
+              <p style={{ color: colors.textSecondary }}>Manage API keys for accessing pantryPal</p>
               
               {/* Generated Key Display */}
               {generatedKey && (
@@ -1563,7 +1563,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 color: colors.textSecondary,
                 fontSize: '14px',
               }}>
-                📱 <strong>Biometric Authentication</strong> is available on the mobile app. Download the PantryPal mobile app to enable Face ID or Touch ID for quick, secure access.
+                📱 <strong>Biometric Authentication</strong> is available on the mobile app. Download the pantryPal mobile app to enable Face ID or Touch ID for quick, secure access.
               </div>
             </div>
           </div>
@@ -1841,7 +1841,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                   <li>Click on your profile icon → Profile</li>
                   <li>Scroll to "API Tokens"</li>
                   <li>Click "Create API Token"</li>
-                  <li>Give it a name (e.g., "PantryPal")</li>
+                  <li>Give it a name (e.g., "pantryPal")</li>
                   <li>Copy the generated token</li>
                 </ol>
 
@@ -1880,7 +1880,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 <div>
                   <h3 style={{ margin: 0, color: colors.textPrimary }}>Mobile App Notifications</h3>
                   <p style={{ margin: 0, marginTop: spacing.xs, color: colors.textSecondary, fontSize: '14px' }}>
-                    Push notifications for expiring items are available on the PantryPal mobile app
+                    Push notifications for expiring items are available on the pantryPal mobile app
                   </p>
                 </div>
               </div>
@@ -3018,7 +3018,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
             borderRadius: borderRadius.lg,
             boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
           }}>
-            <h2 style={{ marginTop: 0, color: colors.textPrimary }}>About PantryPal</h2>
+            <h2 style={{ marginTop: 0, color: colors.textPrimary }}>About pantryPal</h2>
             <div style={{ display: 'grid', gap: spacing.md }}>
               <div style={{
                 display: 'flex',
@@ -3058,12 +3058,30 @@ function SettingsPage({ onBack, currentUser, isDark }) {
               paddingTop: spacing.xl,
               borderTop: `1px solid ${colors.border}`,
             }}>
-              <div style={{ fontSize: '32px', marginBottom: spacing.sm }}>🥫</div>
+              <img src="/pantryPal.png" alt="pantryPal" style={{ width: '48px', height: '48px', marginBottom: spacing.sm }} />
               <div style={{ fontSize: '20px', fontWeight: 'bold', color: colors.textPrimary }}>
-                PantryPal
+                pantryPal
               </div>
               <div style={{ fontSize: '14px', color: colors.textSecondary, marginTop: spacing.xs }}>
                 Self-hosted pantry management
+              </div>
+              <div style={{ marginTop: spacing.md, display: 'flex', justifyContent: 'center', gap: spacing.md, flexWrap: 'wrap' }}>
+                <a
+                  href="https://github.com/palStack-io/pantrypal-core"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: colors.primary, textDecoration: 'none', fontSize: '14px' }}
+                >
+                  ⭐ GitHub
+                </a>
+                <a
+                  href="https://pantrypal.palstack.io"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: colors.primary, textDecoration: 'none', fontSize: '14px' }}
+                >
+                  🌐 Website
+                </a>
               </div>
             </div>
 
@@ -3072,20 +3090,22 @@ function SettingsPage({ onBack, currentUser, isDark }) {
               paddingTop: spacing.xl,
               borderTop: `1px solid ${colors.border}`,
             }}>
-              <h3 style={{
-                marginTop: 0,
-                marginBottom: spacing.md,
-                color: colors.textPrimary,
-                fontSize: '18px',
-              }}>
-                Part of PalStack
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+                <img src="/palstack.png" alt="palStack" style={{ width: '24px', height: '24px' }} />
+                <h3 style={{
+                  margin: 0,
+                  color: colors.textPrimary,
+                  fontSize: '18px',
+                }}>
+                  Part of palStack
+                </h3>
+              </div>
               <p style={{
                 color: colors.textSecondary,
                 lineHeight: 1.6,
                 marginBottom: spacing.md,
               }}>
-                PantryPal is part of the <strong style={{ color: colors.textPrimary }}>PalStack</strong> family of self-hosted applications designed to simplify everyday life.
+                pantryPal is part of the <strong style={{ color: colors.textPrimary }}>palStack</strong> family of self-hosted applications designed to simplify everyday life.
               </p>
               <p style={{
                 color: colors.textSecondary,
@@ -3100,7 +3120,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 lineHeight: 1.6,
                 fontSize: '14px',
               }}>
-                PalStack is a collection of practical, privacy-focused tools that help you manage your home, track your inventory, and organize your life – all on your own terms, hosted wherever you choose.
+                palStack is a collection of practical, privacy-focused tools that help you manage your home, track your inventory, and organize your life – all on your own terms, hosted wherever you choose.
               </p>
             </div>
           </div>

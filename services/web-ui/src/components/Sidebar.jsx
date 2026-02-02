@@ -47,7 +47,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, isDark, onFilterChang
     <div className="sidebar" style={{ background: colors.card }}>
       <div style={{ padding: spacing.xl, borderBottom: `1px solid ${colors.border}` }}>
         <div style={{ fontSize: '24px', fontWeight: '700', color: colors.primary, display: 'flex', alignItems: 'center', gap: '10px', marginBottom: spacing.lg }}>
-          🥫 PantryPal
+          <img src="/pantryPal.png" alt="pantryPal" style={{ width: '28px', height: '28px' }} /> pantryPal
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 12px', background: colors.accentBg, borderRadius: borderRadius.md, fontSize: '14px' }}>

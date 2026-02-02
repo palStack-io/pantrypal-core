@@ -253,12 +253,12 @@ function LandingPage({ onLoginSuccess }) {
             minWidth: '320px',
             maxWidth: '600px',
           }}>
-            <div style={{ fontSize: '64px', marginBottom: spacing.md }}>🥫</div>
+            <img src="/pantryPal.png" alt="pantryPal" style={{ width: '64px', height: '64px', marginBottom: spacing.md }} />
             <h1 style={{ fontSize: '48px', margin: 0, marginBottom: spacing.sm, fontWeight: 'bold' }}>
-              PantryPal
+              pantryPal
             </h1>
             <p style={{ fontSize: '20px', opacity: 0.9, marginBottom: spacing.xl }}>
-              Part of PalStack - Self-hosted solutions for modern homes
+              Part of palStack - Self-hosted solutions for modern homes
             </p>
             
             <h2 style={{ fontSize: '32px', marginBottom: spacing.md }}>
@@ -280,23 +280,23 @@ function LandingPage({ onLoginSuccess }) {
               borderLeft: '4px solid white',
             }}>
               <p style={{ margin: 0, marginBottom: spacing.sm, fontSize: '18px', fontWeight: 'bold' }}>
-                PalStack Mission
+                palStack Mission
               </p>
               <p style={{ margin: 0, fontSize: '15px', lineHeight: 1.6, fontStyle: 'italic' }}>
-                "That's what pals do – they show up and help with the everyday stuff. 
-                At PalStack, we build simple, open-source tools that make life easier. 
-                Track what's in your pantry, manage home repairs, stay on top of your budget – 
+                "That's what pals do – they show up and help with the everyday stuff.
+                At palStack, we build simple, open-source tools that make life easier.
+                Track what's in your pantry, manage home repairs, stay on top of your budget –
                 all without compromising your privacy or freedom.
               </p>
               <p style={{ margin: 0, marginTop: spacing.sm, fontSize: '15px', lineHeight: 1.6, fontStyle: 'italic' }}>
-                Self-host for complete control, modify them to fit your needs, or use our 
+                Self-host for complete control, modify them to fit your needs, or use our
                 affordable hosted option. Either way, your pal's got your back."
               </p>
             </div>
-            
-            <div style={{ marginTop: spacing.xl }}>
-              <a 
-                href="https://github.com/harung1993/PantryPal" 
+
+            <div style={{ marginTop: spacing.xl, display: 'flex', gap: spacing.lg, flexWrap: 'wrap' }}>
+              <a
+                href="https://github.com/palStack-io/pantrypal-core"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -307,6 +307,19 @@ function LandingPage({ onLoginSuccess }) {
                 }}
               >
                 ⭐ Star on GitHub →
+              </a>
+              <a
+                href="https://pantrypal.palstack.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'white',
+                  textDecoration: 'none',
+                  fontSize: '16px',
+                  opacity: 0.8,
+                }}
+              >
+                🌐 Learn More →
               </a>
             </div>
           </div>
@@ -326,10 +339,10 @@ function LandingPage({ onLoginSuccess }) {
               <>
                 <div style={{ textAlign: 'center', marginBottom: spacing.xl }}>
                   <h2 style={{ margin: 0, color: colors.textPrimary, fontSize: '28px' }}>
-                    Connect to PantryPal
+                    Connect to pantryPal
                   </h2>
                   <p style={{ color: colors.textSecondary, marginTop: spacing.sm }}>
-                    Enter your PantryPal server URL
+                    Enter your pantryPal server URL
                   </p>
                 </div>
 
@@ -396,7 +409,7 @@ function LandingPage({ onLoginSuccess }) {
                   color: colors.textSecondary,
                   lineHeight: 1.5,
                 }}>
-                  💡 This is the URL where your PantryPal backend is running.
+                  💡 This is the URL where your pantryPal backend is running.
                   If you're at home, you can also access directly without this step.
                 </div>
               </>
@@ -530,7 +543,7 @@ function LandingPage({ onLoginSuccess }) {
                   textAlign: 'center',
                 }}>
                   <p style={{ margin: 0, fontSize: '14px', color: colors.textSecondary, lineHeight: 1.6 }}>
-                    💡 <strong>At home?</strong> You can access PantryPal directly without logging in!
+                    💡 <strong>At home?</strong> You can access pantryPal directly without logging in!
                     This login is only needed for external access.
                   </p>
                 </div>
@@ -577,9 +590,9 @@ function LandingPage({ onLoginSuccess }) {
           </button>
           
           <div style={{ textAlign: 'center', marginBottom: spacing.xl }}>
-            <div style={{ fontSize: '48px', marginBottom: spacing.sm }}>🥫</div>
+            <img src="/pantryPal.png" alt="pantryPal" style={{ width: '48px', height: '48px', marginBottom: spacing.sm }} />
             <h2 style={{ margin: 0, color: colors.textPrimary, fontSize: '28px' }}>
-              Sign In to PantryPal
+              Sign In to pantryPal
             </h2>
           </div>
 
@@ -593,7 +606,7 @@ function LandingPage({ onLoginSuccess }) {
               marginBottom: spacing.lg,
             }}>
               <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: spacing.sm }}>
-                Try PantryPal with a Demo Account
+                Try pantryPal with a Demo Account
               </div>
               <p style={{ fontSize: '14px', margin: 0, marginBottom: spacing.md, opacity: 0.9 }}>
                 Use any of these accounts to explore the app. Sessions auto-expire after {demoSessionMinutes} minutes.
@@ -815,12 +828,12 @@ function LandingPage({ onLoginSuccess }) {
           </button>
           
           <div style={{ textAlign: 'center', marginBottom: spacing.xl }}>
-            <div style={{ fontSize: '48px', marginBottom: spacing.sm }}>🥫</div>
+            <img src="/pantryPal.png" alt="pantryPal" style={{ width: '48px', height: '48px', marginBottom: spacing.sm }} />
             <h2 style={{ margin: 0, color: colors.textPrimary, fontSize: '28px' }}>
               Create Your Account
             </h2>
             <p style={{ color: colors.textSecondary, marginTop: spacing.sm }}>
-              Join PantryPal and start tracking your inventory
+              Join pantryPal and start tracking your inventory
             </p>
           </div>
           
@@ -1009,7 +1022,7 @@ function LandingPage({ onLoginSuccess }) {
             color: colors.textSecondary,
             lineHeight: 1.5,
           }}>
-            By creating an account, you agree to use PantryPal responsibly. 
+            By creating an account, you agree to use pantryPal responsibly. 
             All data is stored locally on your server.
           </div>
         </div>

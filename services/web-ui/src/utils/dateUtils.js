@@ -1,4 +1,4 @@
-// Date utility functions for PantryPal
+// Date utility functions for pantryPal
 
 /**
  * Format date to readable string
