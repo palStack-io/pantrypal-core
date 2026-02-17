@@ -106,6 +106,16 @@ Don't want to manage servers? We're launching a managed hosting service where we
   
 </div>
 
+<div align="center">
+
+  ### Mobile app 
+  <img width="45%" alt="Dashboard Overview" src="https://github.com/user-attachments/assets/ed2ef2f0-7f60-46ee-9627-932c07862ac8" />
+  <img width="45%" alt="Receipe Overview" src="https://github.com/user-attachments/assets/011f8660-d0cc-43ed-bf4b-41f881bb6c4d" />  
+  <img width="45%" alt="Receipe expand" src="https://github.com/user-attachments/assets/67c7ae73-8518-4d95-82c3-5b0df8014335" /> 
+  <img width="45%" alt="Shopping list" src="https://github.com/user-attachments/assets/eea1fd7d-9c8f-4872-9750-358e5a374f56" /> 
+  
+</div>
+
 > **Try it live:** [pantrypal.palstack.io](https://pantrypal.palstack.io)
 
 ---
