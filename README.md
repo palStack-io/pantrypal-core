@@ -243,7 +243,6 @@ docker-compose up -d
   - User invitations
 - (Optional) Home Assistant instance for smart home integration
 - (Optional) Mealie or Tandoor for recipe management
-- For iOS app: Request TestFlight access (email: palstack4u@gmail.com)
 - For OIDC: OAuth2 provider credentials (Google, Microsoft, etc.)
 
 **📚 Detailed setup guides available at [pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)**
