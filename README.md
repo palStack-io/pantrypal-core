@@ -88,7 +88,7 @@ Don't want to manage servers? We're launching a managed hosting service where we
 - ✅ Same features as self-hosted
 - ✅ Subscription-based pricing
 
-**Stay updated:** [palstack.io](https://palstack.io) | Email: palstack4u@gmail.com
+**Stay updated:** [palstack.io](https://palstack.io) | Email: support@palstack.io
 
 ---
 
@@ -608,7 +608,7 @@ We believe in **both** open source **and** sustainable business:
 
 **Full License:** See [LICENSE](LICENSE) file for complete terms.
 
-**Questions?** Email palstack4u@gmail.com
+**Questions?** Email support@palstack.io
 
 ---
 
@@ -679,7 +679,7 @@ We're building sustainable tools that help people, not chasing unicorns. If we c
 
 **Get in Touch:**
 - 🌐 Website: [palstack.io](https://palstack.io)
-- 📧 Email: palstack4u@gmail.com
+- 📧 Email: support@palstack.io
 - 💻 GitHub: [@palStack-io](https://github.com/palStack-io)
 - 📦 Containers: [GitHub Packages](https://github.com/orgs/palStack-io/packages)
 - 📚 Docs: [pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)
