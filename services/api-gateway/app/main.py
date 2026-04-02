@@ -406,7 +406,7 @@ async def change_password(request: ChangePasswordRequest, auth = Depends(get_cur
         raise HTTPException(status_code=401, detail="Current password is incorrect")
     
     # Update password
-    success = pg_auth.update_user_password(auth["user_id"], request.new_password)
+    success = pg_auth.update_user_password(auth["id"], request.new_password)
     
     if success:
         return {"message": "Password changed successfully"}
@@ -1313,7 +1313,7 @@ async def update_my_profile(
     # Use pg_auth helper to update profile (handles uniqueness checks)
     try:
         success = pg_auth.update_user_profile(
-            user_id=auth["user_id"],
+            user_id=auth["id"],
             username=profile.username,
             email=profile.email,
             full_name=profile.full_name
