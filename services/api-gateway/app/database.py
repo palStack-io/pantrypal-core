@@ -55,6 +55,10 @@ def init_db():
     # Run migrations for existing databases
     run_migrations()
 
+    # Create default admin if no users exist (must run after tables are created)
+    from .pg_auth import create_default_admin
+    create_default_admin()
+
 
 def run_migrations():
     """

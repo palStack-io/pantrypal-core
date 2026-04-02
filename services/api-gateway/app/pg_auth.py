@@ -669,5 +669,4 @@ def create_user_from_oidc(username: str, email: Optional[str], full_name: Option
         db.close()
 
 
-# Initialize default admin on module load
-create_default_admin()
+# Note: create_default_admin() is called from database.init_db() after tables are created
