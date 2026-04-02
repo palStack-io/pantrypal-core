@@ -151,13 +151,12 @@ services:
     image: ghcr.io/palstack-io/pantrypal-inventory:latest
     container_name: pantrypal-inventory-service
     environment:
-      DATABASE_URL: sqlite:////app/data/inventory/inventory.db
+      DATABASE_URL: postgresql://pantrypal:CHANGEME_DB_PASSWORD@postgres:5432/pantrypal
       BACKUP_ENABLED: "false"
       BACKUP_SCHEDULE: "0 2 * * *"
       BACKUP_RETENTION_DAYS: "7"
       BACKUP_PATH: /app/backups/csv
     volumes:
-      - inventory_data:/app/data/inventory
       - backup_data:/app/backups
     networks:
       - pantrypal-network
@@ -170,10 +169,8 @@ services:
     image: ghcr.io/palstack-io/pantrypal-lookup:latest
     container_name: pantrypal-lookup-service
     environment:
-      CACHE_DB_PATH: /app/data/lookup_cache/lookup_cache.db
+      DATABASE_URL: postgresql://pantrypal:CHANGEME_DB_PASSWORD@postgres:5432/pantrypal
       CACHE_TTL_DAYS: "30"
-    volumes:
-      - lookup_cache:/app/data/lookup_cache
     networks:
       - pantrypal-network
     restart: unless-stopped
@@ -209,8 +206,6 @@ services:
       MINIO_SECRET_KEY: CHANGEME_MINIO_PASSWORD
       BACKUP_PATH: /backups
     volumes:
-      - gateway_data:/data:ro            # provides users.db + api_keys.db
-      - inventory_data:/data/inventory:ro  # provides inventory.db
       - backup_data:/backups
     networks:
       - pantrypal-network
@@ -257,6 +252,4 @@ volumes:
   postgres_data:
   minio_data:
   gateway_data:
-  inventory_data:
   backup_data:
-  lookup_cache:

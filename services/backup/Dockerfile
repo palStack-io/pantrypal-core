@@ -7,7 +7,6 @@ COPY --from=mc-source /usr/bin/mc /usr/local/bin/mc
 
 RUN apk add --no-cache \
     postgresql15-client \
-    sqlite \
     bash \
     tzdata
 

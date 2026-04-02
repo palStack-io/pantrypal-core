@@ -1,67 +1,74 @@
 from fastapi import FastAPI, HTTPException
 import httpx
-import sqlite3
 import json
 import os
 from datetime import datetime, timedelta
 from typing import Optional
+from sqlalchemy import create_engine, Column, String, DateTime, text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 app = FastAPI(title="PantryPal Lookup Service", version="1.0.0")
 
-CACHE_DB_PATH = os.getenv("CACHE_DB_PATH", "/app/data/lookup_cache.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://pantrypal:pantrypal_secure_password@postgres:5432/pantrypal")
 CACHE_TTL_DAYS = int(os.getenv("CACHE_TTL_DAYS", "30"))
 
-def init_cache_db():
-    os.makedirs(os.path.dirname(CACHE_DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(CACHE_DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS lookup_cache (
-            barcode TEXT PRIMARY KEY,
-            product_data TEXT NOT NULL,
-            cached_at TIMESTAMP NOT NULL,
-            expires_at TIMESTAMP NOT NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-init_cache_db()
+class LookupCache(Base):
+    __tablename__ = "lookup_cache"
+    barcode = Column(String, primary_key=True, index=True)
+    product_data = Column(String, nullable=False)
+    cached_at = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+
+Base.metadata.create_all(bind=engine)
 
 def get_from_cache(barcode: str) -> Optional[dict]:
-    conn = sqlite3.connect(CACHE_DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT product_data, expires_at FROM lookup_cache WHERE barcode = ? AND expires_at > ?", 
-                   (barcode, datetime.utcnow().isoformat()))
-    result = cursor.fetchone()
-    conn.close()
-    if result:
-        return json.loads(result[0])
-    return None
+    db = SessionLocal()
+    try:
+        row = db.query(LookupCache).filter(
+            LookupCache.barcode == barcode,
+            LookupCache.expires_at > datetime.utcnow()
+        ).first()
+        return json.loads(row.product_data) if row else None
+    finally:
+        db.close()
 
 def save_to_cache(barcode: str, product_data: dict):
-    conn = sqlite3.connect(CACHE_DB_PATH)
-    cursor = conn.cursor()
-    cached_at = datetime.utcnow()
-    expires_at = cached_at + timedelta(days=CACHE_TTL_DAYS)
-    cursor.execute("INSERT OR REPLACE INTO lookup_cache (barcode, product_data, cached_at, expires_at) VALUES (?, ?, ?, ?)",
-                   (barcode, json.dumps(product_data), cached_at.isoformat(), expires_at.isoformat()))
-    conn.commit()
-    conn.close()
+    db = SessionLocal()
+    try:
+        cached_at = datetime.utcnow()
+        expires_at = cached_at + timedelta(days=CACHE_TTL_DAYS)
+        row = db.query(LookupCache).filter(LookupCache.barcode == barcode).first()
+        if row:
+            row.product_data = json.dumps(product_data)
+            row.cached_at = cached_at
+            row.expires_at = expires_at
+        else:
+            db.add(LookupCache(
+                barcode=barcode,
+                product_data=json.dumps(product_data),
+                cached_at=cached_at,
+                expires_at=expires_at,
+            ))
+        db.commit()
+    finally:
+        db.close()
 
 def extract_category(categories_str: str) -> str:
     """Extract the main category from the categories string"""
     if not categories_str:
         return "Uncategorized"
-    
-    # Split by comma and get the first/main category
+
     categories = categories_str.split(',')
     if not categories:
         return "Uncategorized"
-    
+
     main_category = categories[0].strip()
-    
-    # Simplify common categories
+
     category_map = {
         'beverages': 'Beverages',
         'drinks': 'Beverages',
@@ -123,10 +130,7 @@ async def lookup_open_food_facts(barcode: str) -> Optional[dict]:
                 data = response.json()
                 if data.get("status") == 1 and "product" in data:
                     product = data["product"]
-
-                    categories = product.get("categories", "")
-                    category = extract_category(categories)
-
+                    category = extract_category(product.get("categories", ""))
                     return {
                         "barcode": barcode,
                         "name": product.get("product_name", "Unknown Product"),
@@ -149,10 +153,7 @@ async def lookup_upcitemdb(barcode: str) -> Optional[dict]:
                 data = response.json()
                 if data.get("code") == "OK" and data.get("items") and len(data["items"]) > 0:
                     item = data["items"][0]
-
-                    category_raw = item.get("category", "")
-                    category = extract_category(category_raw)
-
+                    category = extract_category(item.get("category", ""))
                     return {
                         "barcode": barcode,
                         "name": item.get("title", "Unknown Product"),
@@ -202,37 +203,37 @@ async def lookup_barcode(barcode: str):
 
 @app.get("/cache/stats")
 async def cache_stats():
-    conn = sqlite3.connect(CACHE_DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM lookup_cache")
-    total = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM lookup_cache WHERE expires_at > ?", (datetime.utcnow().isoformat(),))
-    valid = cursor.fetchone()[0]
-    conn.close()
-    return {"total_cached": total, "valid_cached": valid, "expired": total - valid, "ttl_days": CACHE_TTL_DAYS}
+    db = SessionLocal()
+    try:
+        now = datetime.utcnow()
+        total = db.query(LookupCache).count()
+        valid = db.query(LookupCache).filter(LookupCache.expires_at > now).count()
+        return {"total_cached": total, "valid_cached": valid, "expired": total - valid, "ttl_days": CACHE_TTL_DAYS}
+    finally:
+        db.close()
 
 @app.delete("/cache/{barcode}")
 async def clear_cache_item(barcode: str):
-    conn = sqlite3.connect(CACHE_DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM lookup_cache WHERE barcode = ?", (barcode,))
-    deleted = cursor.rowcount
-    conn.commit()
-    conn.close()
-    if deleted > 0:
+    db = SessionLocal()
+    try:
+        row = db.query(LookupCache).filter(LookupCache.barcode == barcode).first()
+        if not row:
+            raise HTTPException(status_code=404, detail="Barcode not found in cache")
+        db.delete(row)
+        db.commit()
         return {"message": f"Cache cleared for barcode {barcode}"}
-    else:
-        raise HTTPException(status_code=404, detail="Barcode not found in cache")
+    finally:
+        db.close()
 
 @app.delete("/cache")
 async def clear_all_cache():
-    conn = sqlite3.connect(CACHE_DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM lookup_cache")
-    deleted = cursor.rowcount
-    conn.commit()
-    conn.close()
-    return {"message": f"Cache cleared, {deleted} items removed"}
+    db = SessionLocal()
+    try:
+        deleted = db.query(LookupCache).delete()
+        db.commit()
+        return {"message": f"Cache cleared, {deleted} items removed"}
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     import uvicorn

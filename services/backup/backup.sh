@@ -24,25 +24,7 @@ PGPASSWORD="${DB_PASSWORD}" pg_dump \
 echo "[backup] PostgreSQL done: pantrypal_${TIMESTAMP}.sql.gz"
 
 # ============================================================
-# 2. SQLite databases
-# ============================================================
-SQLITE_DIR="$BACKUP_PATH/sqlite/$DATE"
-mkdir -p "$SQLITE_DIR"
-
-for DB_PATH in /data/users.db /data/api_keys.db /data/inventory/inventory.db; do
-    if [ -f "$DB_PATH" ]; then
-        DB_NAME=$(basename "$DB_PATH")
-        echo "[backup] Backing up SQLite: $DB_NAME"
-        sqlite3 "$DB_PATH" ".backup $SQLITE_DIR/$DB_NAME"
-    else
-        echo "[backup] Skipping $DB_PATH (not found)"
-    fi
-done
-
-echo "[backup] SQLite done."
-
-# ============================================================
-# 3. MinIO buckets
+# 2. MinIO buckets
 # ============================================================
 MINIO_DIR="$BACKUP_PATH/minio/$DATE"
 mkdir -p "$MINIO_DIR"
@@ -63,8 +45,6 @@ echo "[backup] MinIO done."
 echo "[backup] Cleaning up backups older than $RETENTION_DAYS days..."
 
 find "$BACKUP_PATH/postgres" -name "*.sql.gz" -mtime +"$RETENTION_DAYS" -delete 2>/dev/null || true
-find "$BACKUP_PATH/sqlite" -maxdepth 1 -mindepth 1 -type d -mtime +"$RETENTION_DAYS" \
-    -exec rm -rf {} + 2>/dev/null || true
 find "$BACKUP_PATH/minio" -maxdepth 1 -mindepth 1 -type d -mtime +"$RETENTION_DAYS" \
     -exec rm -rf {} + 2>/dev/null || true
 

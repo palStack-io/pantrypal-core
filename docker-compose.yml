@@ -169,21 +169,12 @@ services:
       dockerfile: Dockerfile
     container_name: pantrypal-inventory-service
     environment:
-      - DATABASE_URL=sqlite:////app/data/inventory/inventory.db
-      # Backup Configuration (optional)
-      # Set BACKUP_ENABLED=true to enable automated CSV backups
+      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:-pantrypal_secure_password}@postgres:5432/pantrypal
       - BACKUP_ENABLED=false
-      # Backup schedule in cron format (default: daily at 2 AM)
-      # Examples: "0 */6 * * *" (every 6h), "0 2 * * 0" (weekly)
       - BACKUP_SCHEDULE=0 2 * * *
-      # Number of days to keep backups before automatic cleanup
       - BACKUP_RETENTION_DAYS=7
-      # Path where backups are stored (must match volume mount)
       - BACKUP_PATH=/app/backups/csv
     volumes:
-      - ./data/inventory:/app/data/inventory
-      # Backup storage directory (optional, only needed if BACKUP_ENABLED=true)
-      # Backups saved as: ./backups/csv/pantrypal_backup_YYYY-MM-DD_HHMMSS.csv
       - ./backups:/app/backups
     networks:
       - pantrypal-network
@@ -198,10 +189,8 @@ services:
       dockerfile: Dockerfile
     container_name: pantrypal-lookup-service
     environment:
-      - CACHE_DB_PATH=/app/data/lookup_cache/lookup_cache.db
+      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:-pantrypal_secure_password}@postgres:5432/pantrypal
       - CACHE_TTL_DAYS=30
-    volumes:
-      - ./data/lookup_cache:/app/data/lookup_cache
     networks:
       - pantrypal-network
     restart: unless-stopped
@@ -240,7 +229,6 @@ services:
       # Backup output path (inside container)
       - BACKUP_PATH=/backups
     volumes:
-      - ./data:/data:ro
       - ./backups:/backups
     networks:
       - pantrypal-network
@@ -267,5 +255,3 @@ networks:
 volumes:
   postgres_data:
   minio_data:
-  inventory_data:
-  lookup_cache_data:

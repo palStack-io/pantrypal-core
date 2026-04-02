@@ -151,13 +151,12 @@ services:
     image: ghcr.io/palstack-io/pantrypal-inventory:latest
     container_name: pantrypal-inventory-service
     environment:
-      - DATABASE_URL=sqlite:////app/data/inventory/inventory.db
+      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:-pantrypal_secure_password}@postgres:5432/pantrypal
       - BACKUP_ENABLED=false
       - BACKUP_SCHEDULE=0 2 * * *
       - BACKUP_RETENTION_DAYS=7
       - BACKUP_PATH=/app/backups/csv
     volumes:
-      - ./data/inventory:/app/data/inventory
       - ./backups:/app/backups
     networks:
       - pantrypal-network
@@ -170,10 +169,8 @@ services:
     image: ghcr.io/palstack-io/pantrypal-lookup:latest
     container_name: pantrypal-lookup-service
     environment:
-      - CACHE_DB_PATH=/app/data/lookup_cache/lookup_cache.db
+      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:-pantrypal_secure_password}@postgres:5432/pantrypal
       - CACHE_TTL_DAYS=30
-    volumes:
-      - ./data/lookup_cache:/app/data/lookup_cache
     networks:
       - pantrypal-network
     restart: unless-stopped
@@ -203,7 +200,6 @@ services:
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
       - BACKUP_PATH=/backups
     volumes:
-      - ./data:/data:ro
       - ./backups:/backups
     networks:
       - pantrypal-network

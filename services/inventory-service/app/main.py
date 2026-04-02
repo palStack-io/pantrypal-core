@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="PantryPal Inventory Service", version="1.0.0")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///data/inventory.db")
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://pantrypal:pantrypal_secure_password@postgres:5432/pantrypal")
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
