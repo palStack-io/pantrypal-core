@@ -179,11 +179,11 @@ services:
       # Number of days to keep backups before automatic cleanup
       - BACKUP_RETENTION_DAYS=7
       # Path where backups are stored (must match volume mount)
-      - BACKUP_PATH=/app/backups
+      - BACKUP_PATH=/app/backups/csv
     volumes:
       - ./data/inventory:/app/data/inventory
       # Backup storage directory (optional, only needed if BACKUP_ENABLED=true)
-      # Backups saved as: ./backups/pantrypal_backup_YYYY-MM-DD_HHMMSS.csv
+      # Backups saved as: ./backups/csv/pantrypal_backup_YYYY-MM-DD_HHMMSS.csv
       - ./backups:/app/backups
     networks:
       - pantrypal-network
@@ -202,6 +202,46 @@ services:
       - CACHE_TTL_DAYS=30
     volumes:
       - ./data/lookup_cache:/app/data/lookup_cache
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===================================
+  # Backup Service
+  # ===================================
+  backup:
+    build:
+      context: ./services/backup
+      dockerfile: Dockerfile
+    container_name: pantrypal-backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      # Set to true to enable automated backups
+      - DB_BACKUP_ENABLED=${DB_BACKUP_ENABLED:-false}
+      # Cron schedule (default: daily at 2 AM)
+      - DB_BACKUP_SCHEDULE=${DB_BACKUP_SCHEDULE:-0 2 * * *}
+      # Days to retain backups before cleanup
+      - DB_BACKUP_RETENTION_DAYS=${DB_BACKUP_RETENTION_DAYS:-7}
+      # Set to true to run a backup immediately on container start
+      - BACKUP_ON_START=${BACKUP_ON_START:-false}
+      # PostgreSQL credentials
+      - DB_PASSWORD=${DB_PASSWORD:-pantrypal_secure_password}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=pantrypal
+      - POSTGRES_DB=pantrypal
+      # MinIO credentials
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      # Backup output path (inside container)
+      - BACKUP_PATH=/backups
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups
     networks:
       - pantrypal-network
     restart: unless-stopped
