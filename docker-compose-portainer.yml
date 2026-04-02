@@ -1,0 +1,224 @@
+# =============================================================================
+# pantryPal — Portainer Stack (Plug-and-Play)
+# =============================================================================
+# Drop this file directly into Portainer → Stacks → Add Stack → Web editor.
+#
+# BEFORE DEPLOYING:
+#   1. Replace every  CHANGEME  value with your own secret.
+#      - DB_PASSWORD     → any strong password
+#      - MINIO_PASSWORD  → any strong password (≥ 8 chars)
+#      - SECRET_KEY      → run: openssl rand -hex 32
+#   2. Optional env vars (SMTP, APP_URL) can be left blank —
+#      features that need them will simply be disabled at runtime.
+#   3. AUTH_MODE controls access:
+#        none         — open access (home lab / trusted LAN)
+#        api_key_only — API keys required
+#        full         — login required for UI + API key/session for API  ← default
+#        smart        — local network open, external requires login
+#
+# IMAGE TAGS
+#   All images are pulled from ghcr.io/palstack-io automatically.
+#   No local build step required.
+# =============================================================================
+
+services:
+
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: pantrypal-postgres
+    environment:
+      POSTGRES_DB: pantrypal
+      POSTGRES_USER: pantrypal
+      POSTGRES_PASSWORD: CHANGEME_DB_PASSWORD    # ← required
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pantrypal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # MinIO — object storage (product images, receipts, recipe photos)
+  # Console UI available on host port 9001
+  # ===========================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: pantrypal-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: pantrypal
+      MINIO_ROOT_PASSWORD: CHANGEME_MINIO_PASSWORD    # ← required (≥ 8 chars)
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9001:9001"    # MinIO console — restrict in firewall in production
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================================================
+  # API Gateway — auth, pantry management, recipe integration, user sessions
+  # ===========================================================================
+  api-gateway:
+    image: ghcr.io/palstack-io/pantrypal-api-gateway:latest
+    container_name: pantrypal-api-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      inventory-service:
+        condition: service_started
+      lookup-service:
+        condition: service_started
+    environment:
+      # ── Internal service URLs ──────────────────────────────────────────────
+      INVENTORY_SERVICE_URL: http://inventory-service:8001
+      LOOKUP_SERVICE_URL: http://lookup-service:8002
+
+      # ── Database ──────────────────────────────────────────────────────────
+      DATABASE_URL: postgresql://pantrypal:CHANGEME_DB_PASSWORD@postgres:5432/pantrypal
+
+      # ── MinIO ─────────────────────────────────────────────────────────────
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: pantrypal
+      MINIO_SECRET_KEY: CHANGEME_MINIO_PASSWORD    # ← must match minio above
+      MINIO_SECURE: "false"
+      MINIO_BUCKET_PRODUCTS: pantrypal-products
+      MINIO_BUCKET_USERS: pantrypal-users
+      MINIO_BUCKET_RECEIPTS: pantrypal-receipts
+      MINIO_BUCKET_RECIPES: pantrypal-recipes
+
+      # ── Security ──────────────────────────────────────────────────────────
+      SECRET_KEY: CHANGEME_run_openssl_rand_hex_32    # ← required
+
+      # ── Authentication ────────────────────────────────────────────────────
+      # none | api_key_only | full | smart
+      AUTH_MODE: full
+      # Registration is disabled by default — admin creates household members.
+      # Default admin login: admin / admin  (CHANGE PASSWORD ON FIRST LOGIN!)
+      ALLOW_REGISTRATION: "false"
+
+      # ── Features ──────────────────────────────────────────────────────────
+      ENABLE_RECIPE_INTEGRATION: "true"
+      CORS_ORIGINS: "*"
+
+      # ── Demo Mode (optional) ──────────────────────────────────────────────
+      DEMO_MODE: "false"
+      DEMO_MEALIE_URL: ""
+      DEMO_MEALIE_TOKEN: ""
+
+      # ── Email / SMTP (leave blank to disable email features) ──────────────
+      SMTP_HOST: ""
+      SMTP_PORT: "587"
+      SMTP_USERNAME: ""
+      SMTP_PASSWORD: ""
+      SMTP_FROM_EMAIL: ""
+      SMTP_FROM_NAME: PantryPal
+      SMTP_USE_TLS: "true"
+
+      # ── Application URL (needed for email links) ───────────────────────────
+      APP_URL: ""    # e.g. http://your-server-ip:8080
+    volumes:
+      - gateway_data:/app/data
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ===========================================================================
+  # Inventory Service — item tracking, expiry, stock levels
+  # ===========================================================================
+  inventory-service:
+    image: ghcr.io/palstack-io/pantrypal-inventory:latest
+    container_name: pantrypal-inventory-service
+    environment:
+      DATABASE_URL: sqlite:////app/data/inventory/inventory.db
+      BACKUP_ENABLED: "false"
+      BACKUP_SCHEDULE: "0 2 * * *"
+      BACKUP_RETENTION_DAYS: "7"
+      BACKUP_PATH: /app/backups
+    volumes:
+      - inventory_data:/app/data/inventory
+      - inventory_backups:/app/backups
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Lookup Service — barcode / product lookup + caching
+  # ===========================================================================
+  lookup-service:
+    image: ghcr.io/palstack-io/pantrypal-lookup:latest
+    container_name: pantrypal-lookup-service
+    environment:
+      CACHE_DB_PATH: /app/data/lookup_cache/lookup_cache.db
+      CACHE_TTL_DAYS: "30"
+    volumes:
+      - lookup_cache:/app/data/lookup_cache
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Web UI (React)
+  # ===========================================================================
+  web-ui:
+    image: ghcr.io/palstack-io/pantrypal-web:latest
+    container_name: pantrypal-web-ui
+    environment:
+      NODE_ENV: production
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Nginx — reverse proxy + single public entry point on port 8080
+  # ===========================================================================
+  nginx:
+    image: ghcr.io/palstack-io/pantrypal-nginx:latest
+    container_name: pantrypal-nginx
+    ports:
+      - "8080:80"    # change left side (e.g. "8888:80") if port 8080 is taken
+    depends_on:
+      - api-gateway
+      - web-ui
+    networks:
+      - pantrypal-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+# =============================================================================
+networks:
+  pantrypal-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
+  gateway_data:
+  inventory_data:
+  inventory_backups:
+  lookup_cache:

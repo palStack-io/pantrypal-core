@@ -1,0 +1,125 @@
+# PantryPal Root .dockerignore
+
+# ===================================
+# Version Control
+# ===================================
+.git
+.gitignore
+.gitattributes
+
+# ===================================
+# Documentation & Assets
+# ===================================
+*.md
+LICENSE
+docs/
+*.png
+*.jpg
+*.jpeg
+*.svg
+
+# ===================================
+# Backups
+# ===================================
+backups/
+
+# ===================================
+# Data & Databases
+# ===================================
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ===================================
+# Environment & Secrets
+# ===================================
+.env
+.env.*
+.env.example
+*.pem
+*.key
+*.crt
+
+# ===================================
+# Build Scripts & Deployment
+# ===================================
+scripts/
+build-multiarch.sh
+build-and-push.sh
+install-dockerignore.sh
+docker-compose*.yml
+setup-pantrypal.sh
+start-pantrypal.sh
+
+# ===================================
+# IDE & Editors
+# ===================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===================================
+# OS Files
+# ===================================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# ===================================
+# Mobile App (not needed in backend)
+# ===================================
+mobile/
+
+# ===================================
+# Backup & Temporary Files
+# ===================================
+*.backup
+*.bak
+*.tmp
+*~
+.temp/
+
+# ===================================
+# Python
+# ===================================
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ===================================
+# Node
+# ===================================
+node_modules/
+npm-debug.log*
+dist/
+build/
+.vite/
+
+# ===================================
+# Test Files
+# ===================================
+test_*.sh
+*.test-output
+test-results/
+
+# ===================================
+# PostgreSQL & MinIO Data
+# ===================================
+postgres_data/
+minio_data/
+
+# ===================================
+# Claude/AI Files
+# ===================================
+.claude/
