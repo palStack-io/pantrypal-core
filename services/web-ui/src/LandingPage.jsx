@@ -5,10 +5,11 @@ import { useToast } from './hooks/useToast';
 import { setSessionToken } from './api';
 
 function LandingPage({ onLoginSuccess }) {
-  const [view, setView] = useState('landing'); // landing, login, signup, forgot
+  const [view, setView] = useState('login'); // landing, login, signup, forgot
   const [loading, setLoading] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
-  const [serverConfigured, setServerConfigured] = useState(false);
+  const [serverConfigured, setServerConfigured] = useState(true);
+  const [showChangeServer, setShowChangeServer] = useState(false);
 
   // Login form
   const [loginUsername, setLoginUsername] = useState('');
@@ -575,20 +576,55 @@ function LandingPage({ onLoginSuccess }) {
           maxWidth: '450px',
           width: '100%',
         }}>
-          <button
-            onClick={() => setView('landing')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: colors.textSecondary,
-              cursor: 'pointer',
-              marginBottom: spacing.md,
-              fontSize: '16px',
-            }}
-          >
-            ← Back
-          </button>
-          
+          <div style={{ marginBottom: spacing.md }}>
+            <button
+              onClick={() => setShowChangeServer(!showChangeServer)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: colors.textSecondary,
+                cursor: 'pointer',
+                fontSize: '13px',
+                padding: 0,
+              }}
+            >
+              {showChangeServer ? '✕ Cancel' : '⚙ Change Server'}
+            </button>
+            {showChangeServer && (
+              <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.sm }}>
+                <input
+                  type="text"
+                  value={serverUrl}
+                  onChange={(e) => setServerUrl(e.target.value)}
+                  placeholder="http://192.168.1.100 or https://yourserver.com"
+                  style={{
+                    flex: 1,
+                    padding: spacing.sm,
+                    borderRadius: borderRadius.md,
+                    border: `2px solid ${colors.border}`,
+                    fontSize: '13px',
+                    color: '#000000',
+                  }}
+                />
+                <button
+                  onClick={() => { handleConfigureServer(); setShowChangeServer(false); }}
+                  style={{
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    borderRadius: borderRadius.md,
+                    border: 'none',
+                    background: colors.primary,
+                    color: colors.textPrimary,
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+
           <div style={{ textAlign: 'center', marginBottom: spacing.xl }}>
             <img src="/pantryPal.png" alt="pantryPal" style={{ width: '48px', height: '48px', marginBottom: spacing.sm }} />
             <h2 style={{ margin: 0, color: colors.textPrimary, fontSize: '28px' }}>

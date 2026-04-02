@@ -95,7 +95,9 @@ export const removeApiBaseUrl = () => {
 };
 
 export const isServerConfigured = () => {
-  return !!storage.getItem('API_BASE_URL');
+  // Always return true — default is same-origin which is always valid.
+  // Users can change the server via the "Change Server" option on the login screen.
+  return true;
 };
 
 // Create axios instance with dynamic base URL and API key
