@@ -140,7 +140,7 @@ async def create_recipe_integration(
         existing.import_images = integration_data.import_images
         existing.auto_sync = integration_data.auto_sync
         existing.enabled = True
-        existing.configured_by_user_id = current_user.id
+        existing.configured_by_user_id = current_user.get("id") if isinstance(current_user, dict) else current_user.id
         db.commit()
         return {"success": True, "message": "Integration updated", "total_recipes": test_result.get('total_recipes', 0)}
     else:
@@ -152,7 +152,7 @@ async def create_recipe_integration(
             enabled=True,
             import_images=integration_data.import_images,
             auto_sync=integration_data.auto_sync,
-            configured_by_user_id=current_user.id
+            configured_by_user_id=current_user.get("id") if isinstance(current_user, dict) else current_user.id
         )
         db.add(new_integration)
         db.commit()

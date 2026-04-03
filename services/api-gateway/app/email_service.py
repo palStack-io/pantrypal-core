@@ -47,12 +47,17 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: Opt
         part2 = MIMEText(html_content, 'html')
         msg.attach(part2)
         
-        # Send email
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            if SMTP_USE_TLS:
-                server.starttls()
-            server.login(SMTP_USERNAME, SMTP_PASSWORD)
-            server.send_message(msg)
+        # Send email — port 465 uses implicit SSL, port 587 uses STARTTLS
+        if SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                if SMTP_USE_TLS:
+                    server.starttls()
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                server.send_message(msg)
         
         return True
     except Exception as e:
