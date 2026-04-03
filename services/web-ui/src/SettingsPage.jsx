@@ -90,6 +90,17 @@ function SettingsPage({ onBack, currentUser, isDark }) {
     updateExisting: false,
   });
 
+  // Notification preferences
+  const [notifPrefs, setNotifPrefs] = useState({
+    notify_expired: true,
+    notify_tomorrow: true,
+    notify_soon: true,
+    notify_reminder: true,
+    notification_time: '09:00',
+    warning_threshold: 7,
+  });
+  const [notifSaving, setNotifSaving] = useState(false);
+
   // Recipe Integration
   const [integration, setIntegration] = useState(null);
   const [integrationProvider, setIntegrationProvider] = useState('mealie');
@@ -120,6 +131,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
     if (currentUser) {
       loadProfile();
       loadIntegration();
+      loadNotifPrefs();
       if (isAdmin) {
         loadUsers();
         loadStats();
@@ -231,6 +243,39 @@ function SettingsPage({ onBack, currentUser, isDark }) {
   };
 
   // Recipe Integration functions
+  const loadNotifPrefs = async () => {
+    try {
+      const response = await fetch('/api/notifications/preferences', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setNotifPrefs(prev => ({ ...prev, ...data }));
+      }
+    } catch (error) {
+      console.error('Failed to load notification preferences:', error);
+    }
+  };
+
+  const saveNotifPrefs = async () => {
+    setNotifSaving(true);
+    try {
+      const response = await fetch('/api/notifications/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(notifPrefs),
+      });
+      if (response.ok) {
+        toast.success('Notification preferences saved!');
+      } else {
+        toast.error('Failed to save notification preferences');
+      }
+    } catch (error) {
+      toast.error('Network error — could not save preferences');
+    } finally {
+      setNotifSaving(false);
+    }
+  };
+
   const loadIntegration = async () => {
     try {
       const data = await getRecipeIntegration();
@@ -1901,96 +1946,142 @@ function SettingsPage({ onBack, currentUser, isDark }) {
             borderRadius: borderRadius.lg,
             boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
           }}>
-            <h2 style={{ marginTop: 0, color: colors.textPrimary }}>🔔 Notifications</h2>
+            <h2 style={{ marginTop: 0, color: colors.textPrimary }}>🔔 Notification Preferences</h2>
+            <p style={{ color: colors.textSecondary, marginBottom: spacing.xl, marginTop: spacing.xs }}>
+              Control which expiry alerts you receive on the mobile app. Changes sync automatically.
+            </p>
 
-            <div style={{
-              padding: spacing.lg,
-              background: colors.background,
-              borderRadius: borderRadius.md,
-              marginTop: spacing.lg,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
-                <div style={{ fontSize: '32px' }}>📱</div>
-                <div>
-                  <h3 style={{ margin: 0, color: colors.textPrimary }}>Mobile App Notifications</h3>
-                  <p style={{ margin: 0, marginTop: spacing.xs, color: colors.textSecondary, fontSize: '14px' }}>
-                    Push notifications for expiring items are available on the pantryPal mobile app
-                  </p>
+            {/* Alert type toggles */}
+            <h3 style={{ color: colors.textPrimary, marginBottom: spacing.md, fontSize: '15px' }}>Alert Types</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, marginBottom: spacing.xl }}>
+              {[
+                { key: 'notify_expired',  icon: '🚨', label: 'Expired items',       desc: 'Items that have already passed their expiry date' },
+                { key: 'notify_tomorrow', icon: '⏰', label: 'Expiring tomorrow',    desc: 'Items expiring within the next 24 hours' },
+                { key: 'notify_soon',     icon: '⚠️', label: 'Expiring soon',        desc: 'Items expiring within 2–3 days' },
+                { key: 'notify_reminder', icon: '📅', label: 'Upcoming reminders',   desc: `Items expiring within ${notifPrefs.warning_threshold} days` },
+              ].map(({ key, icon, label, desc }) => (
+                <div key={key} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: `${spacing.md} ${spacing.lg}`,
+                  background: colors.background,
+                  borderRadius: borderRadius.md,
+                  border: `1px solid ${colors.border}`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                    <span style={{ fontSize: '20px' }}>{icon}</span>
+                    <div>
+                      <div style={{ fontWeight: '600', color: colors.textPrimary, fontSize: '14px' }}>{label}</div>
+                      <div style={{ fontSize: '12px', color: colors.textSecondary, marginTop: '2px' }}>{desc}</div>
+                    </div>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: spacing.sm }}>
+                    <span style={{ fontSize: '12px', color: notifPrefs[key] ? colors.success : colors.textTertiary, fontWeight: '600' }}>
+                      {notifPrefs[key] ? 'On' : 'Off'}
+                    </span>
+                    <div
+                      onClick={() => setNotifPrefs(p => ({ ...p, [key]: !p[key] }))}
+                      style={{
+                        width: '44px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        background: notifPrefs[key] ? colors.primary : (isDark ? '#44403c' : '#d6d3d1'),
+                        position: 'relative',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div style={{
+                        position: 'absolute',
+                        top: '3px',
+                        left: notifPrefs[key] ? '23px' : '3px',
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        transition: 'left 0.2s',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      }} />
+                    </div>
+                  </label>
                 </div>
+              ))}
+            </div>
+
+            {/* Timing & threshold */}
+            <h3 style={{ color: colors.textPrimary, marginBottom: spacing.md, fontSize: '15px' }}>Schedule</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md, marginBottom: spacing.xl }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs }}>
+                  Daily alert time
+                </label>
+                <input
+                  type="time"
+                  value={notifPrefs.notification_time}
+                  onChange={e => setNotifPrefs(p => ({ ...p, notification_time: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    borderRadius: borderRadius.md,
+                    border: `1px solid ${colors.border}`,
+                    fontSize: '14px',
+                    background: colors.background,
+                    color: colors.textPrimary,
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs }}>
+                  Look-ahead window (days)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={notifPrefs.warning_threshold}
+                  onChange={e => setNotifPrefs(p => ({ ...p, warning_threshold: parseInt(e.target.value) || 7 }))}
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    borderRadius: borderRadius.md,
+                    border: `1px solid ${colors.border}`,
+                    fontSize: '14px',
+                    background: colors.background,
+                    color: colors.textPrimary,
+                  }}
+                />
               </div>
             </div>
 
-            <div style={{ marginTop: spacing.lg }}>
-              <h3 style={{ color: colors.textPrimary, marginBottom: spacing.md }}>Features</h3>
-              <div style={{ display: 'grid', gap: spacing.md }}>
-                <div style={{
-                  padding: spacing.md,
-                  borderLeft: `4px solid ${colors.primary}`,
-                  background: colors.background,
-                  borderRadius: borderRadius.sm,
-                }}>
-                  <div style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs }}>
-                    📅 Daily Expiry Alerts
-                  </div>
-                  <div style={{ fontSize: '14px', color: colors.textSecondary }}>
-                    Receive daily notifications at 9 AM for items expiring within 7 days
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: spacing.md,
-                  borderLeft: `4px solid ${colors.primary}`,
-                  background: colors.background,
-                  borderRadius: borderRadius.sm,
-                }}>
-                  <div style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs }}>
-                    ⚠️ Smart Urgency Levels
-                  </div>
-                  <div style={{ fontSize: '14px', color: colors.textSecondary }}>
-                    Different notification types based on urgency: expired, tomorrow, soon, or reminder
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: spacing.md,
-                  borderLeft: `4px solid ${colors.primary}`,
-                  background: colors.background,
-                  borderRadius: borderRadius.sm,
-                }}>
-                  <div style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs }}>
-                    🔄 Automatic Updates
-                  </div>
-                  <div style={{ fontSize: '14px', color: colors.textSecondary }}>
-                    Notifications automatically sync when you refresh your pantry inventory
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: spacing.md,
-                  borderLeft: `4px solid ${colors.primary}`,
-                  background: colors.background,
-                  borderRadius: borderRadius.sm,
-                }}>
-                  <div style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs }}>
-                    👆 Tap to View
-                  </div>
-                  <div style={{ fontSize: '14px', color: colors.textSecondary }}>
-                    Tapping a notification takes you directly to the item details
-                  </div>
-                </div>
-              </div>
-            </div>
+            <button
+              onClick={saveNotifPrefs}
+              disabled={notifSaving}
+              style={{
+                padding: `${spacing.md} ${spacing.xl}`,
+                background: colors.primary,
+                color: '#fff',
+                border: 'none',
+                borderRadius: borderRadius.md,
+                fontWeight: '700',
+                fontSize: '14px',
+                cursor: notifSaving ? 'not-allowed' : 'pointer',
+                opacity: notifSaving ? 0.7 : 1,
+              }}
+            >
+              {notifSaving ? 'Saving…' : 'Save Preferences'}
+            </button>
 
             <div style={{
               marginTop: spacing.xl,
-              padding: spacing.lg,
+              padding: spacing.md,
               background: colors.background,
               borderRadius: borderRadius.md,
-              textAlign: 'center',
+              fontSize: '13px',
+              color: colors.textSecondary,
             }}>
-              <div style={{ fontSize: '14px', color: colors.textSecondary }}>
-                💡 Note: Browser notifications for the web dashboard are not currently supported. Please use the mobile app for push notifications.
-              </div>
+              💡 Push notifications are delivered via the mobile app. Changes here sync automatically next time the app refreshes your pantry.
             </div>
           </div>
         )}

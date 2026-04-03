@@ -1212,39 +1212,53 @@ async def homeassistant_clear_shopping_list():
 # NOTIFICATION PREFERENCES
 # ============================================================================
 
+_DEFAULT_NOTIFICATION_PREFS = {
+    'notify_expired': True,
+    'notify_tomorrow': True,
+    'notify_soon': True,
+    'notify_reminder': True,
+    'notification_time': '09:00',
+    'warning_threshold': 7,
+    'critical_threshold': 3,
+}
+
 @app.get("/api/notifications/preferences")
 async def get_notification_preferences(auth = Depends(get_current_auth)):
-    """Get notification preferences"""
+    """Get notification preferences for the current user"""
     try:
         import json
         prefs_file = '/app/data/notification_preferences.json'
         os.makedirs(os.path.dirname(prefs_file), exist_ok=True)
 
+        user_id = auth.get("id", "default")
+        all_prefs = {}
         if os.path.exists(prefs_file):
             with open(prefs_file, 'r') as f:
-                return json.load(f)
-        else:
-            return {
-                'mobile_enabled': False,
-                'notification_time': '09:00',
-                'critical_threshold': 3,
-                'warning_threshold': 7,
-                'home_assistant_enabled': False
-            }
+                all_prefs = json.load(f)
+
+        user_prefs = all_prefs.get(user_id, {})
+        return {**_DEFAULT_NOTIFICATION_PREFS, **user_prefs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get preferences: {str(e)}")
 
 @app.post("/api/notifications/preferences")
 async def save_notification_preferences(preferences: dict, auth = Depends(get_current_auth)):
-    """Save notification preferences"""
+    """Save notification preferences for the current user"""
     try:
         import json
         prefs_file = '/app/data/notification_preferences.json'
         os.makedirs(os.path.dirname(prefs_file), exist_ok=True)
-        
+
+        user_id = auth.get("id", "default")
+        all_prefs = {}
+        if os.path.exists(prefs_file):
+            with open(prefs_file, 'r') as f:
+                all_prefs = json.load(f)
+
+        all_prefs[user_id] = preferences
         with open(prefs_file, 'w') as f:
-            json.dump(preferences, f, indent=2)
-        
+            json.dump(all_prefs, f, indent=2)
+
         return {'status': 'success', 'preferences': preferences}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save preferences: {str(e)}")
