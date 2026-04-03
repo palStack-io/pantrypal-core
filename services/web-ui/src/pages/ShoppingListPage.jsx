@@ -3,9 +3,13 @@ import { ShoppingCart, Plus, Trash2, CheckSquare, Package } from 'lucide-react';
 import { getColors, spacing, borderRadius } from '../colors';
 import { useShoppingItems } from '../hooks/useShoppingItems';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useToast } from '../components/Toast';
+import { useDialog } from '../components/DialogProvider';
 
 export function ShoppingListPage({ isDark }) {
   const colors = getColors(isDark);
+  const toast = useToast();
+  const dialog = useDialog();
   const {
     items,
     loading,
@@ -22,17 +26,11 @@ export function ShoppingListPage({ isDark }) {
   const [newItemName, setNewItemName] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState(1);
   const [groupBy, setGroupBy] = useState('none');
-  const [alert, setAlert] = useState(null);
 
   const stats = {
     total: items.length,
     checked: items.filter(item => item.checked).length,
     remaining: items.filter(item => !item.checked).length
-  };
-
-  const showAlert = (message, type = 'success') => {
-    setAlert({ message, type });
-    setTimeout(() => setAlert(null), 3000);
   };
 
   const handleAddItem = async (e) => {
@@ -47,37 +45,41 @@ export function ShoppingListPage({ isDark }) {
       });
       setNewItemName('');
       setNewItemQuantity(1);
-      showAlert('Item added to shopping list');
+      toast.success('Item added to shopping list');
     } catch (err) {
-      showAlert('Failed to add item', 'error');
+      toast.error('Failed to add item');
     }
   };
 
   const handleImportChecked = async () => {
     try {
       const result = await importCheckedToInventory();
-      showAlert(`Added ${result.added_count} items to inventory`);
+      toast.success(`Added ${result.added_count} items to inventory`);
     } catch (err) {
-      showAlert('Failed to import items', 'error');
+      toast.error('Failed to import items');
     }
   };
 
   const handleSuggestLowStock = async () => {
     try {
       const result = await suggestLowStock();
-      showAlert(`Added ${result.added_count} items to shopping list`);
+      toast.success(`Added ${result.added_count} items to shopping list`);
     } catch (err) {
-      showAlert('Failed to suggest items', 'error');
+      toast.error('Failed to suggest items');
     }
   };
 
   const handleClearChecked = async () => {
-    if (!window.confirm('Clear all checked items?')) return;
+    if (!await dialog.confirm('All checked items will be removed from the list.', {
+      title: 'Clear Checked Items',
+      confirmLabel: 'Clear',
+      icon: '🛒',
+    })) return;
     try {
       await clearChecked();
-      showAlert('Checked items cleared');
+      toast.success('Checked items cleared');
     } catch (err) {
-      showAlert('Failed to clear items', 'error');
+      toast.error('Failed to clear items');
     }
   };
 
@@ -94,24 +96,6 @@ export function ShoppingListPage({ isDark }) {
 
   return (
     <div style={{ padding: '32px', backgroundColor: colors.background, minHeight: '100vh' }}>
-      {alert && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          padding: '16px 24px',
-          borderRadius: borderRadius.lg,
-          background: alert.type === 'error' ? '#fef2f2' : '#f0fdf4',
-          border: `1px solid ${alert.type === 'error' ? '#fca5a5' : '#86efac'}`,
-          color: alert.type === 'error' ? '#dc2626' : '#16a34a',
-          fontWeight: '600',
-          zIndex: 1000,
-          boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
-        }}>
-          {alert.message}
-        </div>
-      )}
-
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>

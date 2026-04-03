@@ -1429,6 +1429,39 @@ async def update_user(
 
     return {"message": "User updated successfully"}
 
+@app.post("/api/admin/users/{user_id}/resend-invite")
+async def admin_resend_invite(
+    user_id: str,
+    http_request: Request,
+    auth = Depends(require_admin)
+):
+    """Resend welcome/invite email with a fresh password reset link (admin only)"""
+    if not is_email_configured():
+        raise HTTPException(status_code=400, detail="Email is not configured on this server")
+
+    user = pg_auth.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    try:
+        base_url = str(http_request.base_url).rstrip("/")
+        import os as _os
+        app_url = _os.environ.get("APP_URL", "").rstrip("/")
+        if app_url:
+            base_url = app_url
+
+        reset_token = pg_auth.create_password_reset_token(user["email"])
+        if not reset_token:
+            raise HTTPException(status_code=500, detail="Failed to create reset token")
+
+        send_welcome_email(user["email"], user["username"], base_url, reset_token)
+        return {"message": f"Invite resent to {user['email']}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send invite: {str(e)}")
+
+
 @app.post("/api/admin/users/{user_id}/reset-password")
 async def admin_reset_password(
     user_id: str,

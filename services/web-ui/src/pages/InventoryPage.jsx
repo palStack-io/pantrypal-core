@@ -7,6 +7,8 @@ import BulkActions from '../components/BulkActions';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Alert from '../components/Alert';
 import EditItemModal from '../components/EditItemModal';
+import { useToast } from '../components/Toast';
+import { useDialog } from '../components/DialogProvider';
 import { getColors, spacing, borderRadius } from '../colors';
 import { useItems } from '../hooks/useItems';
 import { useLocations } from '../hooks/useLocations';
@@ -16,6 +18,8 @@ import { exportItemsCSV } from '../api';
 
 export function InventoryPage({ isDark, sidebarFilters = {} }) {
   const colors = getColors(isDark);
+  const toast = useToast();
+  const dialog = useDialog();
   const { items, loading, error, removeItems, editItem } = useItems();
   const { locations, categories } = useLocations();
   const [filters, setFilters] = useState({ expiryStatus: 'all' });
@@ -114,12 +118,16 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
   };
 
   const handleBulkDelete = async () => {
-    if (window.confirm(`Delete ${selectedItems.size} items?`)) {
+    if (await dialog.confirm(`${selectedItems.size} item${selectedItems.size !== 1 ? 's' : ''} will be permanently removed.`, {
+      title: `Delete ${selectedItems.size} Item${selectedItems.size !== 1 ? 's' : ''}`,
+      confirmLabel: 'Delete',
+      icon: '🗑️',
+    })) {
       try {
         await removeItems(Array.from(selectedItems));
         setSelectedItems(new Set());
       } catch (err) {
-        alert('Failed to delete items');
+        toast.error('Failed to delete items');
       }
     }
   };
@@ -128,7 +136,7 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
     try {
       await exportItemsCSV();
     } catch (err) {
-      alert('Failed to export items');
+      toast.error('Failed to export items');
     }
   };
 

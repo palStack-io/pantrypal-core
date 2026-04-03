@@ -5,7 +5,6 @@
  */
 export function exportToCSV(items, filename = 'pantry_items.csv') {
   if (!items || items.length === 0) {
-    alert('No items to export');
     return;
   }
   

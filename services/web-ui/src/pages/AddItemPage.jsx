@@ -2,12 +2,14 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Save } from 'lucide-react';
 import { getColors, spacing, borderRadius } from '../colors';
+import { useToast } from '../components/Toast';
 import { useItems } from '../hooks/useItems';
 import { useLocations } from '../hooks/useLocations';
 import { getDefaultLocations, getDefaultCategories } from '../defaults';
 
 export function AddItemPage({ onBack, isDark }) {
   const colors = getColors(isDark);
+  const toast = useToast();
   const { items, addItem, editItem } = useItems();
   const { locations: apiLocations, categories: apiCategories } = useLocations();
   const [formData, setFormData] = useState({
@@ -57,14 +59,14 @@ export function AddItemPage({ onBack, isDark }) {
       setSaving(true);
       if (isEditing && editId) {
         await editItem(editId, formData);
-        alert('Item updated successfully!');
+        toast.success('Item updated successfully!');
       } else {
         await addItem(formData);
-        alert('Item added successfully!');
+        toast.success('Item added successfully!');
       }
       onBack();
     } catch (error) {
-      alert(`Failed to ${isEditing ? 'update' : 'add'} item: ` + error.message);
+      toast.error(`Failed to ${isEditing ? 'update' : 'add'} item: ` + error.message);
     } finally {
       setSaving(false);
     }

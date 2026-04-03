@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Lock, Users, Shield, Activity, Settings as SettingsIcon } from 'lucide-react';
 import { getColors, spacing, borderRadius, getShadows } from './colors';
+import { useToast } from './components/Toast';
+import { useDialog } from './components/DialogProvider';
 import { getDefaultLocations, getDefaultCategories, saveDefaultLocations, saveDefaultCategories, DEFAULT_LOCATIONS, DEFAULT_CATEGORIES } from './defaults';
 import { getItems, addItemManual, getRecipeIntegration, createRecipeIntegration, deleteRecipeIntegration } from './api';
 
 function SettingsPage({ onBack, currentUser, isDark }) {
   const colors = getColors(isDark);
   const shadows = getShadows(isDark);
+  const toast = useToast();
+  const dialog = useDialog();
   const [activeTab, setActiveTab] = useState('connection');
   
   // Connection settings
@@ -265,7 +269,11 @@ function SettingsPage({ onBack, currentUser, isDark }) {
   };
 
   const handleDeleteIntegration = async () => {
-    if (!confirm('Are you sure you want to remove this integration? Your imported recipes will remain.')) {
+    if (!await dialog.confirm('Your imported recipes will remain, but the integration will be disconnected.', {
+      title: 'Remove Integration',
+      confirmLabel: 'Remove',
+      icon: '🗑️',
+    })) {
       return;
     }
 
@@ -341,7 +349,11 @@ function SettingsPage({ onBack, currentUser, isDark }) {
   };
 
   const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (!await dialog.confirm('This action cannot be undone.', {
+      title: 'Delete User',
+      confirmLabel: 'Delete',
+      icon: '👤',
+    })) {
       return;
     }
 
@@ -357,6 +369,23 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       }
     } catch (error) {
       console.error('Failed to delete user:', error);
+    }
+  };
+
+  const handleResendInvite = async (userId, userEmail) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/resend-invite`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(`Invite resent to ${userEmail}`);
+      } else {
+        toast.error(data.detail || 'Failed to resend invite');
+      }
+    } catch (error) {
+      toast.error('Network error — could not resend invite');
     }
   };
 
@@ -433,7 +462,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
 
   const generateApiKey = async () => {
     if (!newKeyName.trim()) {
-      alert('Please enter a name for the API key');
+      toast.error('Please enter a name for the API key');
       return;
     }
 
@@ -455,18 +484,21 @@ function SettingsPage({ onBack, currentUser, isDark }) {
         setNewKeyDescription('');
         setShowNewKeyForm(false);
         await loadApiKeys(apiUrl);
-        
-        alert('⚠️ API Key Generated!\n\nYour API key has been generated. Copy it now - it won\'t be shown again!');
+        toast.warning('API key generated — copy it now, it won\'t be shown again!');
       } else {
-        alert('Failed to generate API key');
+        toast.error('Failed to generate API key');
       }
     } catch (error) {
-      alert(`Failed to generate API key: ${error.message}`);
+      toast.error(`Failed to generate API key: ${error.message}`);
     }
   };
 
   const deleteApiKey = async (keyId, keyName) => {
-    if (!window.confirm(`Are you sure you want to delete "${keyName}"? This cannot be undone.`)) {
+    if (!await dialog.confirm(`"${keyName}" will be permanently deleted and any apps using it will lose access.`, {
+      title: 'Delete API Key',
+      confirmLabel: 'Delete',
+      icon: '🔑',
+    })) {
       return;
     }
 
@@ -476,10 +508,10 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       });
       if (response.ok) {
         await loadApiKeys(apiUrl);
-        alert('API key deleted successfully');
+        toast.success('API key deleted');
       }
     } catch (error) {
-      alert('Failed to delete API key');
+      toast.error('Failed to delete API key');
     }
   };
 
@@ -491,12 +523,12 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       const data = await response.json();
       
       if (data.status === 'healthy') {
-        alert('✅ Connected successfully!\n\nBackend is healthy and responding.');
+        toast.success('Connected successfully — backend is healthy and responding.');
       } else {
-        alert('⚠️ Backend responded but status is not healthy');
+        toast.warning('Backend responded but status is not healthy');
       }
     } catch (error) {
-      alert('❌ Connection Failed\n\nCannot reach backend. Check the URL and make sure the backend is running.');
+      toast.error('Cannot reach backend. Check the URL and make sure the backend is running.');
     } finally {
       setTesting(false);
     }
@@ -509,27 +541,27 @@ function SettingsPage({ onBack, currentUser, isDark }) {
     cleanUrl = cleanUrl.replace(/^(https?:\/\/)+(https?:\/\/)+/gi, '$1');
 
     if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-      alert('Invalid URL\n\nURL must start with http:// or https://');
+      toast.error('URL must start with http:// or https://');
       return;
     }
 
     localStorage.setItem('API_BASE_URL', cleanUrl);
     setSavedUrl(cleanUrl);
-    
+
     if (currentApiKey.trim()) {
       localStorage.setItem('API_KEY', currentApiKey.trim());
     } else {
       localStorage.removeItem('API_KEY');
     }
-    
-    alert('✅ Connection settings saved!\n\nPlease refresh the page for changes to take effect.');
+
+    toast.success('Connection settings saved — please refresh the page for changes to take effect.');
   };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
-      alert('✅ Copied to clipboard!');
+      toast.success('Copied to clipboard!');
     }).catch(() => {
-      alert('Failed to copy to clipboard');
+      toast.error('Failed to copy to clipboard');
     });
   };
 
@@ -606,7 +638,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
   const savePreferences = () => {
     saveDefaultLocations(locations);
     saveDefaultCategories(categories);
-    alert('✅ Preferences saved!');
+    toast.success('Preferences saved!');
   };
 
   // Import/Export functions
@@ -623,7 +655,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       }
 
       if (filteredItems.length === 0) {
-        alert('No items to export with the selected filter.');
+        toast.warning('No items to export with the selected filter.');
         return;
       }
 
@@ -662,10 +694,10 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       link.click();
       document.body.removeChild(link);
 
-      alert(`✅ Exported ${filteredItems.length} items successfully!`);
+      toast.success(`Exported ${filteredItems.length} items successfully!`);
     } catch (error) {
       console.error('Export failed:', error);
-      alert('❌ Export failed. Please try again.');
+      toast.error('Export failed. Please try again.');
     } finally {
       setExporting(false);
     }
@@ -676,7 +708,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
     if (!file) return;
 
     if (!file.name.endsWith('.csv')) {
-      alert('Please select a CSV file');
+      toast.error('Please select a CSV file');
       return;
     }
 
@@ -691,7 +723,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       const lines = text.split('\n').filter(line => line.trim());
       
       if (lines.length < 2) {
-        alert('CSV file is empty or invalid');
+        toast.error('CSV file is empty or invalid');
         return;
       }
 
@@ -789,15 +821,20 @@ function SettingsPage({ onBack, currentUser, isDark }) {
           }
         }
 
-        alert(`✅ Import Complete!\n\n✓ ${successCount} items imported\n${skipCount > 0 ? `⊘ ${skipCount} duplicates skipped\n` : ''}${errorCount > 0 ? `✗ ${errorCount} errors` : ''}`);
-        
+        const details = [
+          `${successCount} items imported`,
+          skipCount > 0 ? `${skipCount} duplicates skipped` : null,
+          errorCount > 0 ? `${errorCount} errors` : null,
+        ].filter(Boolean).join(' · ');
+        toast.success(`Import complete! ${details}`);
+
         setImportFile(null);
         setImportPreview(null);
       };
       reader.readAsText(importFile);
     } catch (error) {
       console.error('Import failed:', error);
-      alert('❌ Import failed. Please check the CSV format and try again.');
+      toast.error('Import failed. Please check the CSV format and try again.');
     } finally {
       setImporting(false);
     }
@@ -841,7 +878,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
         backgroundColor: colors.background,
         zIndex: 100,
         borderBottom: `1px solid ${colors.border}`,
-        padding: `${spacing.md} ${spacing.xl}`,
+        padding: `${spacing.md} ${spacing.xl} ${spacing.md} ${spacing.lg}`,
         display: 'flex',
         alignItems: 'center',
         gap: spacing.lg,
@@ -871,7 +908,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       </div>
 
       {/* Two-column layout: sidebar + content */}
-      <div style={{ display: 'flex', flex: 1, maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+      <div style={{ display: 'flex', flex: 1, width: '100%' }}>
         {/* Vertical Tab Sidebar */}
         <div style={{
           width: '220px',
@@ -2269,7 +2306,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                           </td>
                           <td style={{ padding: spacing.md }}>
                             {user.id !== currentUser?.id && (
-                              <div style={{ display: 'flex', gap: spacing.sm }}>
+                              <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
                                 <button
                                   onClick={() => handleToggleUserStatus(user.id, user.is_active)}
                                   style={{
@@ -2285,6 +2322,30 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                                 >
                                   {user.is_active ? 'Disable' : 'Enable'}
                                 </button>
+                                {(() => {
+                                  const pending = !user.last_login_at;
+                                  return (
+                                    <button
+                                      onClick={() => handleResendInvite(user.id, user.email)}
+                                      title={pending
+                                        ? 'User has not logged in yet — send a fresh password setup link'
+                                        : 'User has already set up their account — resend only if they are locked out'}
+                                      style={{
+                                        padding: '6px 12px',
+                                        background: pending ? '#f59e0b' : isDark ? '#44403c' : '#e7e5e4',
+                                        color: pending ? '#ffffff' : isDark ? '#a8a29e' : '#78716c',
+                                        border: 'none',
+                                        borderRadius: borderRadius.sm,
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        opacity: pending ? 1 : 0.7,
+                                      }}
+                                    >
+                                      {pending ? 'Resend Invite' : 'Resend Invite ✓'}
+                                    </button>
+                                  );
+                                })()}
                                 <button
                                   onClick={() => handleDeleteUser(user.id)}
                                   style={{

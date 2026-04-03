@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { colors, spacing, borderRadius } from './colors';
+import { useToast } from './components/Toast';
 
 function ResetPasswordPage({ token, onSuccess }) {
+  const toast = useToast();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -11,19 +13,19 @@ function ResetPasswordPage({ token, onSuccess }) {
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    
+
     if (newPassword !== confirmPassword) {
-      alert('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
-    
+
     if (newPassword.length < 8) {
-      alert('Password must be at least 8 characters');
+      toast.error('Password must be at least 8 characters');
       return;
     }
-    
+
     setLoading(true);
-    
+
     try {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
@@ -33,19 +35,19 @@ function ResetPasswordPage({ token, onSuccess }) {
           new_password: newPassword
         })
       });
-      
+
       if (response.ok) {
-        alert('✅ Password reset successful!\n\nYou can now sign in with your new password.');
+        toast.success('Password reset successful! You can now sign in with your new password.');
         onSuccess();
       } else {
         const error = await response.json();
         if (error.detail.includes('expired')) {
           setTokenValid(false);
         }
-        alert('❌ Reset failed\n\n' + (error.detail || 'Invalid or expired token'));
+        toast.error('Reset failed: ' + (error.detail || 'Invalid or expired token'));
       }
     } catch (error) {
-      alert('❌ Connection error\n\nCould not reach server');
+      toast.error('Connection error: Could not reach server');
     } finally {
       setLoading(false);
     }

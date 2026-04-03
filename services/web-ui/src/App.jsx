@@ -15,6 +15,7 @@ import ResetPasswordPage from './ResetPasswordPage';
 import { getItems, getCurrentUser, isServerConfigured } from './api';
 import { useDarkMode } from './hooks/useDarkMode';
 import { ToastProvider } from './components/Toast';
+import { DialogProvider } from './components/DialogProvider';
 import './App.css';
 
 function AppContent() {
@@ -125,7 +126,9 @@ function AppWithToast() {
   const { isDark } = useDarkMode();
   return (
     <ToastProvider isDark={isDark}>
-      <AppContent />
+      <DialogProvider>
+        <AppContent />
+      </DialogProvider>
     </ToastProvider>
   );
 }
