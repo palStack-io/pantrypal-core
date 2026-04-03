@@ -33,6 +33,11 @@ function SettingsPage({ onBack, currentUser, isDark }) {
   });
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState('');
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
   
   // Admin state
   const [users, setUsers] = useState([]);
@@ -826,79 +831,92 @@ function SettingsPage({ onBack, currentUser, isDark }) {
     <div style={{
       minHeight: '100vh',
       backgroundColor: colors.background,
+      display: 'flex',
+      flexDirection: 'column',
     }}>
-      {/* Sticky Header + Tabs */}
+      {/* Top Header Bar */}
       <div style={{
         position: 'sticky',
         top: 0,
         backgroundColor: colors.background,
         zIndex: 100,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.sm,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-        marginBottom: spacing.lg,
+        borderBottom: `1px solid ${colors.border}`,
+        padding: `${spacing.md} ${spacing.xl}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: spacing.lg,
       }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', paddingLeft: spacing.lg, paddingRight: spacing.lg }}>
-          <div style={{ marginBottom: spacing.md }}>
-            <button
-              onClick={onBack}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '18px',
-                color: colors.textPrimary,
-                cursor: 'pointer',
-                marginBottom: spacing.sm,
-                fontWeight: '600',
-              }}
-            >
-              ← Back
-            </button>
-            <h1 style={{ margin: 0, color: colors.textPrimary }}>⚙️ Settings</h1>
-            {currentUser && (
-              <p style={{ margin: `${spacing.xs} 0 0 0`, color: colors.textSecondary }}>
-                {currentUser.username} {isAdmin && <span style={{ color: '#f59e0b' }}>(Admin)</span>}
-              </p>
-            )}
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: spacing.xs,
-            borderBottom: `2px solid ${colors.border}`,
-            overflowX: 'auto',
-          }}>
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  padding: `${spacing.md} ${spacing.lg}`,
-                  border: 'none',
-                  background: activeTab === tab.id ? colors.primary : 'transparent',
-                  color: colors.textPrimary,
-                  fontWeight: activeTab === tab.id ? 'bold' : '500',
-                  fontSize: '16px',
-                  cursor: 'pointer',
-                  borderBottom: activeTab === tab.id ? `3px solid ${colors.primary}` : '3px solid transparent',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+        <button
+          onClick={onBack}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '18px',
+            color: colors.textPrimary,
+            cursor: 'pointer',
+            fontWeight: '600',
+            padding: 0,
+          }}
+        >
+          ← Back
+        </button>
+        <div>
+          <h1 style={{ margin: 0, color: colors.textPrimary, fontSize: '22px' }}>⚙️ Settings</h1>
+          {currentUser && (
+            <p style={{ margin: 0, color: colors.textSecondary, fontSize: '13px' }}>
+              {currentUser.username} {isAdmin && <span style={{ color: '#f59e0b' }}>(Admin)</span>}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Tab Content */}
-      <div style={{ 
-        maxWidth: '900px', 
-        margin: '0 auto',
-        padding: spacing.lg,
-        paddingBottom: '200px',
-      }}>
+      {/* Two-column layout: sidebar + content */}
+      <div style={{ display: 'flex', flex: 1, maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+        {/* Vertical Tab Sidebar */}
+        <div style={{
+          width: '220px',
+          flexShrink: 0,
+          borderRight: `1px solid ${colors.border}`,
+          paddingTop: spacing.lg,
+          paddingBottom: spacing.xl,
+          position: 'sticky',
+          top: '64px',
+          height: 'calc(100vh - 64px)',
+          overflowY: 'auto',
+        }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: `${spacing.md} ${spacing.lg}`,
+                border: 'none',
+                background: activeTab === tab.id ? colors.primary + '22' : 'transparent',
+                color: activeTab === tab.id ? colors.primary : colors.textPrimary,
+                fontWeight: activeTab === tab.id ? '700' : '500',
+                fontSize: '15px',
+                cursor: 'pointer',
+                borderLeft: activeTab === tab.id ? `3px solid ${colors.primary}` : '3px solid transparent',
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div style={{
+          flex: 1,
+          padding: spacing.xl,
+          paddingBottom: '80px',
+          overflowY: 'auto',
+          minWidth: 0,
+        }}>
         {/* CONNECTION TAB */}
         {activeTab === 'connection' && (
           <div style={{
@@ -1451,80 +1469,59 @@ function SettingsPage({ onBack, currentUser, isDark }) {
             </h2>
 
             <form onSubmit={handleChangePassword} style={{ marginTop: spacing.lg }}>
-              <div style={{ marginBottom: spacing.md }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: spacing.sm,
-                  fontWeight: '600',
-                  color: colors.textPrimary,
-                }}>
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.current_password}
-                  onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                  placeholder="Enter current password"
-                  style={{
-                    width: '100%',
-                    padding: spacing.md,
-                    borderRadius: borderRadius.md,
-                    border: `2px solid ${colors.border}`,
-                    backgroundColor: colors.card,
+              {[
+                { key: 'current', label: 'Current Password', placeholder: 'Enter current password', field: 'current_password' },
+                { key: 'new', label: 'New Password', placeholder: 'Enter new password (min 8 chars)', field: 'new_password' },
+                { key: 'confirm', label: 'Confirm New Password', placeholder: 'Confirm new password', field: 'confirm_password' },
+              ].map(({ key, label, placeholder, field }) => (
+                <div key={key} style={{ marginBottom: spacing.md }}>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: spacing.sm,
+                    fontWeight: '600',
                     color: colors.textPrimary,
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: spacing.md }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: spacing.sm,
-                  fontWeight: '600',
-                  color: colors.textPrimary,
-                }}>
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.new_password}
-                  onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                  placeholder="Enter new password (min 8 chars)"
-                  style={{
-                    width: '100%',
-                    padding: spacing.md,
-                    borderRadius: borderRadius.md,
-                    border: `2px solid ${colors.border}`,
-                    backgroundColor: colors.card,
-                    color: colors.textPrimary,
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: spacing.md }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: spacing.sm,
-                  fontWeight: '600',
-                  color: colors.textPrimary,
-                }}>
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  value={passwordData.confirm_password}
-                  onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                  placeholder="Confirm new password"
-                  style={{
-                    width: '100%',
-                    padding: spacing.md,
-                    borderRadius: borderRadius.md,
-                    border: `2px solid ${colors.border}`,
-                    backgroundColor: colors.card,
-                    color: colors.textPrimary,
-                  }}
-                />
-              </div>
+                  }}>
+                    {label}
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPasswords[key] ? 'text' : 'password'}
+                      value={passwordData[field]}
+                      onChange={(e) => setPasswordData({ ...passwordData, [field]: e.target.value })}
+                      placeholder={placeholder}
+                      autoComplete={key === 'current' ? 'current-password' : 'new-password'}
+                      style={{
+                        width: '100%',
+                        padding: spacing.md,
+                        paddingRight: '48px',
+                        borderRadius: borderRadius.md,
+                        border: `2px solid ${colors.border}`,
+                        backgroundColor: colors.card,
+                        color: colors.textPrimary,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(p => ({ ...p, [key]: !p[key] }))}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '18px',
+                        color: colors.textSecondary,
+                        padding: 0,
+                      }}
+                    >
+                      {showPasswords[key] ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                </div>
+              ))}
 
               {passwordMessage && (
                 <div style={{ marginBottom: spacing.md, fontSize: '14px', color: passwordMessage.includes('success') ? colors.success : colors.error }}>
@@ -3125,6 +3122,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

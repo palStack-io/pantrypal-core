@@ -10,6 +10,7 @@ function LandingPage({ onLoginSuccess }) {
   const [serverUrl, setServerUrl] = useState('');
   const [serverConfigured, setServerConfigured] = useState(true);
   const [showChangeServer, setShowChangeServer] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Login form
   const [loginUsername, setLoginUsername] = useState('');
@@ -752,21 +753,44 @@ function LandingPage({ onLoginSuccess }) {
               }}>
                 Password
               </label>
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  padding: spacing.md,
-                  borderRadius: borderRadius.md,
-                  border: `2px solid ${colors.border}`,
-                  fontSize: '16px',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showLoginPassword ? 'text' : 'password'}
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    paddingRight: '48px',
+                    borderRadius: borderRadius.md,
+                    border: `2px solid ${colors.border}`,
+                    fontSize: '16px',
+                    backgroundColor: '#ffffff',
+                    color: '#000000',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    color: colors.textSecondary,
+                    padding: 0,
+                  }}
+                >
+                  {showLoginPassword ? '🙈' : '👁'}
+                </button>
+              </div>
             </div>
             
             <button

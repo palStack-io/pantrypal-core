@@ -102,8 +102,8 @@ function AppContent() {
   return (
     <div className="app">
       <Sidebar isOpen={sidebarOpen} currentPath={location.pathname} onNavigate={navigate} onFilterChange={handleFilterChange} currentFilters={filters} isDark={isDark} />
+      <TopBar currentUser={currentUser} onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }} onSettingsClick={() => navigate('/settings')} isDark={isDark} onToggleDark={toggleDark} />
       <div className="main-content-wrapper">
-        <TopBar onMenuClick={() => setSidebarOpen(!sidebarOpen)} currentUser={currentUser} onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }} onSettingsClick={() => navigate('/settings')} isDark={isDark} onToggleDark={toggleDark} />
         <main className="main-content">
           <Routes>
             <Route path="/" element={<InventoryPage isDark={isDark} sidebarFilters={filters} />} />
