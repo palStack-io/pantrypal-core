@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["SF335GD5DY.com.palstack.pantrypal"],
+        "components": [
+          { "/": "/reset-password*", "comment": "Password reset deep link" },
+          { "/": "/verify-email*", "comment": "Email verification deep link" }
+        ]
+      }
+    ]
+  }
+}

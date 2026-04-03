@@ -1,6 +1,7 @@
 FROM nginx:alpine
 
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY well-known/ /etc/nginx/well-known-root/.well-known/
 
 EXPOSE 80
 

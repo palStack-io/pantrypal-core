@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.palstack.pantrypal",
+      "sha256_cert_fingerprints": [
+        "19:CD:3F:16:8C:EF:D3:2E:42:0F:F1:1C:10:C2:CD:D2:14:E8:D1:D8:59:F6:6E:83:18:5D:E5:73:27:18:E8:6F"
+      ]
+    }
+  }
+]
