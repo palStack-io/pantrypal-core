@@ -1,10 +1,144 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Lock, Users, Shield, Activity, Settings as SettingsIcon } from 'lucide-react';
 import { getColors, spacing, borderRadius, getShadows } from './colors';
 import { useToast } from './components/Toast';
 import { useDialog } from './components/DialogProvider';
 import { getDefaultLocations, getDefaultCategories, saveDefaultLocations, saveDefaultCategories } from './defaults';
 import { getItems, addItemManual, getRecipeIntegration, createRecipeIntegration, deleteRecipeIntegration } from './api';
+
+const EMOJI_CATEGORIES = [
+  { label: '🍎 Fruits', emojis: ['🍎','🍊','🍋','🍋‍🟩','🍇','🍓','🫐','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🫒','🍈','🍌','🍉','🍏','🍐','🍆','🫑','🥑'] },
+  { label: '🥦 Veggies', emojis: ['🥕','🥦','🥬','🧅','🧄','🥔','🌽','🌶️','🫚','🧅','🍠','🥒','🫛','🍄','🌰','🫘','🥗'] },
+  { label: '🍳 Cooked', emojis: ['🍳','🥘','🫕','🍲','🍜','🍝','🍛','🍱','🥡','🍣','🍤','🦐','🦞','🦀','🐟','🍖','🍗','🥩','🥓','🌮','🌯','🫔','🥙','🍔','🌭','🍟','🍕','🥪'] },
+  { label: '🍞 Bakery', emojis: ['🍞','🥐','🥨','🧀','🥚','🧇','🥞','🧈','🥯','🫓','🧁','🍰','🎂','🍩','🍪','🍫','🍬','🍭','🍮','🍯','🧆','🫔'] },
+  { label: '🥤 Drinks', emojis: ['☕','🍵','🧃','🥛','🧋','🍶','🍺','🍻','🥂','🍷','🍸','🍹','🍾','🧉','🥤','💧','🫖','🧊','🍼'] },
+  { label: '🏠 Home', emojis: ['🏠','🏡','🏘️','🏚️','🛖','🏗️','🏢','🏬','🏪','⛺','🗄️','🗃️','🚪','🪟','🪞','🛁','🚿','🧺','🪣','🚽','📦','🛒'] },
+  { label: '🍽️ Kitchen', emojis: ['🍽️','🥄','🍴','🔪','🫙','🧂','🧰','🔧','💡','🕯️','🪔','🧯','🧹','🧼','🧻','🧴','✂️','📌','📎','📏','📐'] },
+  { label: '📦 Storage', emojis: ['📦','🗃️','🗄️','🗑️','🧺','🪣','📁','📂','🗂️','🔖','🏷️','📍','🛍️','💼','🎒','🧳','👜','📬','📮','🪤'] },
+  { label: '🌿 Nature', emojis: ['🌱','🌿','🍃','🍀','🍁','🍂','🌾','🌵','🌴','🌳','🌲','🪴','🌺','🌸','🌼','🌻','🌹','🌷','💐','🍄','🌰','🌊','🏔️','⛰️','🌋','🏝️','🏜️','🌅','☀️','🌈','❄️','🔥','💨'] },
+  { label: '🐾 Animals', emojis: ['🐄','🐖','🐔','🐟','🦐','🦀','🦞','🐓','🥩','🐑','🐇','🦌','🐗','🦃','🦆','🐠','🦑','🦪','🥚','🧀','🍯','🐝','🌻','🌾'] },
+  { label: '🔧 Tools', emojis: ['🔧','🔨','⚙️','🗝️','🔑','🪝','🧰','🪛','🔩','🪜','🧲','🔦','🛠️','⛏️','🪚','🔬','🔭','⚗️','🧪','🧫','🧬','💊','💉','🩺','🩹','🏥'] },
+  { label: '💛 Symbols', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💗','💖','⭐','🌟','✨','💫','🔥','🎯','✅','⚠️','🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🔶','🔷','💠','🎁','🎉','🎊','🏆','🥇','🥈','🥉','🎖️','🏅'] },
+];
+
+function EmojiPickerPopover({ value, onChange, isDark }) {
+  const colors = getColors(isDark);
+  const [open, setOpen] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(0);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: '52px',
+          height: '44px',
+          fontSize: '22px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: borderRadius.sm,
+          border: `2px solid ${open ? colors.primary : colors.border}`,
+          backgroundColor: colors.card,
+          cursor: 'pointer',
+          marginRight: spacing.sm,
+          flexShrink: 0,
+        }}
+        title="Pick an emoji"
+      >
+        {value || '?'}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: '50px',
+          left: 0,
+          zIndex: 1000,
+          backgroundColor: colors.card,
+          border: `1px solid ${colors.border}`,
+          borderRadius: borderRadius.md,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+          width: '320px',
+          overflow: 'hidden',
+        }}>
+          {/* Category tabs */}
+          <div style={{
+            display: 'flex',
+            overflowX: 'auto',
+            borderBottom: `1px solid ${colors.border}`,
+            padding: '4px 4px 0',
+            gap: '2px',
+            scrollbarWidth: 'none',
+          }}>
+            {EMOJI_CATEGORIES.map((cat, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setActiveCategory(i)}
+                title={cat.label}
+                style={{
+                  background: activeCategory === i ? colors.primary : 'transparent',
+                  border: 'none',
+                  borderRadius: `${borderRadius.sm} ${borderRadius.sm} 0 0`,
+                  padding: '4px 8px',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  opacity: activeCategory === i ? 1 : 0.6,
+                }}
+              >
+                {cat.label.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+          {/* Emoji grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(8, 1fr)',
+            gap: '2px',
+            padding: '8px',
+            maxHeight: '200px',
+            overflowY: 'auto',
+          }}>
+            {EMOJI_CATEGORIES[activeCategory].emojis.map((emoji, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => { onChange(emoji); setOpen(false); }}
+                style={{
+                  background: value === emoji ? colors.primary : 'transparent',
+                  border: 'none',
+                  borderRadius: borderRadius.sm,
+                  fontSize: '20px',
+                  padding: '4px',
+                  cursor: 'pointer',
+                  lineHeight: 1.3,
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={(e) => { if (value !== emoji) e.target.style.background = colors.background; }}
+                onMouseLeave={(e) => { if (value !== emoji) e.target.style.background = 'transparent'; }}
+                title={emoji}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SettingsPage({ onBack, currentUser, isDark }) {
   const colors = getColors(isDark);
@@ -2878,23 +3012,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 }}>
                   {editingLocation && editingLocation.name === location.name ? (
                     <>
-                      <input
-                        type="text"
-                        value={editLocationEmoji}
-                        onChange={(e) => setEditLocationEmoji(e.target.value)}
-                        style={{
-                          width: '52px',
-                          padding: spacing.sm,
-                          borderRadius: borderRadius.sm,
-                          border: `2px solid ${colors.primary}`,
-                          fontSize: '20px',
-                          textAlign: 'center',
-                          backgroundColor: colors.card,
-                          color: colors.textPrimary,
-                          marginRight: spacing.sm,
-                        }}
-                        title="Type or paste an emoji"
-                      />
+                      <EmojiPickerPopover value={editLocationEmoji} onChange={setEditLocationEmoji} isDark={isDark} />
                       <input
                         type="text"
                         value={editLocationValue}
@@ -2988,24 +3106,8 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 </div>
               ))}
 
-              <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md }}>
-                <input
-                  type="text"
-                  value={newLocationEmoji}
-                  onChange={(e) => setNewLocationEmoji(e.target.value)}
-                  placeholder="📍"
-                  style={{
-                    width: '58px',
-                    padding: spacing.md,
-                    borderRadius: borderRadius.md,
-                    border: `2px solid ${colors.border}`,
-                    fontSize: '20px',
-                    textAlign: 'center',
-                    backgroundColor: colors.card,
-                    color: colors.textPrimary,
-                  }}
-                  title="Type or paste an emoji"
-                />
+              <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md, alignItems: 'center' }}>
+                <EmojiPickerPopover value={newLocationEmoji} onChange={setNewLocationEmoji} isDark={isDark} />
                 <input
                   type="text"
                   value={newLocation}
@@ -3063,23 +3165,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 }}>
                   {editingCategory && editingCategory.name === category.name ? (
                     <>
-                      <input
-                        type="text"
-                        value={editCategoryEmoji}
-                        onChange={(e) => setEditCategoryEmoji(e.target.value)}
-                        style={{
-                          width: '52px',
-                          padding: spacing.sm,
-                          borderRadius: borderRadius.sm,
-                          border: `2px solid ${colors.primary}`,
-                          fontSize: '20px',
-                          textAlign: 'center',
-                          backgroundColor: colors.card,
-                          color: colors.textPrimary,
-                          marginRight: spacing.sm,
-                        }}
-                        title="Type or paste an emoji"
-                      />
+                      <EmojiPickerPopover value={editCategoryEmoji} onChange={setEditCategoryEmoji} isDark={isDark} />
                       <input
                         type="text"
                         value={editCategoryValue}
@@ -3173,24 +3259,8 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 </div>
               ))}
 
-              <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md }}>
-                <input
-                  type="text"
-                  value={newCategoryEmoji}
-                  onChange={(e) => setNewCategoryEmoji(e.target.value)}
-                  placeholder="🏷️"
-                  style={{
-                    width: '58px',
-                    padding: spacing.md,
-                    borderRadius: borderRadius.md,
-                    border: `2px solid ${colors.border}`,
-                    fontSize: '20px',
-                    textAlign: 'center',
-                    backgroundColor: colors.card,
-                    color: colors.textPrimary,
-                  }}
-                  title="Type or paste an emoji"
-                />
+              <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md, alignItems: 'center' }}>
+                <EmojiPickerPopover value={newCategoryEmoji} onChange={setNewCategoryEmoji} isDark={isDark} />
                 <input
                   type="text"
                   value={newCategory}
