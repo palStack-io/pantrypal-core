@@ -1,7 +1,7 @@
 // Custom hook for managing locations and categories
 import { useState, useEffect, useCallback } from 'react';
 import { getLocations, getCategories } from '../api';
-import { getDefaultLocations, getDefaultCategories } from '../defaults';
+import { getDefaultLocationNames, getDefaultCategoryNames } from '../defaults';
 
 export function useLocations() {
   const [locations, setLocations] = useState([]);
@@ -18,12 +18,12 @@ export function useLocations() {
         setLocations(Array.isArray(data) ? data : []);
       } catch (apiError) {
         console.warn('Using default locations:', apiError);
-        setLocations(getDefaultLocations());
+        setLocations(getDefaultLocationNames());
       }
     } catch (err) {
       console.error('Failed to load locations:', err);
       setError(err.message || 'Failed to load locations');
-      setLocations(getDefaultLocations());
+      setLocations(getDefaultLocationNames());
     } finally {
       setLoading(false);
     }
@@ -38,12 +38,12 @@ export function useLocations() {
         setCategories(Array.isArray(data) ? data : []);
       } catch (apiError) {
         console.warn('Using default categories:', apiError);
-        setCategories(getDefaultCategories());
+        setCategories(getDefaultCategoryNames());
       }
     } catch (err) {
       console.error('Failed to load categories:', err);
       setError(err.message || 'Failed to load categories');
-      setCategories(getDefaultCategories());
+      setCategories(getDefaultCategoryNames());
     } finally {
       setLoading(false);
     }

@@ -3,7 +3,7 @@ import { User, Mail, Lock, Users, Shield, Activity, Settings as SettingsIcon } f
 import { getColors, spacing, borderRadius, getShadows } from './colors';
 import { useToast } from './components/Toast';
 import { useDialog } from './components/DialogProvider';
-import { getDefaultLocations, getDefaultCategories, saveDefaultLocations, saveDefaultCategories, DEFAULT_LOCATIONS, DEFAULT_CATEGORIES } from './defaults';
+import { getDefaultLocations, getDefaultCategories, saveDefaultLocations, saveDefaultCategories } from './defaults';
 import { getItems, addItemManual, getRecipeIntegration, createRecipeIntegration, deleteRecipeIntegration } from './api';
 
 function SettingsPage({ onBack, currentUser, isDark }) {
@@ -69,14 +69,18 @@ function SettingsPage({ onBack, currentUser, isDark }) {
   const [loadingKeys, setLoadingKeys] = useState(false);
   
   // Preferences
-  const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [locations, setLocations] = useState(getDefaultLocations);
+  const [categories, setCategories] = useState(getDefaultCategories);
   const [newLocation, setNewLocation] = useState('');
+  const [newLocationEmoji, setNewLocationEmoji] = useState('📍');
   const [newCategory, setNewCategory] = useState('');
+  const [newCategoryEmoji, setNewCategoryEmoji] = useState('🏷️');
   const [editingLocation, setEditingLocation] = useState(null);
   const [editLocationValue, setEditLocationValue] = useState('');
+  const [editLocationEmoji, setEditLocationEmoji] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [editCategoryValue, setEditCategoryValue] = useState('');
+  const [editCategoryEmoji, setEditCategoryEmoji] = useState('');
   
   // Import/Export
   const [exportFilter, setExportFilter] = useState('all');
@@ -617,67 +621,79 @@ function SettingsPage({ onBack, currentUser, isDark }) {
 
   // Preferences functions
   const addLocation = () => {
-    if (newLocation.trim() && !locations.includes(newLocation.trim())) {
-      setLocations([...locations, newLocation.trim()]);
+    const name = newLocation.trim();
+    if (name && !locations.find(l => l.name === name)) {
+      setLocations([...locations, { name, emoji: newLocationEmoji || '📍' }]);
       setNewLocation('');
+      setNewLocationEmoji('📍');
     }
   };
 
   const removeLocation = (location) => {
-    setLocations(locations.filter(l => l !== location));
+    setLocations(locations.filter(l => l.name !== location.name));
   };
 
   const startEditLocation = (location) => {
     setEditingLocation(location);
-    setEditLocationValue(location);
+    setEditLocationValue(location.name);
+    setEditLocationEmoji(location.emoji);
   };
 
   const saveEditLocation = () => {
-    if (editLocationValue.trim() && editLocationValue.trim() !== editingLocation) {
+    const name = editLocationValue.trim();
+    if (name) {
       const updatedLocations = locations.map(l =>
-        l === editingLocation ? editLocationValue.trim() : l
+        l.name === editingLocation.name ? { name, emoji: editLocationEmoji || '📍' } : l
       );
       setLocations(updatedLocations);
     }
     setEditingLocation(null);
     setEditLocationValue('');
+    setEditLocationEmoji('');
   };
 
   const cancelEditLocation = () => {
     setEditingLocation(null);
     setEditLocationValue('');
+    setEditLocationEmoji('');
   };
 
   const addCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      setCategories([...categories, newCategory.trim()]);
+    const name = newCategory.trim();
+    if (name && !categories.find(c => c.name === name)) {
+      setCategories([...categories, { name, emoji: newCategoryEmoji || '🏷️' }]);
       setNewCategory('');
+      setNewCategoryEmoji('🏷️');
     }
   };
 
   const removeCategory = (category) => {
-    setCategories(categories.filter(c => c !== category));
+    setCategories(categories.filter(c => c.name !== category.name));
   };
 
   const startEditCategory = (category) => {
     setEditingCategory(category);
-    setEditCategoryValue(category);
+    setEditCategoryValue(category.name);
+    setEditCategoryEmoji(category.emoji);
   };
 
   const saveEditCategory = () => {
-    if (editCategoryValue.trim() && editCategoryValue.trim() !== editingCategory) {
+    const name = editCategoryValue.trim();
+    if (name) {
       const updatedCategories = categories.map(c =>
-        c === editingCategory ? editCategoryValue.trim() : c
+        c.name === editingCategory.name ? { name, emoji: editCategoryEmoji || '🏷️' } : c
       );
       setCategories(updatedCategories);
     }
     setEditingCategory(null);
     setEditCategoryValue('');
+    setEditCategoryEmoji('');
   };
 
   const cancelEditCategory = () => {
     setEditingCategory(null);
     setEditCategoryValue('');
+    setEditCategoryEmoji('');
   };
 
   const savePreferences = () => {
@@ -2785,7 +2801,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                   >
                     <option value="">Select Location</option>
                     {locations.map(loc => (
-                      <option key={loc} value={loc}>{loc}</option>
+                      <option key={loc.name} value={loc.name}>{loc.emoji} {loc.name}</option>
                     ))}
                   </select>
                 )}
@@ -2806,7 +2822,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                   >
                     <option value="">Select Category</option>
                     {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
+                      <option key={cat.name} value={cat.name}>{cat.emoji} {cat.name}</option>
                     ))}
                   </select>
                 )}
@@ -2860,8 +2876,25 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                   borderRadius: borderRadius.sm,
                   marginBottom: spacing.xs,
                 }}>
-                  {editingLocation === location ? (
+                  {editingLocation && editingLocation.name === location.name ? (
                     <>
+                      <input
+                        type="text"
+                        value={editLocationEmoji}
+                        onChange={(e) => setEditLocationEmoji(e.target.value)}
+                        style={{
+                          width: '52px',
+                          padding: spacing.sm,
+                          borderRadius: borderRadius.sm,
+                          border: `2px solid ${colors.primary}`,
+                          fontSize: '20px',
+                          textAlign: 'center',
+                          backgroundColor: colors.card,
+                          color: colors.textPrimary,
+                          marginRight: spacing.sm,
+                        }}
+                        title="Type or paste an emoji"
+                      />
                       <input
                         type="text"
                         value={editLocationValue}
@@ -2917,7 +2950,8 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                     </>
                   ) : (
                     <>
-                      <span style={{ fontSize: '16px', color: colors.textPrimary }}>{location}</span>
+                      <span style={{ fontSize: '20px', marginRight: spacing.sm }}>{location.emoji}</span>
+                      <span style={{ flex: 1, fontSize: '16px', color: colors.textPrimary }}>{location.name}</span>
                       <div style={{ display: 'flex', gap: spacing.xs }}>
                         <button
                           onClick={() => startEditLocation(location)}
@@ -2955,6 +2989,23 @@ function SettingsPage({ onBack, currentUser, isDark }) {
               ))}
 
               <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md }}>
+                <input
+                  type="text"
+                  value={newLocationEmoji}
+                  onChange={(e) => setNewLocationEmoji(e.target.value)}
+                  placeholder="📍"
+                  style={{
+                    width: '58px',
+                    padding: spacing.md,
+                    borderRadius: borderRadius.md,
+                    border: `2px solid ${colors.border}`,
+                    fontSize: '20px',
+                    textAlign: 'center',
+                    backgroundColor: colors.card,
+                    color: colors.textPrimary,
+                  }}
+                  title="Type or paste an emoji"
+                />
                 <input
                   type="text"
                   value={newLocation}
@@ -3010,8 +3061,25 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                   borderRadius: borderRadius.sm,
                   marginBottom: spacing.xs,
                 }}>
-                  {editingCategory === category ? (
+                  {editingCategory && editingCategory.name === category.name ? (
                     <>
+                      <input
+                        type="text"
+                        value={editCategoryEmoji}
+                        onChange={(e) => setEditCategoryEmoji(e.target.value)}
+                        style={{
+                          width: '52px',
+                          padding: spacing.sm,
+                          borderRadius: borderRadius.sm,
+                          border: `2px solid ${colors.primary}`,
+                          fontSize: '20px',
+                          textAlign: 'center',
+                          backgroundColor: colors.card,
+                          color: colors.textPrimary,
+                          marginRight: spacing.sm,
+                        }}
+                        title="Type or paste an emoji"
+                      />
                       <input
                         type="text"
                         value={editCategoryValue}
@@ -3067,7 +3135,8 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                     </>
                   ) : (
                     <>
-                      <span style={{ fontSize: '16px', color: colors.textPrimary }}>{category}</span>
+                      <span style={{ fontSize: '20px', marginRight: spacing.sm }}>{category.emoji}</span>
+                      <span style={{ flex: 1, fontSize: '16px', color: colors.textPrimary }}>{category.name}</span>
                       <div style={{ display: 'flex', gap: spacing.xs }}>
                         <button
                           onClick={() => startEditCategory(category)}
@@ -3105,6 +3174,23 @@ function SettingsPage({ onBack, currentUser, isDark }) {
               ))}
 
               <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md }}>
+                <input
+                  type="text"
+                  value={newCategoryEmoji}
+                  onChange={(e) => setNewCategoryEmoji(e.target.value)}
+                  placeholder="🏷️"
+                  style={{
+                    width: '58px',
+                    padding: spacing.md,
+                    borderRadius: borderRadius.md,
+                    border: `2px solid ${colors.border}`,
+                    fontSize: '20px',
+                    textAlign: 'center',
+                    backgroundColor: colors.card,
+                    color: colors.textPrimary,
+                  }}
+                  title="Type or paste an emoji"
+                />
                 <input
                   type="text"
                   value={newCategory}

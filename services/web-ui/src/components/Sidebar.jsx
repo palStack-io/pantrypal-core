@@ -4,6 +4,7 @@ import { Package, AlertTriangle, XCircle, Plus, ShoppingCart, TrendingUp, ChefHa
 import { getColors, spacing, borderRadius, getShadows, getGradient } from '../colors';
 import { useItems } from '../hooks/useItems';
 import { getExpiryStatus } from '../utils/dateUtils';
+import { getEmojiForLocation, getEmojiForCategory } from '../defaults';
 
 export function Sidebar({ isOpen, currentPath, onNavigate, isDark, onFilterChange, currentFilters = {} }) {
   const colors = getColors(isDark);
@@ -30,16 +31,6 @@ export function Sidebar({ isOpen, currentPath, onNavigate, isDark, onFilterChang
       setCategoryCounts(cats);
     }
   }, [items]);
-
-  const locationIcons = {
-    'Basement Pantry': '🏠', 'Kitchen Pantry': '🍴', 'Kitchen Fridge': '❄️',
-    'Fridge': '❄️', 'Pantry': '🏠', 'Freezer': '🧊',
-  };
-
-  const categoryIcons = {
-    'Canned Goods': '🥫', 'Dry Goods': '🌾', 'Dairy': '🧊',
-    'Beverages': '🥤', 'Snacks': '🍿', 'Condiments': '🍯',
-  };
 
   if (!isOpen) return null;
 
@@ -121,7 +112,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, isDark, onFilterChang
             {Object.entries(locationCounts).map(([location, count]) => (
               <NavItem
                 key={location}
-                icon={locationIcons[location] || '📍'}
+                icon={getEmojiForLocation(location)}
                 label={location}
                 count={count}
                 active={currentFilters.location === location}
@@ -138,7 +129,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, isDark, onFilterChang
             {Object.entries(categoryCounts).slice(0, 5).map(([category, count]) => (
               <NavItem
                 key={category}
-                icon={categoryIcons[category] || '🏷️'}
+                icon={getEmojiForCategory(category)}
                 label={category}
                 count={count}
                 active={currentFilters.category === category}

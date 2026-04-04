@@ -5,7 +5,7 @@ import { getColors, spacing, borderRadius } from '../colors';
 import { useToast } from '../components/Toast';
 import { useItems } from '../hooks/useItems';
 import { useLocations } from '../hooks/useLocations';
-import { getDefaultLocations, getDefaultCategories } from '../defaults';
+import { getDefaultLocationNames, getDefaultCategoryNames } from '../defaults';
 
 export function AddItemPage({ onBack, isDark }) {
   const colors = getColors(isDark);
@@ -26,8 +26,8 @@ export function AddItemPage({ onBack, isDark }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
 
-  const locations = apiLocations.length > 0 ? apiLocations : getDefaultLocations();
-  const categories = apiCategories.length > 0 ? apiCategories : getDefaultCategories();
+  const locations = apiLocations.length > 0 ? apiLocations : getDefaultLocationNames();
+  const categories = apiCategories.length > 0 ? apiCategories : getDefaultCategoryNames();
 
   // Check for edit mode on mount
   useEffect(() => {

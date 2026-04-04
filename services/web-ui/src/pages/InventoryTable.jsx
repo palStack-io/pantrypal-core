@@ -4,6 +4,7 @@ import { Edit2, Trash2, X } from 'lucide-react';
 import { getColors, spacing, borderRadius } from '../colors';
 import { useItems } from '../hooks/useItems';
 import { formatDate, getExpiryBadgeText, getExpiryStatus } from '../utils/dateUtils';
+import { getEmojiForCategory, getEmojiForLocation } from '../defaults';
 
 export function InventoryTable({ isDark, filters = {}, searchQuery = '' }) {
   const colors = getColors(isDark);
@@ -35,8 +36,6 @@ export function InventoryTable({ isDark, filters = {}, searchQuery = '' }) {
     return sortBy === 'name-asc' ? a.name.localeCompare(b.name) : sortBy === 'name-desc' ? b.name.localeCompare(a.name) : 0;
   });
 
-  const icons = { 'Canned Goods': '🥫', 'Dairy': '🥛', 'Beverages': '🧃', 'Bakery': '🍞', 'Produce': '🥬', 'Frozen': '🧊', 'Snacks': '🍿', 'Condiments': '🍯' };
-  
   const handleDelete = async () => {
     if (deleteModal) {
       await removeItem(deleteModal.id);
@@ -78,7 +77,7 @@ export function InventoryTable({ isDark, filters = {}, searchQuery = '' }) {
                 <tr key={item.id} className={status === 'expired' ? 'expired' : (status === 'warning' || status === 'critical') ? 'warning' : ''}>
                   <td style={{ padding: `${spacing.lg} 20px` }}>
                     <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center' }}>
-                      <div style={{ fontSize: '28px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: colors.accentBg, borderRadius: borderRadius.md }}>{icons[item.category] || '📦'}</div>
+                      <div style={{ fontSize: '28px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: colors.accentBg, borderRadius: borderRadius.md }}>{getEmojiForCategory(item.category)}</div>
                       <div>
                         <div style={{ fontWeight: '600', color: colors.textPrimary }}>{item.name}</div>
                         {item.brand && <div style={{ fontSize: '13px', color: colors.textSecondary }}>{item.brand}</div>}
@@ -87,10 +86,10 @@ export function InventoryTable({ isDark, filters = {}, searchQuery = '' }) {
                   </td>
                   <td style={{ padding: `${spacing.lg} 20px` }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: isDark ? colors.cardHover : '#f5f5f4', borderRadius: borderRadius.sm, fontSize: '13px' }}>
-                      🏷️ {item.category || 'Uncategorized'}
+                      {getEmojiForCategory(item.category)} {item.category || 'Uncategorized'}
                     </span>
                   </td>
-                  <td style={{ padding: `${spacing.lg} 20px`, color: colors.textSecondary, fontSize: '13px' }}>📍 {item.location || 'No location'}</td>
+                  <td style={{ padding: `${spacing.lg} 20px`, color: colors.textSecondary, fontSize: '13px' }}>{getEmojiForLocation(item.location)} {item.location || 'No location'}</td>
                   <td style={{ padding: `${spacing.lg} 20px`, fontWeight: '600' }}>{item.quantity || 1}</td>
                   <td style={{ padding: `${spacing.lg} 20px` }}>
                     <div style={{ fontSize: '13px', color: colors.textPrimary }}>{item.expiry_date ? formatDate(item.expiry_date) : 'No expiry'}</div>
