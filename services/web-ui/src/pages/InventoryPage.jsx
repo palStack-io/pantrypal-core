@@ -140,6 +140,26 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
     }
   };
 
+  const handleAddToShoppingList = async () => {
+    const selectedItemObjects = items.filter(item => selectedItems.has(item.id));
+    try {
+      await Promise.all(
+        selectedItemObjects.map(item =>
+          fetch('/api/shopping-list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ name: item.name, quantity: 1, category: item.category || '' }),
+          }).then(r => { if (!r.ok) throw new Error(); })
+        )
+      );
+      toast.success(`${selectedItems.size} item${selectedItems.size > 1 ? 's' : ''} added to shopping list`);
+      setSelectedItems(new Set());
+    } catch (err) {
+      toast.error('Failed to add items to shopping list');
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -428,6 +448,7 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
         onDelete={handleBulkDelete}
         onExport={handleExport}
         onClear={() => setSelectedItems(new Set())}
+        onAddToShoppingList={handleAddToShoppingList}
       />
 
       {editingItem && (

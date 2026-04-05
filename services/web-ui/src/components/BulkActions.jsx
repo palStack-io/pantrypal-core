@@ -1,8 +1,8 @@
 // Bulk actions toolbar for inventory
-import { Trash2, Download, X } from 'lucide-react';
+import { Trash2, Download, X, ShoppingCart } from 'lucide-react';
 import { colors, borderRadius, spacing, shadows } from '../colors';
 
-export function BulkActions({ selectedCount, onDelete, onExport, onClear }) {
+export function BulkActions({ selectedCount, onDelete, onExport, onClear, onAddToShoppingList }) {
   if (selectedCount === 0) return null;
 
   return (
@@ -28,6 +28,26 @@ export function BulkActions({ selectedCount, onDelete, onExport, onClear }) {
       </div>
 
       <div style={{ display: 'flex', gap: spacing.sm }}>
+        <button
+          onClick={onAddToShoppingList}
+          style={{
+            background: colors.success,
+            border: 'none',
+            cursor: 'pointer',
+            padding: `${spacing.sm} ${spacing.md}`,
+            borderRadius: borderRadius.md,
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.xs,
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: '500',
+          }}
+        >
+          <ShoppingCart size={16} />
+          Add to Shopping List
+        </button>
+
         <button
           onClick={onExport}
           style={{
