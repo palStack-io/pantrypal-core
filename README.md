@@ -5,8 +5,8 @@
   <h3>Never waste food again</h3>
   
   <p>
-    <a href="https://pantrypal.palstack.io"><strong>Try Demo →</strong></a> |
-    <a href="https://pantrypal.palstack.io/docs">Documentation</a> |
+    <a href="https://palstack.io/pantrypal"><strong>Try Demo →</strong></a> |
+    <a href="https://palstack.io/pantrypal/docs">Documentation</a> |
     <a href="https://palstack.io">More Tools</a>
   </p>
 </div>
@@ -20,7 +20,7 @@
 [![License](https://img.shields.io/badge/License-AGPL--3.0-blue)](LICENSE)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Ready-41BDF5)](https://www.home-assistant.io/)
 [![GHCR](https://img.shields.io/badge/GHCR-Containers-2496ED)](https://github.com/orgs/palStack-io/packages)
-[![Docs](https://img.shields.io/badge/Docs-pantrypal.palstack.io-orange)](https://pantrypal.palstack.io/docs)
+[![Docs](https://img.shields.io/badge/Docs-palstack.io/pantrypal-orange)](https://palstack.io/pantrypal/docs)
 
 **Part of [palStack](https://palstack.io)** - Privacy-first tools for everyday life
 
@@ -60,7 +60,7 @@ Once you solve one household problem with code, you start seeing opportunities e
 ### The palStack Family
 
 **Production Ready:**
-- **[pantryPal](https://pantrypal.palstack.io)** - You're here! Never buy duplicate groceries again
+- **[pantryPal](https://palstack.io/pantrypal)** - You're here! Never buy duplicate groceries again
 
 **Final Testing Stage:**
 - **[finPal](https://finpal.palstack.io)** - Personal finance tracking with privacy-first design (web ready, mobile in development)
@@ -106,7 +106,7 @@ Don't want to manage servers? We're launching a managed hosting service where we
   
 </div>
 
-> **Try it live:** [pantrypal.palstack.io](https://pantrypal.palstack.io)
+> **Try it live:** [palstack.io/pantrypal](https://palstack.io/pantrypal)
 
 ---
 
@@ -222,7 +222,7 @@ docker-compose up -d
 5. Configure recipe integrations (Mealie/Tandoor) if desired via Settings
 
 **📚 For comprehensive installation, configuration, and deployment guides, visit:**
-**[pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)**
+**[palstack.io/pantrypal/docs](https://palstack.io/pantrypal/docs)**
 
 ### Prerequisites
 - Docker and Docker Compose installed
@@ -236,7 +236,7 @@ docker-compose up -d
 - For iOS app: Request TestFlight access (email: palstack4u@gmail.com)
 - For OIDC: OAuth2 provider credentials (Google, Microsoft, etc.)
 
-**📚 Detailed setup guides available at [pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)**
+**📚 Detailed setup guides available at [palstack.io/pantrypal/docs](https://palstack.io/pantrypal/docs)**
 
 **That's it!** Open http://localhost:8888 and login as `admin` / `admin` (change password immediately!).
 
@@ -543,7 +543,7 @@ pantryPal is open source and welcomes contributions!
 - Ensure all tests pass and documentation is updated
 - Follow existing code patterns and style
 
-**📚 For detailed contribution guidelines, visit [pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)**
+**📚 For detailed contribution guidelines, visit [palstack.io/pantrypal/docs](https://palstack.io/pantrypal/docs)**
 
 By contributing, you agree that your contributions will be licensed under AGPL-3.0.
 
@@ -586,7 +586,6 @@ Our managed hosting service will include **proprietary premium features**:
 - Available **only** via managed hosting subscription
 - **Not open source** (proprietary code)
 - Used to fund development of the free Core version
-- Coming soon at [pantrypal.palstack.io](https://pantrypal.palstack.io)
 
 ### Why Dual Licensing?
 
@@ -639,14 +638,14 @@ We're building sustainable tools that help people, not chasing unicorns. If we c
 ## The palStack Ecosystem
 
 **Production Ready:**
-- **[pantryPal](https://pantrypal.palstack.io)** - Food waste reduction | [Docs](https://pantrypal.palstack.io/docs) | [GitHub](https://github.com/palStack-io/pantrypal-core)
+- **[pantryPal](https://palstack.io/pantrypal)** - Food waste reduction | [Docs](https://palstack.io/pantrypal/docs) | [GitHub](https://github.com/palStack-io/pantrypal-core)
 
 **Final Testing:**
-- **[finPal](https://finpal.palstack.io)** - Personal finance tracking | [GitHub](https://github.com/palStack-io/finpal-core)
+- **[finPal](https://palstack.io/finpal)** - Personal finance tracking | [GitHub](https://github.com/palStack-io/finpal-core)
 
 **In Development:**
-- **[propertyPal](https://propertypal.palstack.io)** - Home, pet, and vehicle tracking | [GitHub](https://github.com/palStack-io/propertypal-core)
-- **[clubPal](https://clubpal.palstack.io)** - Group coordination | [GitHub](https://github.com/palStack-io/clubpal-core)
+- **[propertyPal](https://palstack.io/propertypal)** - Home, pet, and vehicle tracking | [GitHub](https://github.com/palStack-io/propertypal-core)
+- **[clubPal](https://palstack.io/clubpal)** - Group coordination | [GitHub](https://github.com/palStack-io/clubpal-core)
 
 *Privacy-first • Family-focused • Home Assistant ready • AGPL-3.0*
 
@@ -672,7 +671,7 @@ We're building sustainable tools that help people, not chasing unicorns. If we c
 - 📧 Email: palstack4u@gmail.com
 - 💻 GitHub: [@palStack-io](https://github.com/palStack-io)
 - 📦 Containers: [GitHub Packages](https://github.com/orgs/palStack-io/packages)
-- 📚 Docs: [pantrypal.palstack.io/docs](https://pantrypal.palstack.io/docs)
+- 📚 Docs: [palstack.io/pantrypal/docs](https://palstack.io/pantrypal/docs)
 
 **Join the Community:**
 
