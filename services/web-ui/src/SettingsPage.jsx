@@ -1061,7 +1061,8 @@ function SettingsPage({ onBack, currentUser, isDark }) {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100vh',
+      overflow: 'hidden',
       backgroundColor: colors.background,
       display: 'flex',
       flexDirection: 'column',
@@ -1083,14 +1084,17 @@ function SettingsPage({ onBack, currentUser, isDark }) {
           style={{
             background: 'none',
             border: 'none',
-            fontSize: '18px',
-            color: colors.textPrimary,
+            fontSize: '15px',
+            color: colors.textSecondary,
             cursor: 'pointer',
-            fontWeight: '600',
+            fontWeight: '500',
             padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
           }}
         >
-          ← Back
+          ← Back to Home
         </button>
         <div>
           <h1 style={{ margin: 0, color: colors.textPrimary, fontSize: '22px' }}>⚙️ Settings</h1>
@@ -1103,7 +1107,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
       </div>
 
       {/* Two-column layout: sidebar + content */}
-      <div style={{ display: 'flex', flex: 1, width: '100%' }}>
+      <div style={{ display: 'flex', flex: 1, width: '100%', overflow: 'hidden', minHeight: 0 }}>
         {/* Vertical Tab Sidebar */}
         <div style={{
           width: '220px',
@@ -1111,9 +1115,6 @@ function SettingsPage({ onBack, currentUser, isDark }) {
           borderRight: `1px solid ${colors.border}`,
           paddingTop: spacing.lg,
           paddingBottom: spacing.xl,
-          position: 'sticky',
-          top: '64px',
-          height: 'calc(100vh - 64px)',
           overflowY: 'auto',
         }}>
           {tabs.map(tab => (

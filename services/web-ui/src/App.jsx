@@ -100,6 +100,18 @@ function AppContent() {
     return <Routes><Route path="*" element={<LandingPage onLoginSuccess={(user) => { setCurrentUser(user); setShowLanding(false); navigate('/'); }} />} /></Routes>;
   }
 
+  // Standalone full-page settings (no sidebar, no topbar)
+  if (location.pathname === '/settings') {
+    return (
+      <SettingsPage
+        currentUser={currentUser}
+        onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }}
+        onBack={() => navigate('/')}
+        isDark={isDark}
+      />
+    );
+  }
+
   return (
     <div className="app">
       <Sidebar isOpen={sidebarOpen} currentPath={location.pathname} onNavigate={navigate} onFilterChange={handleFilterChange} currentFilters={filters} isDark={isDark} />
@@ -113,7 +125,6 @@ function AppContent() {
             <Route path="/shopping" element={<ShoppingListPage isDark={isDark} />} />
             <Route path="/insights" element={<InsightsPage isDark={isDark} />} />
             <Route path="/recipes" element={<RecipesPage isDark={isDark} currentUser={currentUser} />} />
-            <Route path="/settings" element={<SettingsPage currentUser={currentUser} onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }} onBack={() => navigate('/inventory')} isDark={isDark} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
