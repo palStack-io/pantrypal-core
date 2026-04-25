@@ -133,14 +133,16 @@ Don't want to manage servers? We're launching a managed hosting service where we
 - **Expiry Tracking**: 4-level severity alerts (expired, critical, warning, upcoming)
 - **Shared Household Pantry**: One pantry for the whole family to access and update
 - **Smart Shopping Lists**: Auto-suggest low-stock items, move checked items to inventory
+- **Drag-to-Reorder Shopping List**: Rearrange shopping list items by dragging (mobile)
 - **Recipe Integration**: Import recipes from Mealie or Tandoor recipe managers
 - **Pantry Matching**: See which recipes you can make with available ingredients
 - **Expiring Recipes**: Find recipes that use items about to expire
 - **Personal Preferences**: Your favorites and notes are private to you
 - **Category Organization**: Organize items by dairy, produce, grains, and custom categories
 - **CSV Export**: Download your entire inventory for backup
-- **Beautiful Web Dashboard**: Minimal, clean interface with dark mode
-- **Native Mobile App**: iOS app with biometric authentication (Face ID/Touch ID) - Android in development
+- **Beautiful Web Dashboard**: Minimal, clean interface with dark mode and virtual-scrolled inventory table
+- **Progressive Web App (PWA)**: Install on desktop/mobile, works offline — mutations queue in the background and sync when connectivity returns
+- **Native Mobile App**: iOS & Android (React Native) with biometric authentication (Face ID/Touch ID)
 - **Image Caching**: Recipe images stored locally in MinIO for fast loading
 
 ### For Home Assistant Fans
@@ -167,6 +169,8 @@ Don't want to manage servers? We're launching a managed hosting service where we
 - **Email Notifications**: Password recovery and account verification
 - **Session Management**: 30-day sessions with device tracking
 - **Batch Operations**: Bulk edit, delete, and filter inventory items
+- **TypeScript Throughout**: Full TypeScript codebase on web and mobile for type safety
+- **Optional Error Tracking**: Sentry integration (web, mobile, backend) gated on `SENTRY_DSN` env var — no-op when unset
 
 ---
 
@@ -248,22 +252,22 @@ Built with a microservices architecture for easy maintenance and future expansio
 
 ```
 nginx (reverse proxy)
-├── api-gateway (FastAPI)     # Authentication, routing, email, OIDC, recipes
-├── inventory-service         # Item CRUD, shopping lists, locations
-├── lookup-service            # Barcode to product info (cached)
-├── minio                     # Object storage for recipe images
-└── web-ui (React)            # Dashboard interface
+├── api-gateway (FastAPI)          # Authentication, routing, email, OIDC, recipes
+├── inventory-service              # Item CRUD, shopping lists, locations
+├── lookup-service                 # Barcode to product info (cached)
+├── minio                          # Object storage for recipe images
+└── web-ui (React + TypeScript)    # PWA dashboard interface
 ```
 
 **Tech Stack:**
 - **Backend**: Python 3.11+ / FastAPI 0.104
-- **Frontend**: React 19.1 + Vite
-- **Mobile**: React Native 0.81 / Expo SDK 54
+- **Frontend**: React 19.1 + Vite + TypeScript — PWA with offline support (Workbox)
+- **Mobile**: React Native 0.81 / Expo SDK 54 — TypeScript, iOS & Android
 - **Database**: PostgreSQL 15
 - **Object Storage**: MinIO
 - **Reverse Proxy**: nginx
 - **Barcode Data**: Open Food Facts API + UPCitemDB fallback
-- **Authentication**: bcrypt, JWT tokens, OIDC (Authlib 1.3)
+- **Authentication**: bcrypt, session tokens, OIDC (Authlib 1.3)
 - **Email**: aiosmtplib 3.0 (async SMTP)
 - **Multi-arch**: AMD64 + ARM64 Docker images
 
@@ -346,6 +350,12 @@ pantryPal can be configured via environment variables in your `.env` file or `do
 |----------|---------|-------------|
 | `CORS_ORIGINS` | `*` | Allowed CORS origins (comma-separated) |
 | `DATABASE_URL` | - | PostgreSQL connection string (auto-configured) |
+| `SENTRY_DSN` | - | Sentry DSN for backend error tracking (optional — no-op when unset) |
+
+#### Web UI (set in `docker-compose.yml` under `web-ui` environment)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_SENTRY_DSN` | - | Sentry DSN for web UI error tracking (optional) |
 
 ### Example Configuration
 
@@ -430,15 +440,19 @@ Only admins can configure integrations, but all users can:
 
 ## Mobile App Access
 
-The iOS app is currently in TestFlight for community testing. Android app is in active development.
+The iOS app is currently in TestFlight for community testing. The app is built with React Native (Expo SDK 54) and runs on both iOS and Android.
 
 **Features:**
-- Native iOS experience (Android coming soon)
+- Full TypeScript codebase — React Native with Expo SDK 54
 - Barcode scanning with camera
-- Biometric authentication (Face ID/Touch ID/Fingerprint)
+- Biometric authentication (Face ID / Touch ID / Fingerprint)
+- Drag-to-reorder shopping list items
 - Self-hosted server configuration
 - Full inventory management on the go
 - Tested and refined by our growing community of users
+
+**iOS:** Available on TestFlight — email palstack4u@gmail.com to request access  
+**Android:** In active development
 
 ---
 

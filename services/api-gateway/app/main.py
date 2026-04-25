@@ -17,6 +17,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from .network_utils import get_client_ip, is_trusted_network
 
+_SENTRY_DSN = os.getenv("SENTRY_DSN")
+if _SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+    sentry_sdk.init(
+        dsn=_SENTRY_DSN,
+        environment=os.getenv("ENV", "production"),
+        traces_sample_rate=0.1,
+        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        send_default_pii=False,
+    )
+    logger.info("Sentry error tracking enabled")
+
 
 # Import auth modules
 from .auth import get_current_auth, require_admin, require_write_scope

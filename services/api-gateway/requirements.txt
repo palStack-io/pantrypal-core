@@ -25,3 +25,6 @@ Pillow==10.1.0
 
 # Cryptography (for token encryption)
 cryptography==41.0.7
+
+# Error tracking (optional — only active when SENTRY_DSN env var is set)
+sentry-sdk[fastapi]==1.45.0

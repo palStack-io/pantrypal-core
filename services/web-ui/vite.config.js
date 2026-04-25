@@ -24,12 +24,61 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
+          // ── Read requests: serve from network, fall back to cache ──────────
           {
             urlPattern: /^\/api\/.*/i,
+            method: 'GET',
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
+              cacheName: 'api-get-cache',
+              expiration: { maxEntries: 100, maxAgeSeconds: 300 },
+              networkTimeoutSeconds: 5,
+            },
+          },
+          // ── Write mutations: network-only, queue when offline ──────────────
+          // Covers: POST/PUT/PATCH/DELETE on /api/items and /api/shopping-list
+          {
+            urlPattern: /^\/api\/(items|shopping-list)(\/.*)?$/i,
+            method: 'POST',
+            handler: 'NetworkOnly',
+            options: {
+              backgroundSync: {
+                name: 'mutations-queue',
+                options: { maxRetentionTime: 24 * 60 }, // 24 hours in minutes
+              },
+            },
+          },
+          {
+            urlPattern: /^\/api\/(items|shopping-list)(\/.*)?$/i,
+            method: 'PUT',
+            handler: 'NetworkOnly',
+            options: {
+              backgroundSync: {
+                name: 'mutations-queue',
+                options: { maxRetentionTime: 24 * 60 },
+              },
+            },
+          },
+          {
+            urlPattern: /^\/api\/(items|shopping-list)(\/.*)?$/i,
+            method: 'PATCH',
+            handler: 'NetworkOnly',
+            options: {
+              backgroundSync: {
+                name: 'mutations-queue',
+                options: { maxRetentionTime: 24 * 60 },
+              },
+            },
+          },
+          {
+            urlPattern: /^\/api\/(items|shopping-list)(\/.*)?$/i,
+            method: 'DELETE',
+            handler: 'NetworkOnly',
+            options: {
+              backgroundSync: {
+                name: 'mutations-queue',
+                options: { maxRetentionTime: 24 * 60 },
+              },
             },
           },
         ],
