@@ -69,7 +69,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
             icon={<ShoppingCart size={18} />}
             label="Shopping List"
             active={currentPath === '/shopping'}
-            onClick={() => { onNavigate('/shopping'); }}
+            onClick={() => { onNavigate('/shopping'); onFilterChange({ filter: null, location: null, category: null }); }}
             colors={colors}
             gradient={gradient}
           />
@@ -77,7 +77,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
             icon={<TrendingUp size={18} />}
             label="Insights"
             active={currentPath === '/insights'}
-            onClick={() => { onNavigate('/insights'); }}
+            onClick={() => { onNavigate('/insights'); onFilterChange({ filter: null, location: null, category: null }); }}
             colors={colors}
             gradient={gradient}
           />
@@ -85,7 +85,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
             icon={<ChefHat size={18} />}
             label="Recipes"
             active={currentPath === '/recipes'}
-            onClick={() => { onNavigate('/recipes'); }}
+            onClick={() => { onNavigate('/recipes'); onFilterChange({ filter: null, location: null, category: null }); }}
             colors={colors}
             gradient={gradient}
           />
