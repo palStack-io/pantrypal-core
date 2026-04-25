@@ -8,7 +8,7 @@ export const lightColors = {
   warning: '#d97706',
   info: '#3b82f6',
   textPrimary: '#292524',
-  textSecondary: '#78716c',
+  textSecondary: '#6b6460',
   textTertiary: '#a8a29e',
   background: '#fef6ec',
   card: '#fffcf7',

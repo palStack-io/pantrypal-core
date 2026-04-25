@@ -15,6 +15,14 @@ from .models import User, Session as SessionModel, PasswordResetToken, EmailVeri
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def _validate_password_strength(password: str) -> None:
+    """Raise ValueError if password doesn't meet minimum requirements."""
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters long")
+    if not any(c.isdigit() or not c.isalpha() for c in password):
+        raise ValueError("Password must contain at least one number or symbol")
+
+
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt"""
     return pwd_context.hash(password)
@@ -46,6 +54,10 @@ def create_user(
             existing_email = db.query(User).filter(User.email == email).first()
             if existing_email:
                 raise ValueError("Email already exists")
+
+        # Enforce password strength for non-demo, non-admin-seed accounts
+        if password:
+            _validate_password_strength(password)
 
         # Create user
         user = User(
@@ -245,6 +257,7 @@ def list_users() -> list:
 
 def update_user_password(user_id: str, new_password: str) -> bool:
     """Update user password"""
+    _validate_password_strength(new_password)
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.id == user_id).first()

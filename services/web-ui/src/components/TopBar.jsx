@@ -4,8 +4,10 @@ import { Bell, Settings, User, Moon, Sun, LogOut, AlertTriangle, Calendar } from
 import { getColors, spacing, borderRadius } from '../colors';
 import { useItems } from '../hooks/useItems';
 import { getExpiryStatus, getExpiryBadgeText } from '../utils/dateUtils';
+import { useTheme } from '../context/ThemeContext';
 
-export function TopBar({ currentUser, onLogout, onSettingsClick, isDark, onToggleDark }) {
+export function TopBar({ currentUser, onLogout, onSettingsClick, onToggleDark }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);

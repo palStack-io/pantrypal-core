@@ -37,10 +37,12 @@ print("✓ Database tables created")
 # ============================================
 print("\n🔐 Checking for admin user...")
 
+_admin_password = os.getenv("ADMIN_DEFAULT_PASSWORD", "admin12345")
+
 admin_data = {
     "username": "admin",
     "email": "admin@pantrypal.com",
-    "password": "admin",
+    "password": _admin_password,
     "full_name": "Admin User",
     "is_admin": True,
     "is_demo": False
@@ -62,7 +64,7 @@ try:
     
     print(f"✅ Created default admin user")
     print(f"   Username: admin")
-    print(f"   Password: admin")
+    print(f"   Password: {_admin_password}")
     print(f"   ⚠️  CHANGE THIS PASSWORD IMMEDIATELY AFTER FIRST LOGIN!")
     
 except ValueError as e:
@@ -90,11 +92,13 @@ if not DEMO_MODE:
 print("\n🌱 DEMO_MODE enabled - Creating demo data...")
 
 # Demo users configuration
+_demo_password = os.getenv("DEMO_ACCOUNT_PASSWORD", "demo12345")
+
 demo_users = [
     {
         "username": "demo1",
         "email": "demo1@pantrypal.com",
-        "password": "demo123",
+        "password": _demo_password,
         "full_name": "Demo User 1",
         "is_admin": False,
         "is_demo": True
@@ -102,7 +106,7 @@ demo_users = [
     {
         "username": "demo2",
         "email": "demo2@pantrypal.com",
-        "password": "demo123",
+        "password": _demo_password,
         "full_name": "Demo User 2",
         "is_admin": False,
         "is_demo": True
@@ -110,7 +114,7 @@ demo_users = [
     {
         "username": "demo3",
         "email": "demo3@pantrypal.com",
-        "password": "demo123",
+        "password": _demo_password,
         "full_name": "Demo User 3",
         "is_admin": False,
         "is_demo": True
@@ -118,7 +122,7 @@ demo_users = [
     {
         "username": "demo4",
         "email": "demo4@pantrypal.com",
-        "password": "demo123",
+        "password": _demo_password,
         "full_name": "Demo User 4",
         "is_admin": False,
         "is_demo": True
@@ -240,12 +244,12 @@ try:
     print("   - All demo users share the same recipes")
     print("   - Favorites, notes, and cooking history are per-user")
     print("\nDemo Accounts (auto-logout after 10 minutes):")
-    print("  Username: demo1     Password: demo123")
-    print("  Username: demo2     Password: demo123")
-    print("  Username: demo3     Password: demo123")
-    print("  Username: demo4     Password: demo123")
+    print(f"  Username: demo1     Password: {_demo_password}")
+    print(f"  Username: demo2     Password: {_demo_password}")
+    print(f"  Username: demo3     Password: {_demo_password}")
+    print(f"  Username: demo4     Password: {_demo_password}")
     print("\nAdmin Account:")
-    print("  Username: admin     Password: admin4389)")
+    print(f"  Username: admin     Password: {_admin_password}")
     print("="*50 + "\n")
 
 except Exception as e:

@@ -2,8 +2,13 @@ import { useState, useEffect } from 'react';
 import { X, Plus, Minus } from 'lucide-react';
 import { getColors, spacing, borderRadius } from '../colors';
 import { formatDateForInput } from '../utils/dateUtils';
+import { validateItem } from '../utils/validators';
+import { useTheme } from '../context/ThemeContext';
 
-export function EditItemModal({ item, onClose, onSave, locations, categories, isDark }) {
+const errorStyle = { color: '#dc2626', fontSize: '12px', marginTop: '4px' };
+
+export function EditItemModal({ item, onClose, onSave, locations, categories }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const [formData, setFormData] = useState({
     name: '',
@@ -14,6 +19,7 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
     expiry_date: '',
     notes: '',
   });
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     if (item) {
@@ -26,11 +32,18 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
         expiry_date: formatDateForInput(item.expiry_date),
         notes: item.notes || '',
       });
+      setFieldErrors({});
     }
   }, [item]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const { isValid, errors } = validateItem(formData);
+    if (!isValid) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
     await onSave(item.id, formData);
     onClose();
   };
@@ -44,6 +57,8 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
   };
 
   if (!item) return null;
+
+  const borderFor = (field) => `2px solid ${fieldErrors[field] ? '#dc2626' : colors.border}`;
 
   return (
     <div
@@ -100,16 +115,16 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
               style={{
                 width: '100%',
                 padding: spacing.md,
                 borderRadius: borderRadius.md,
-                border: `2px solid ${colors.border}`,
+                border: borderFor('name'),
                 backgroundColor: colors.background,
                 color: colors.textPrimary,
               }}
             />
+            {fieldErrors.name && <p style={errorStyle}>{fieldErrors.name}</p>}
           </div>
 
           <div style={{ marginBottom: spacing.md }}>
@@ -131,7 +146,7 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md, marginBottom: spacing.md }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md, marginBottom: spacing.md }}>
             <div>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>
                 Location
@@ -143,7 +158,7 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
                   width: '100%',
                   padding: spacing.md,
                   borderRadius: borderRadius.md,
-                  border: `2px solid ${colors.border}`,
+                  border: borderFor('location'),
                   backgroundColor: colors.background,
                   color: colors.textPrimary,
                 }}
@@ -156,6 +171,7 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
                   <option key={loc} value={loc}>{loc}</option>
                 ))}
               </select>
+              {fieldErrors.location && <p style={errorStyle}>{fieldErrors.location}</p>}
             </div>
 
             <div>
@@ -169,7 +185,7 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
                   width: '100%',
                   padding: spacing.md,
                   borderRadius: borderRadius.md,
-                  border: `2px solid ${colors.border}`,
+                  border: borderFor('category'),
                   backgroundColor: colors.background,
                   color: colors.textPrimary,
                 }}
@@ -182,10 +198,11 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
+              {fieldErrors.category && <p style={errorStyle}>{fieldErrors.category}</p>}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md, marginBottom: spacing.md }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md, marginBottom: spacing.md }}>
             <div>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>
                 Quantity
@@ -217,7 +234,7 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
                     flex: 1,
                     padding: spacing.md,
                     borderRadius: borderRadius.md,
-                    border: `2px solid ${colors.border}`,
+                    border: borderFor('quantity'),
                     backgroundColor: colors.background,
                     color: colors.textPrimary,
                     textAlign: 'center',
@@ -241,6 +258,7 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
                   <Plus size={16} />
                 </button>
               </div>
+              {fieldErrors.quantity && <p style={errorStyle}>{fieldErrors.quantity}</p>}
             </div>
 
             <div>
@@ -255,11 +273,12 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
                   width: '100%',
                   padding: spacing.md,
                   borderRadius: borderRadius.md,
-                  border: `2px solid ${colors.border}`,
+                  border: borderFor('expiry_date'),
                   backgroundColor: colors.background,
                   color: colors.textPrimary,
                 }}
               />
+              {fieldErrors.expiry_date && <p style={errorStyle}>{fieldErrors.expiry_date}</p>}
             </div>
           </div>
 
@@ -275,12 +294,13 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, is
                 width: '100%',
                 padding: spacing.md,
                 borderRadius: borderRadius.md,
-                border: `2px solid ${colors.border}`,
+                border: borderFor('notes'),
                 backgroundColor: colors.background,
                 color: colors.textPrimary,
                 resize: 'vertical',
               }}
             />
+            {fieldErrors.notes && <p style={errorStyle}>{fieldErrors.notes}</p>}
           </div>
 
           <div style={{ display: 'flex', gap: spacing.md }}>

@@ -3,8 +3,10 @@ import { TrendingUp, Package, AlertTriangle, MapPin, Tag, Edit, Camera } from 'l
 import { getColors, spacing, borderRadius, getShadows, getGradient } from '../colors';
 import { useItems } from '../hooks/useItems';
 import { getExpiryStatus } from '../utils/dateUtils';
+import { useTheme } from '../context/ThemeContext';
 
-export function InsightsPage({ isDark }) {
+export function InsightsPage() {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const gradient = getGradient(isDark);
   const shadows = getShadows(isDark);
@@ -152,7 +154,6 @@ export function InsightsPage({ isDark }) {
             label="Items"
             colors={colors}
             gradient="linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(192, 132, 252, 0.2))"
-            isDark={isDark}
           />
           <MetricCard
             icon="#️⃣"
@@ -160,7 +161,6 @@ export function InsightsPage({ isDark }) {
             label="Quantity"
             colors={colors}
             gradient="linear-gradient(135deg, rgba(52, 199, 89, 0.2), rgba(48, 209, 88, 0.2))"
-            isDark={isDark}
           />
           <MetricCard
             icon="⚠️"
@@ -168,7 +168,6 @@ export function InsightsPage({ isDark }) {
             label="Expiring"
             colors={colors}
             gradient="linear-gradient(135deg, rgba(255, 149, 0, 0.2), rgba(255, 159, 10, 0.2))"
-            isDark={isDark}
           />
           <MetricCard
             icon="📍"
@@ -176,7 +175,6 @@ export function InsightsPage({ isDark }) {
             label="Locations"
             colors={colors}
             gradient="linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(251, 191, 36, 0.2))"
-            isDark={isDark}
           />
         </div>
       </div>
@@ -295,7 +293,8 @@ export function InsightsPage({ isDark }) {
   );
 }
 
-function MetricCard({ icon, value, label, colors, gradient, isDark }) {
+function MetricCard({ icon, value, label, colors, gradient }) {
+  const { isDark } = useTheme();
   const shadows = getShadows(isDark);
   return (
     <div style={{
@@ -331,10 +330,32 @@ function MetricCard({ icon, value, label, colors, gradient, isDark }) {
   );
 }
 
+// Static layout constants — no theme dependencies, computed once at module load.
+const ss = {
+  legendRow: { display: 'flex', alignItems: 'center', gap: spacing.sm },
+  legendDot: { width: '10px', height: '10px', borderRadius: '5px' },
+  breakdownRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px' },
+  breakdownLeft: { display: 'flex', alignItems: 'center', gap: '12px', flex: 1 },
+  breakdownIcon: { fontSize: '24px', width: '32px' },
+  breakdownContent: { flex: 1 },
+  breakdownBadge: { padding: '6px 12px', borderRadius: '12px', minWidth: '40px', textAlign: 'center' },
+  entryMethod: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing.md },
+  entryMethodIcon: {
+    width: '64px',
+    height: '64px',
+    borderRadius: '16px',
+    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(192, 132, 252, 0.2))',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '32px',
+  },
+};
+
 function LegendItem({ color, label, colors }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-      <div style={{ width: '10px', height: '10px', borderRadius: '5px', background: color }} />
+    <div style={ss.legendRow}>
+      <div style={{ ...ss.legendDot, background: color }} />
       <span style={{ fontSize: '12px', fontWeight: '600', color: colors.textSecondary }}>
         {label}
       </span>
@@ -342,12 +363,12 @@ function LegendItem({ color, label, colors }) {
   );
 }
 
-function BreakdownRow({ icon, title, subtitle, count, colors, gradient }) {
+function BreakdownRow({ icon, title, subtitle, count, colors }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-        <span style={{ fontSize: '24px', width: '32px' }}>{icon}</span>
-        <div style={{ flex: 1 }}>
+    <div style={ss.breakdownRow}>
+      <div style={ss.breakdownLeft}>
+        <span style={ss.breakdownIcon}>{icon}</span>
+        <div style={ss.breakdownContent}>
           <div style={{ fontSize: '15px', fontWeight: '700', color: colors.textPrimary, marginBottom: '2px' }}>
             {title}
           </div>
@@ -356,13 +377,7 @@ function BreakdownRow({ icon, title, subtitle, count, colors, gradient }) {
           </div>
         </div>
       </div>
-      <div style={{
-        padding: '6px 12px',
-        borderRadius: '12px',
-        background: `${colors.primary}26`,
-        minWidth: '40px',
-        textAlign: 'center',
-      }}>
+      <div style={{ ...ss.breakdownBadge, background: `${colors.primary}26` }}>
         <span style={{ fontSize: '14px', fontWeight: '900', color: colors.primary }}>
           {count}
         </span>
@@ -373,19 +388,8 @@ function BreakdownRow({ icon, title, subtitle, count, colors, gradient }) {
 
 function EntryMethodCard({ icon, value, label, colors }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing.md }}>
-      <div style={{
-        width: '64px',
-        height: '64px',
-        borderRadius: '16px',
-        background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(192, 132, 252, 0.2))',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '32px',
-      }}>
-        {icon}
-      </div>
+    <div style={ss.entryMethod}>
+      <div style={ss.entryMethodIcon}>{icon}</div>
       <div style={{ fontSize: '24px', fontWeight: '900', color: colors.textPrimary, letterSpacing: '-0.5px' }}>
         {value}
       </div>

@@ -5,6 +5,7 @@ import { useToast } from './components/Toast';
 import { useDialog } from './components/DialogProvider';
 import { getDefaultLocations, getDefaultCategories, saveDefaultLocations, saveDefaultCategories } from './defaults';
 import { getItems, addItemManual, getRecipeIntegration, createRecipeIntegration, deleteRecipeIntegration } from './api';
+import { useTheme } from './context/ThemeContext';
 
 const EMOJI_CATEGORIES = [
   { label: '🍎 Fruits', emojis: ['🍎','🍊','🍋','🍋‍🟩','🍇','🍓','🫐','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🫒','🍈','🍌','🍉','🍏','🍐','🍆','🫑','🥑'] },
@@ -21,7 +22,8 @@ const EMOJI_CATEGORIES = [
   { label: '💛 Symbols', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💗','💖','⭐','🌟','✨','💫','🔥','🎯','✅','⚠️','🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🔶','🔷','💠','🎁','🎉','🎊','🏆','🥇','🥈','🥉','🎖️','🏅'] },
 ];
 
-function EmojiPickerPopover({ value, onChange, isDark }) {
+function EmojiPickerPopover({ value, onChange }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const [open, setOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState(0);
@@ -140,7 +142,8 @@ function EmojiPickerPopover({ value, onChange, isDark }) {
   );
 }
 
-function SettingsPage({ onBack, currentUser, isDark }) {
+function SettingsPage({ onBack, currentUser }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const shadows = getShadows(isDark);
   const toast = useToast();
@@ -198,6 +201,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
   const [showNewKeyForm, setShowNewKeyForm] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyDescription, setNewKeyDescription] = useState('');
+  const [newKeyReadOnly, setNewKeyReadOnly] = useState(false);
   const [generatedKey, setGeneratedKey] = useState(null);
   const [authEnabled, setAuthEnabled] = useState(false);
   const [loadingKeys, setLoadingKeys] = useState(false);
@@ -656,7 +660,8 @@ function SettingsPage({ onBack, currentUser, isDark }) {
         body: JSON.stringify({
           name: newKeyName,
           description: newKeyDescription || null,
-          expires_in_days: null
+          expires_in_days: null,
+          is_read_only: newKeyReadOnly
         })
       });
 
@@ -665,6 +670,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
         setGeneratedKey(data.api_key);
         setNewKeyName('');
         setNewKeyDescription('');
+        setNewKeyReadOnly(false);
         setShowNewKeyForm(false);
         await loadApiKeys(apiUrl);
         toast.warning('API key generated — copy it now, it won\'t be shown again!');
@@ -1074,28 +1080,10 @@ function SettingsPage({ onBack, currentUser, isDark }) {
         backgroundColor: colors.background,
         zIndex: 100,
         borderBottom: `1px solid ${colors.border}`,
-        padding: `${spacing.md} ${spacing.xl} ${spacing.md} ${spacing.lg}`,
+        padding: `${spacing.md} ${spacing.xl}`,
         display: 'flex',
         alignItems: 'center',
-        gap: spacing.lg,
       }}>
-        <button
-          onClick={onBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            fontSize: '15px',
-            color: colors.textSecondary,
-            cursor: 'pointer',
-            fontWeight: '500',
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          ← Back to Home
-        </button>
         <div>
           <h1 style={{ margin: 0, color: colors.textPrimary, fontSize: '22px' }}>⚙️ Settings</h1>
           {currentUser && (
@@ -1113,10 +1101,38 @@ function SettingsPage({ onBack, currentUser, isDark }) {
           width: '220px',
           flexShrink: 0,
           borderRight: `1px solid ${colors.border}`,
-          paddingTop: spacing.lg,
+          paddingTop: spacing.md,
           paddingBottom: spacing.xl,
           overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
         }}>
+          {/* Back button */}
+          <button
+            onClick={onBack}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              margin: `0 ${spacing.md} ${spacing.md}`,
+              padding: `${spacing.sm} ${spacing.md}`,
+              border: `1px solid ${colors.border}`,
+              borderRadius: borderRadius.md,
+              background: colors.card,
+              color: colors.textPrimary,
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.color = colors.primary; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.color = colors.textPrimary; }}
+          >
+            ← Back to Home
+          </button>
+
+          <div style={{ borderTop: `1px solid ${colors.border}`, marginBottom: spacing.sm }} />
+
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -1475,6 +1491,17 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                       color: colors.textPrimary,
                     }}
                   />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={newKeyReadOnly}
+                      onChange={(e) => setNewKeyReadOnly(e.target.checked)}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '14px', color: colors.textPrimary }}>
+                      Read-only (cannot add, edit, or delete items)
+                    </span>
+                  </label>
                   <button
                     onClick={generateApiKey}
                     style={{
@@ -1528,15 +1555,29 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                             </div>
                           )}
                         </div>
-                        <div style={{
-                          padding: `${spacing.sm} ${spacing.md}`,
-                          borderRadius: '999px',
-                          backgroundColor: key.is_active ? '#D1FAE5' : '#E5E7EB',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          color: key.is_active ? '#065F46' : '#6B7280',
-                        }}>
-                          {key.is_active ? 'Active' : 'Revoked'}
+                        <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+                          {key.is_read_only && (
+                            <div style={{
+                              padding: `${spacing.sm} ${spacing.md}`,
+                              borderRadius: '999px',
+                              backgroundColor: '#FEF3C7',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: '#92400E',
+                            }}>
+                              Read-only
+                            </div>
+                          )}
+                          <div style={{
+                            padding: `${spacing.sm} ${spacing.md}`,
+                            borderRadius: '999px',
+                            backgroundColor: key.is_active ? '#D1FAE5' : '#E5E7EB',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            color: key.is_active ? '#065F46' : '#6B7280',
+                          }}>
+                            {key.is_active ? 'Active' : 'Revoked'}
+                          </div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}>
@@ -2575,7 +2616,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                                       style={{
                                         padding: '6px 12px',
                                         background: pending ? '#f59e0b' : isDark ? '#44403c' : '#e7e5e4',
-                                        color: pending ? '#ffffff' : isDark ? '#a8a29e' : '#78716c',
+                                        color: pending ? '#ffffff' : isDark ? '#a8a29e' : '#6b6460',
                                         border: 'none',
                                         borderRadius: borderRadius.sm,
                                         fontSize: '12px',
@@ -3013,7 +3054,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 }}>
                   {editingLocation && editingLocation.name === location.name ? (
                     <>
-                      <EmojiPickerPopover value={editLocationEmoji} onChange={setEditLocationEmoji} isDark={isDark} />
+                      <EmojiPickerPopover value={editLocationEmoji} onChange={setEditLocationEmoji} />
                       <input
                         type="text"
                         value={editLocationValue}
@@ -3108,7 +3149,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
               ))}
 
               <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md, alignItems: 'center' }}>
-                <EmojiPickerPopover value={newLocationEmoji} onChange={setNewLocationEmoji} isDark={isDark} />
+                <EmojiPickerPopover value={newLocationEmoji} onChange={setNewLocationEmoji} />
                 <input
                   type="text"
                   value={newLocation}
@@ -3166,7 +3207,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
                 }}>
                   {editingCategory && editingCategory.name === category.name ? (
                     <>
-                      <EmojiPickerPopover value={editCategoryEmoji} onChange={setEditCategoryEmoji} isDark={isDark} />
+                      <EmojiPickerPopover value={editCategoryEmoji} onChange={setEditCategoryEmoji} />
                       <input
                         type="text"
                         value={editCategoryValue}
@@ -3261,7 +3302,7 @@ function SettingsPage({ onBack, currentUser, isDark }) {
               ))}
 
               <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md, alignItems: 'center' }}>
-                <EmojiPickerPopover value={newCategoryEmoji} onChange={setNewCategoryEmoji} isDark={isDark} />
+                <EmojiPickerPopover value={newCategoryEmoji} onChange={setNewCategoryEmoji} />
                 <input
                   type="text"
                   value={newCategory}

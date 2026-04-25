@@ -5,22 +5,25 @@ import ItemCard from '../components/ItemCard';
 import FilterPanel from '../components/FilterPanel';
 import BulkActions from '../components/BulkActions';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { InventorySkeleton } from '../components/SkeletonLoader';
 import Alert from '../components/Alert';
 import EditItemModal from '../components/EditItemModal';
 import { useToast } from '../components/Toast';
 import { useDialog } from '../components/DialogProvider';
 import { getColors, spacing, borderRadius } from '../colors';
 import { useItems } from '../hooks/useItems';
+import { useTheme } from '../context/ThemeContext';
 import { useLocations } from '../hooks/useLocations';
 import { exportToCSV, downloadCSVTemplate, readCSVFile, validateImportedItems } from '../utils/exportUtils';
 import { filterByExpiryStatus, sortByExpiry, getExpiryStatus, formatDate } from '../utils/dateUtils';
 import { exportItemsCSV } from '../api';
 
-export function InventoryPage({ isDark, sidebarFilters = {} }) {
+export function InventoryPage({ sidebarFilters = {} }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const toast = useToast();
   const dialog = useDialog();
-  const { items, loading, error, removeItems, editItem } = useItems();
+  const { items, loading, error, removeItems, editItem, page, totalPages, total, goToPage } = useItems();
   const { locations, categories } = useLocations();
   const [filters, setFilters] = useState({ expiryStatus: 'all' });
   const [selectedItems, setSelectedItems] = useState(new Set());
@@ -28,6 +31,17 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   const [viewMode, setViewMode] = useState('card'); // 'card' or 'list'
   const [editingItem, setEditingItem] = useState(null);
+
+  const handleDeleteItem = (ids) => {
+    const undo = removeItems(ids);
+    const count = ids.length;
+    toast.show({
+      message: count === 1 ? 'Item deleted.' : `${count} items deleted.`,
+      type: 'info',
+      duration: 5500,
+      action: { label: 'Undo', onClick: undo },
+    });
+  };
 
   // Merge sidebar filters with local filters
   const mergedFilters = { ...filters, ...sidebarFilters };
@@ -123,12 +137,8 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
       confirmLabel: 'Delete',
       icon: '🗑️',
     })) {
-      try {
-        await removeItems(Array.from(selectedItems));
-        setSelectedItems(new Set());
-      } catch (err) {
-        toast.error('Failed to delete items');
-      }
+      handleDeleteItem(Array.from(selectedItems));
+      setSelectedItems(new Set());
     }
   };
 
@@ -160,7 +170,14 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return (
+    <div style={{ padding: spacing.xl }}>
+      <div style={{ marginBottom: spacing.xl }}>
+        <h1 style={{ margin: 0, fontSize: '32px', fontWeight: 'bold' }}>Inventory</h1>
+      </div>
+      <InventorySkeleton count={6} />
+    </div>
+  );
 
   return (
     <div style={{ padding: spacing.xl }}>
@@ -175,7 +192,6 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
         onFilterChange={handleFilterChange}
         locations={locations}
         categories={categories}
-        isDark={isDark}
       />
 
       <div style={{ display: 'flex', gap: spacing.lg, marginBottom: spacing.lg, alignItems: 'center', justifyContent: 'space-between' }}>
@@ -278,9 +294,8 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
                         isSelected={selectedItems.has(item.id)}
                         onSelect={handleSelect}
                         onEdit={() => setEditingItem(item)}
-                        onDelete={() => removeItems([item.id])}
+                        onDelete={() => handleDeleteItem([item.id])}
                         onQuantityChange={(id, qty) => editItem(id, { quantity: qty })}
-                        isDark={isDark}
                       />
                     ))}
                   </div>
@@ -288,7 +303,7 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
                   <div style={{
                     backgroundColor: colors.card,
                     borderRadius: borderRadius.lg,
-                    overflow: 'hidden',
+                    overflowX: 'auto',
                     border: `1px solid ${colors.border}`,
                   }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -409,7 +424,7 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      removeItems([item.id]);
+                                      handleDeleteItem([item.id]);
                                     }}
                                     style={{
                                       background: 'none',
@@ -443,6 +458,44 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
         </div>
       )}
 
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xl }}>
+          <button
+            onClick={() => goToPage(page - 1)}
+            disabled={page === 0}
+            style={{
+              padding: `${spacing.sm} ${spacing.md}`,
+              borderRadius: borderRadius.md,
+              border: `1px solid ${colors.border}`,
+              backgroundColor: page === 0 ? colors.border : colors.card,
+              color: page === 0 ? colors.textTertiary : colors.textPrimary,
+              cursor: page === 0 ? 'not-allowed' : 'pointer',
+              fontWeight: '600',
+            }}
+          >
+            ← Previous
+          </button>
+          <span style={{ fontSize: '14px', color: colors.textSecondary, minWidth: '120px', textAlign: 'center' }}>
+            Page {page + 1} of {totalPages} ({total} items)
+          </span>
+          <button
+            onClick={() => goToPage(page + 1)}
+            disabled={page >= totalPages - 1}
+            style={{
+              padding: `${spacing.sm} ${spacing.md}`,
+              borderRadius: borderRadius.md,
+              border: `1px solid ${colors.border}`,
+              backgroundColor: page >= totalPages - 1 ? colors.border : colors.card,
+              color: page >= totalPages - 1 ? colors.textTertiary : colors.textPrimary,
+              cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
+              fontWeight: '600',
+            }}
+          >
+            Next →
+          </button>
+        </div>
+      )}
+
       <BulkActions
         selectedCount={selectedItems.size}
         onDelete={handleBulkDelete}
@@ -458,7 +511,6 @@ export function InventoryPage({ isDark, sidebarFilters = {} }) {
           onSave={editItem}
           locations={locations}
           categories={categories}
-          isDark={isDark}
         />
       )}
     </div>

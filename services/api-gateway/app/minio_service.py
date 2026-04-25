@@ -17,10 +17,16 @@ class MinIOService:
     """MinIO object storage service for pantryPal"""
 
     def __init__(self):
+        access_key = os.getenv('MINIO_ACCESS_KEY')
+        secret_key = os.getenv('MINIO_SECRET_KEY')
+        if not access_key or not secret_key:
+            raise ValueError(
+                "MINIO_ACCESS_KEY and MINIO_SECRET_KEY environment variables are required."
+            )
         self.client = Minio(
             endpoint=os.getenv('MINIO_ENDPOINT', 'minio:9000'),
-            access_key=os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
-            secret_key=os.getenv('MINIO_SECRET_KEY', 'minioadmin123'),
+            access_key=access_key,
+            secret_key=secret_key,
             secure=os.getenv('MINIO_SECURE', 'false').lower() == 'true'
         )
 

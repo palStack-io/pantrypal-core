@@ -6,8 +6,13 @@ import { useToast } from '../components/Toast';
 import { useItems } from '../hooks/useItems';
 import { useLocations } from '../hooks/useLocations';
 import { getDefaultLocationNames, getDefaultCategoryNames } from '../defaults';
+import { validateItem } from '../utils/validators';
+import { useTheme } from '../context/ThemeContext';
 
-export function AddItemPage({ onBack, isDark }) {
+const errorStyle = { color: '#dc2626', fontSize: '12px', marginTop: '4px' };
+
+export function AddItemPage({ onBack }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const toast = useToast();
   const { items, addItem, editItem } = useItems();
@@ -22,6 +27,7 @@ export function AddItemPage({ onBack, isDark }) {
     expiry_date: '',
     notes: '',
   });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -33,7 +39,7 @@ export function AddItemPage({ onBack, isDark }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
-    
+
     if (id && items.length > 0) {
       const item = items.find(i => i.id === parseInt(id));
       if (item) {
@@ -55,6 +61,15 @@ export function AddItemPage({ onBack, isDark }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const { isValid, errors, warnings } = validateItem(formData);
+    if (!isValid) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+    if (warnings.expiry_date) {
+      toast.warning(warnings.expiry_date);
+    }
     try {
       setSaving(true);
       if (isEditing && editId) {
@@ -72,6 +87,8 @@ export function AddItemPage({ onBack, isDark }) {
     }
   };
 
+  const borderFor = (field) => `2px solid ${fieldErrors[field] ? '#dc2626' : colors.border}`;
+
   return (
     <div style={{ padding: `${spacing.xl} ${spacing.xxl}`, maxWidth: '800px' }}>
       <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.textSecondary, marginBottom: spacing.lg, fontSize: '14px', padding: spacing.sm }}>
@@ -84,15 +101,17 @@ export function AddItemPage({ onBack, isDark }) {
       </h1>
 
       <form onSubmit={handleSubmit} style={{ background: colors.card, padding: spacing.xxl, borderRadius: borderRadius.xl, border: `1px solid ${colors.border}` }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: spacing.lg }}>
           <div style={{ gridColumn: '1 / -1' }}>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Item Name *</label>
-            <input type="text" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} required style={{ width: '100%', padding: spacing.md, border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '15px' }} />
+            <input type="text" value={formData.name} onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('name'), borderRadius: borderRadius.md, fontSize: '15px' }} />
+            {fieldErrors.name && <p style={errorStyle}>{fieldErrors.name}</p>}
           </div>
 
           <div>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Barcode</label>
-            <input type="text" value={formData.barcode} onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '15px' }} />
+            <input type="text" value={formData.barcode} onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('barcode'), borderRadius: borderRadius.md, fontSize: '15px' }} />
+            {fieldErrors.barcode && <p style={errorStyle}>{fieldErrors.barcode}</p>}
           </div>
 
           <div>
@@ -102,33 +121,38 @@ export function AddItemPage({ onBack, isDark }) {
 
           <div>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Quantity *</label>
-            <input type="number" value={formData.quantity} onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) }))} required min="1" style={{ width: '100%', padding: spacing.md, border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '15px' }} />
+            <input type="number" value={formData.quantity} onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))} min="1" style={{ width: '100%', padding: spacing.md, border: borderFor('quantity'), borderRadius: borderRadius.md, fontSize: '15px' }} />
+            {fieldErrors.quantity && <p style={errorStyle}>{fieldErrors.quantity}</p>}
           </div>
 
           <div>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Location *</label>
-            <select value={formData.location} onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))} required style={{ width: '100%', padding: spacing.md, border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '15px' }}>
+            <select value={formData.location} onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('location'), borderRadius: borderRadius.md, fontSize: '15px' }}>
               <option value="">Select location</option>
               {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
             </select>
+            {fieldErrors.location && <p style={errorStyle}>{fieldErrors.location}</p>}
           </div>
 
           <div>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Category *</label>
-            <select value={formData.category} onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))} required style={{ width: '100%', padding: spacing.md, border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '15px' }}>
+            <select value={formData.category} onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('category'), borderRadius: borderRadius.md, fontSize: '15px' }}>
               <option value="">Select category</option>
               {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
+            {fieldErrors.category && <p style={errorStyle}>{fieldErrors.category}</p>}
           </div>
 
           <div style={{ gridColumn: '1 / -1' }}>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Expiry Date</label>
-            <input type="date" value={formData.expiry_date} onChange={(e) => setFormData(prev => ({ ...prev, expiry_date: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '15px' }} />
+            <input type="date" value={formData.expiry_date} onChange={(e) => setFormData(prev => ({ ...prev, expiry_date: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('expiry_date'), borderRadius: borderRadius.md, fontSize: '15px' }} />
+            {fieldErrors.expiry_date && <p style={errorStyle}>{fieldErrors.expiry_date}</p>}
           </div>
 
           <div style={{ gridColumn: '1 / -1' }}>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Notes</label>
-            <textarea value={formData.notes} onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))} rows="3" style={{ width: '100%', padding: spacing.md, border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '15px', fontFamily: 'inherit' }} />
+            <textarea value={formData.notes} onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))} rows="3" style={{ width: '100%', padding: spacing.md, border: borderFor('notes'), borderRadius: borderRadius.md, fontSize: '15px', fontFamily: 'inherit' }} />
+            {fieldErrors.notes && <p style={errorStyle}>{fieldErrors.notes}</p>}
           </div>
         </div>
 

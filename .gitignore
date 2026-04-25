@@ -112,6 +112,7 @@ build-and-push.sh
 install-dockerignore.sh
 docker-compose.override.yml
 docker-compose-hub.yml
+docker-compose.deploy.yml
 
 # ===================================
 # Backup & Temporary Files

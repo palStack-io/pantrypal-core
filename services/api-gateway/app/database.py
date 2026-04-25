@@ -3,21 +3,27 @@ Database connection and session management for PostgreSQL
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import NullPool
 import os
 from typing import Generator
 
-# Get database URL from environment
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://pantrypal:pantrypal_secure_password@postgres:5432/pantrypal"
-)
+# Get database URL from environment — no default to avoid accidental use of example credentials
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Example: postgresql://pantrypal:yourpassword@postgres:5432/pantrypal"
+    )
 
-# Create engine
+_ssl_mode = os.getenv("DB_SSL_MODE", "prefer")
+
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,  # Verify connections before using
-    echo=False,  # Set to True for SQL logging in development
+    pool_pre_ping=True,
+    echo=False,
+    pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
+    max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
+    pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "30")),
+    connect_args={"sslmode": _ssl_mode},
 )
 
 # Create session factory
@@ -82,6 +88,21 @@ def run_migrations():
                 print("Migration: Added is_demo column to users table")
         except Exception as e:
             print(f"Migration check for is_demo: {e}")
+
+        # Migration: Add is_read_only column to api_keys table if it doesn't exist
+        try:
+            result = conn.execute(text("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'api_keys' AND column_name = 'is_read_only'
+            """))
+            if result.fetchone() is None:
+                conn.execute(text("""
+                    ALTER TABLE api_keys ADD COLUMN is_read_only BOOLEAN DEFAULT FALSE NOT NULL
+                """))
+                conn.commit()
+                print("Migration: Added is_read_only column to api_keys table")
+        except Exception as e:
+            print(f"Migration check for is_read_only: {e}")
 
         # Migration: Shared Household Model
         # This migration transforms the database from per-user isolation to shared household model

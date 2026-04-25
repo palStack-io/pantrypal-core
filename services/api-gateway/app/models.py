@@ -78,6 +78,7 @@ class APIKey(Base):
     last_used_at = Column(DateTime)
     expires_at = Column(DateTime)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_read_only = Column(Boolean, default=False, nullable=False)
 
 
 class PasswordResetToken(Base):
@@ -388,3 +389,22 @@ class UserRecipePreference(Base):
         Index('idx_user_recipe_prefs_favorite', 'user_id', 'favorite'),
         Index('idx_user_recipe_prefs_match', 'user_id', 'match_percentage'),
     )
+
+
+class NotificationPreferences(Base):
+    """Per-user notification preferences stored in the database"""
+    __tablename__ = "notification_preferences"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+
+    notify_expired = Column(Boolean, default=True, nullable=False)
+    notify_tomorrow = Column(Boolean, default=True, nullable=False)
+    notify_soon = Column(Boolean, default=True, nullable=False)
+    notify_reminder = Column(Boolean, default=True, nullable=False)
+    notification_time = Column(String(5), default='09:00', nullable=False)
+    warning_threshold = Column(Integer, default=7, nullable=False)
+    critical_threshold = Column(Integer, default=3, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

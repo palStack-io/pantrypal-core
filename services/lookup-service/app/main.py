@@ -1,7 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 import httpx
 import json
+import logging
 import os
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy import create_engine, Column, String, DateTime, text
@@ -10,7 +15,23 @@ from sqlalchemy.orm import sessionmaker
 
 app = FastAPI(title="PantryPal Lookup Service", version="1.0.0")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://pantrypal:pantrypal_secure_password@postgres:5432/pantrypal")
+INTERNAL_SERVICE_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+
+@app.middleware("http")
+async def verify_internal_token(request: Request, call_next):
+    if request.url.path == "/health":
+        return await call_next(request)
+    if INTERNAL_SERVICE_TOKEN:
+        if request.headers.get("X-Internal-Token", "") != INTERNAL_SERVICE_TOKEN:
+            return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+    return await call_next(request)
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Example: postgresql://pantrypal:yourpassword@postgres:5432/pantrypal"
+    )
 CACHE_TTL_DAYS = int(os.getenv("CACHE_TTL_DAYS", "30"))
 
 engine = create_engine(DATABASE_URL)
@@ -141,7 +162,7 @@ async def lookup_open_food_facts(barcode: str) -> Optional[dict]:
                         "found": True
                     }
     except Exception as e:
-        print(f"Open Food Facts lookup error: {e}")
+        logger.warning("Open Food Facts lookup error for barcode %s: %s", barcode, e)
     return None
 
 async def lookup_upcitemdb(barcode: str) -> Optional[dict]:
@@ -164,7 +185,7 @@ async def lookup_upcitemdb(barcode: str) -> Optional[dict]:
                         "found": True
                     }
     except Exception as e:
-        print(f"UPCitemDB lookup error: {e}")
+        logger.warning("UPCitemDB lookup error for barcode %s: %s", barcode, e)
     return None
 
 @app.get("/health")

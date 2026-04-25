@@ -1,24 +1,25 @@
 /**
  * Toast + ToastProvider for pantryPal web UI.
  *
- * Wrap your app with <ToastProvider isDark={isDark}> once.
+ * Wrap your app with <ToastProvider> once.
  * Then anywhere: const toast = useToast(); toast.success('Saved!');
  */
 
 import { useEffect, useRef, createContext, useContext, useState, useCallback } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { getColors, borderRadius } from '../colors';
+import { useTheme } from '../context/ThemeContext';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 const ToastContext = createContext(null);
 let _id = 0;
 
-export function ToastProvider({ children, isDark = false }) {
+export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  const show = useCallback(({ message, type = 'info', duration = 4000, title } = {}) => {
+  const show = useCallback(({ message, type = 'info', duration = 4000, title, action } = {}) => {
     const id = ++_id;
-    setToasts(prev => [...prev.slice(-4), { id, message, type, duration, title }]);
+    setToasts(prev => [...prev.slice(-4), { id, message, type, duration, title, action }]);
     return id;
   }, []);
 
@@ -36,7 +37,7 @@ export function ToastProvider({ children, isDark = false }) {
       info:    (msg, title) => show({ message: msg, type: 'info',    title }),
     }}>
       {children}
-      <ToastStack toasts={toasts} onHide={hide} isDark={isDark} />
+      <ToastStack toasts={toasts} onHide={hide} />
     </ToastContext.Provider>
   );
 }
@@ -44,7 +45,7 @@ export function ToastProvider({ children, isDark = false }) {
 export const useToast = () => useContext(ToastContext);
 
 // ─── Stack container ──────────────────────────────────────────────────────────
-function ToastStack({ toasts, onHide, isDark }) {
+function ToastStack({ toasts, onHide }) {
   if (!toasts.length) return null;
   return (
     <div style={{
@@ -58,7 +59,7 @@ function ToastStack({ toasts, onHide, isDark }) {
       pointerEvents: 'none',
     }}>
       {toasts.map(t => (
-        <ToastItem key={t.id} {...t} onHide={onHide} isDark={isDark} />
+        <ToastItem key={t.id} {...t} onHide={onHide} />
       ))}
       <style>{KEYFRAMES}</style>
     </div>
@@ -73,8 +74,9 @@ const CONFIG = {
   info:    { icon: Info,             accent: '#3b82f6', bg_light: '#eff6ff', bg_dark: '#0c1a2e', border_light: '#bfdbfe', border_dark: '#1e3a5f' },
 };
 
-function ToastItem({ id, message, title, type, duration, onHide, isDark }) {
+function ToastItem({ id, message, title, type, duration, action, onHide }) {
   const [leaving, setLeaving] = useState(false);
+  const { isDark } = useTheme();
   const cfg = CONFIG[type] || CONFIG.info;
   const Icon = cfg.icon;
 
@@ -90,6 +92,9 @@ function ToastItem({ id, message, title, type, duration, onHide, isDark }) {
 
   return (
     <div
+      role={type === 'error' || type === 'warning' ? 'alert' : 'status'}
+      aria-live={type === 'error' || type === 'warning' ? 'assertive' : 'polite'}
+      aria-atomic="true"
       style={{
         display: 'flex',
         alignItems: 'flex-start',
@@ -140,9 +145,32 @@ function ToastItem({ id, message, title, type, duration, onHide, isDark }) {
         }}>{message}</div>
       </div>
 
+      {/* Action button (e.g. Undo) */}
+      {action && (
+        <button
+          onClick={() => { action.onClick(); dismiss(); }}
+          style={{
+            flexShrink: 0,
+            background: 'none',
+            border: `1px solid ${cfg.accent}`,
+            borderRadius: '6px',
+            cursor: 'pointer',
+            padding: '4px 10px',
+            color: cfg.accent,
+            fontSize: '12.5px',
+            fontWeight: '700',
+            alignSelf: 'center',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {action.label}
+        </button>
+      )}
+
       {/* Close */}
       <button
         onClick={dismiss}
+        aria-label="Dismiss notification"
         style={{
           flexShrink: 0,
           background: 'none',

@@ -1,16 +1,25 @@
 from fastapi import FastAPI, HTTPException, Depends, Response, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import RedirectResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from datetime import datetime, timedelta
 from typing import Optional
 import httpx
+import logging
 import os
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 from .network_utils import get_client_ip, is_trusted_network
 
 
 # Import auth modules
-from .auth import get_current_auth, require_admin
+from .auth import get_current_auth, require_admin, require_write_scope
 from . import pg_api_keys, pg_auth
 from .email_service import send_password_reset_email, send_welcome_email, send_verification_email, is_email_configured
 from .oidc import is_oidc_enabled, get_oidc_config, oauth, extract_user_info
@@ -23,6 +32,30 @@ from .minio_service import get_minio_service
 from .routes import images, recipes
 
 app = FastAPI(title="PantryPal API Gateway", version="2.0.0")
+
+# Rate limiter — keyed by client IP
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SECRET_KEY", os.getenv("ENCRYPTION_SALT", "change-me-in-production")),
+    https_only=False,
+    same_site="lax",
+)
 
 # Startup event: Initialize database and MinIO
 @app.on_event("startup")
@@ -51,7 +84,7 @@ app.include_router(images.router)
 app.include_router(recipes.router)
 
 # Get AUTH_MODE for informational purposes
-AUTH_MODE = os.getenv("AUTH_MODE", "none").lower()
+AUTH_MODE = os.getenv("AUTH_MODE", "full").lower()
 
 # Get CORS origins from environment variable
 cors_origins_env = os.getenv("CORS_ORIGINS", "*")
@@ -75,6 +108,11 @@ app.add_middleware(
 
 INVENTORY_SERVICE_URL = os.getenv("INVENTORY_SERVICE_URL", "http://inventory-service:8001")
 LOOKUP_SERVICE_URL = os.getenv("LOOKUP_SERVICE_URL", "http://lookup-service:8002")
+
+_INTERNAL_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+_INTERNAL_HEADERS = {"X-Internal-Token": _INTERNAL_TOKEN} if _INTERNAL_TOKEN else {}
+
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 
 # Base URL for email links (password reset, email verification)
 # If not set, will fall back to using the incoming request URL
@@ -113,6 +151,7 @@ class CreateApiKeyRequest(BaseModel):
     name: str
     description: Optional[str] = None
     expires_in_days: Optional[int] = None
+    is_read_only: bool = False
 
 class LoginRequest(BaseModel):
     username: str
@@ -157,7 +196,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             inventory_health = await client.get(f"{INVENTORY_SERVICE_URL}/health", timeout=2.0)
             lookup_health = await client.get(f"{LOOKUP_SERVICE_URL}/health", timeout=2.0)
         return {
@@ -169,7 +208,8 @@ async def health_check():
             }
         }
     except Exception as e:
-        return {"status": "degraded", "error": str(e)}
+        logger.warning("Health check degraded: %s", e)
+        return {"status": "degraded", "error": "One or more internal services unavailable"}
 
 @app.get("/api/auth/status")
 async def auth_status():
@@ -188,11 +228,12 @@ async def auth_status():
 
     # Add demo accounts info if demo mode is enabled
     if demo_mode:
+        demo_password = os.getenv("DEMO_ACCOUNT_PASSWORD", "demo123")
         response["demo_accounts"] = [
-            {"username": "demo1", "password": "demo123"},
-            {"username": "demo2", "password": "demo123"},
-            {"username": "demo3", "password": "demo123"},
-            {"username": "demo4", "password": "demo123"}
+            {"username": "demo1", "password": demo_password},
+            {"username": "demo2", "password": demo_password},
+            {"username": "demo3", "password": demo_password},
+            {"username": "demo4", "password": demo_password},
         ]
         response["demo_session_minutes"] = 10
 
@@ -208,17 +249,20 @@ async def auth_status():
 # ============================================================================
 
 @app.post("/api/auth/login")
-async def login(request: LoginRequest, response: Response, http_request: Request):
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest, response: Response):
     """Login with username and password (works in 'full' or 'smart' mode)"""
     if AUTH_MODE not in ["full", "smart"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Login not available in '{AUTH_MODE}' mode. Set AUTH_MODE=full or smart to enable."
         )
-    
-    user = pg_auth.authenticate_user(request.username, request.password)
+
+    user = pg_auth.authenticate_user(body.username, body.password)
 
     if not user:
+        ip_address = request.client.host if request.client else "unknown"
+        logger.warning("AUDIT failed_login username=%s ip=%s", body.username, ip_address)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password"
@@ -233,8 +277,8 @@ async def login(request: LoginRequest, response: Response, http_request: Request
             )
 
     # Create session
-    ip_address = http_request.client.host if http_request.client else None
-    user_agent = http_request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
 
     # Demo accounts get 10-minute session, regular users get 7 days
     is_demo_user = user.get("is_demo", False)
@@ -262,8 +306,10 @@ async def login(request: LoginRequest, response: Response, http_request: Request
         httponly=True,
         max_age=max_age,
         samesite="lax",
-        secure=False  # Set to True in production with HTTPS
+        secure=COOKIE_SECURE
     )
+
+    logger.info("AUDIT login user_id=%s username=%s ip=%s", user["id"], user["username"], ip_address)
 
     response_data = {
         "message": "Login successful",
@@ -292,14 +338,15 @@ async def logout(response: Response, auth = Depends(get_current_auth)):
     return {"message": "Not logged in via session"}
 
 @app.post("/api/auth/register")
-async def register(request: RegisterRequest, response: Response, http_request: Request):
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest, response: Response):
     """Register a new user (only works in 'full' or 'smart' mode)"""
     if AUTH_MODE not in ["full", "smart"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Registration not available in '{AUTH_MODE}' mode. Set AUTH_MODE=full or smart to enable."
         )
-    
+
     # Check if registration is allowed
     allow_registration = os.getenv("ALLOW_REGISTRATION", "false").lower() == "true"
     if not allow_registration:
@@ -307,20 +354,20 @@ async def register(request: RegisterRequest, response: Response, http_request: R
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Registration is currently disabled. Contact your administrator."
         )
-    
+
     # Require email for registration
-    if not request.email:
+    if not body.email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email is required for registration"
         )
-    
+
     try:
         user = pg_auth.create_user(
-            username=request.username,
-            password=request.password,
-            email=request.email,
-            full_name=request.full_name,
+            username=body.username,
+            password=body.password,
+            email=body.email,
+            full_name=body.full_name,
             is_admin=False
         )
 
@@ -328,9 +375,9 @@ async def register(request: RegisterRequest, response: Response, http_request: R
         if is_email_configured():
             try:
                 # Use APP_URL if configured, otherwise fall back to request URL
-                base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
+                base_url = APP_URL or (request.url.scheme + "://" + request.url.netloc)
                 verification_token = pg_auth.create_email_verification_token(user["id"])
-                send_verification_email(request.email, request.username, verification_token, base_url)
+                send_verification_email(body.email, body.username, verification_token, base_url)
 
                 return {
                     "message": "Registration successful! Please check your email to verify your account.",
@@ -359,8 +406,8 @@ async def register(request: RegisterRequest, response: Response, http_request: R
             pg_auth.mark_email_verified(user["id"])
 
             # Auto-login after registration
-            ip_address = http_request.client.host if http_request.client else None
-            user_agent = http_request.headers.get("user-agent")
+            ip_address = request.client.host if request.client else None
+            user_agent = request.headers.get("user-agent")
 
             session_token = pg_auth.create_session(
                 user_id=user["id"],
@@ -375,7 +422,7 @@ async def register(request: RegisterRequest, response: Response, http_request: R
                 httponly=True,
                 max_age=7 * 24 * 60 * 60,
                 samesite="lax",
-                secure=False
+                secure=COOKIE_SECURE
             )
 
             return {
@@ -403,39 +450,45 @@ async def change_password(request: ChangePasswordRequest, auth = Depends(get_cur
     # Verify current password
     user = pg_auth.authenticate_user(auth["username"], request.current_password)
     if not user:
+        logger.warning("AUDIT failed_password_change user_id=%s username=%s", auth["id"], auth["username"])
         raise HTTPException(status_code=401, detail="Current password is incorrect")
-    
+
     # Update password
-    success = pg_auth.update_user_password(auth["id"], request.new_password)
-    
+    try:
+        success = pg_auth.update_user_password(auth["id"], request.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     if success:
+        logger.info("AUDIT password_changed user_id=%s username=%s", auth["id"], auth["username"])
         return {"message": "Password changed successfully"}
     else:
         raise HTTPException(status_code=500, detail="Failed to change password")
 
 @app.post("/api/auth/forgot-password")
-async def forgot_password(request: ForgotPasswordRequest, http_request: Request):
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, body: ForgotPasswordRequest):
     """Request password reset email"""
     if AUTH_MODE not in ["full", "smart"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password reset not available in current auth mode"
         )
-    
+
     if not is_email_configured():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email service not configured. Contact your administrator."
         )
-    
+
     # Create reset token (returns None if user not found - don't reveal this)
-    token = pg_auth.create_password_reset_token(request.email)
-    
+    token = pg_auth.create_password_reset_token(body.email)
+
     if token:
         try:
             # Use APP_URL if configured, otherwise fall back to request URL
-            base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
-            send_password_reset_email(request.email, token, base_url)
+            base_url = APP_URL or (request.url.scheme + "://" + request.url.netloc)
+            send_password_reset_email(body.email, token, base_url)
         except Exception as e:
             print(f"Failed to send reset email: {e}")
             raise HTTPException(
@@ -487,7 +540,8 @@ async def verify_email(request: VerifyEmailRequest):
     return {"message": "Email verified successfully! You can now login to your account."}
 
 @app.post("/api/auth/resend-verification")
-async def resend_verification(request: ResendVerificationRequest, http_request: Request):
+@limiter.limit("3/minute")
+async def resend_verification(request: Request, body: ResendVerificationRequest):
     """Resend verification email"""
     if AUTH_MODE not in ["full", "smart"]:
         raise HTTPException(
@@ -502,7 +556,7 @@ async def resend_verification(request: ResendVerificationRequest, http_request: 
         )
 
     # Find user by email using pg_auth helper
-    user = pg_auth.find_user_by_email(request.email)
+    user = pg_auth.find_user_by_email(body.email)
 
     if not user:
         # Don't reveal if email exists
@@ -514,9 +568,9 @@ async def resend_verification(request: ResendVerificationRequest, http_request: 
     # Create new verification token
     try:
         # Use APP_URL if configured, otherwise fall back to request URL
-        base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
+        base_url = APP_URL or (request.url.scheme + "://" + request.url.netloc)
         verification_token = pg_auth.create_email_verification_token(user['id'])
-        send_verification_email(request.email, user['username'], verification_token, base_url)
+        send_verification_email(body.email, user['username'], verification_token, base_url)
 
         return {"message": "If that email is registered and unverified, you'll receive a verification link shortly."}
     except Exception as e:
@@ -531,7 +585,7 @@ async def resend_verification(request: ResendVerificationRequest, http_request: 
 # ============================================================================
 
 @app.get("/api/auth/oidc/login")
-async def oidc_login(request: Request):
+async def oidc_login(request: Request, mobile_state: Optional[str] = None):
     """
     Initiate OIDC login flow
     Redirects user to OIDC provider for authentication
@@ -541,6 +595,10 @@ async def oidc_login(request: Request):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="OIDC authentication is not enabled"
         )
+
+    # Store mobile_state in session so it can be echoed back after callback
+    if mobile_state:
+        request.session['mobile_state'] = mobile_state
 
     # Build redirect URI
     redirect_uri = request.url_for('oidc_callback')
@@ -596,7 +654,8 @@ async def oidc_callback(request: Request, response: Response):
             from .oidc import OIDC_AUTO_LINK, OIDC_AUTO_CREATE
 
             # Try to link by email if auto-link is enabled
-            if OIDC_AUTO_LINK and oidc_user['email']:
+            # Only link if the OIDC provider has verified the email to prevent account takeover
+            if OIDC_AUTO_LINK and oidc_user['email'] and oidc_user.get('email_verified', False):
                 existing_user = pg_auth.find_user_by_email(oidc_user['email'])
 
                 if existing_user:
@@ -643,23 +702,36 @@ async def oidc_callback(request: Request, response: Response):
             user_agent=request.headers.get("user-agent")
         )
 
+        # Check if this is a mobile flow
+        mobile_state = request.session.pop('mobile_state', None)
+
         # Set session cookie
         response.set_cookie(
             key="session_token",
             value=session_token,
             httponly=True,
-            max_age=30 * 24 * 60 * 60,  # 30 days
-            samesite="lax"
+            max_age=30 * 24 * 60 * 60,
+            samesite="lax",
+            secure=COOKIE_SECURE
         )
 
-        # Redirect to home page
+        if mobile_state:
+            # Redirect back to the mobile app deep link with the token + echoed state
+            import urllib.parse
+            params = urllib.parse.urlencode({
+                "token": session_token,
+                "state": mobile_state,
+            })
+            return RedirectResponse(url=f"pantrypal://auth?{params}")
+
+        # Web flow: return JSON
         return {"status": "success", "message": "Successfully logged in via OIDC"}
 
     except Exception as e:
-        print(f"OIDC callback error: {e}")
+        logger.error("OIDC callback error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"OIDC authentication failed: {str(e)}"
+            detail="OIDC authentication failed"
         )
 
 # ============================================================================
@@ -680,7 +752,8 @@ async def create_api_key(request: CreateApiKeyRequest, auth = Depends(get_curren
         key_info = pg_api_keys.create_api_key(
             name=request.name,
             description=request.description,
-            expires_in_days=request.expires_in_days
+            expires_in_days=request.expires_in_days,
+            is_read_only=request.is_read_only
         )
         return {
             "message": "⚠️ Save this key now! It won't be shown again.",
@@ -691,10 +764,12 @@ async def create_api_key(request: CreateApiKeyRequest, auth = Depends(get_curren
                 "description": key_info["description"],
                 "created_at": key_info["created_at"],
                 "expires_at": key_info["expires_at"],
+                "is_read_only": key_info["is_read_only"],
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create API key: {str(e)}")
+        logger.error("Failed to create API key: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to create API key")
 
 @app.get("/api/auth/keys")
 async def list_api_keys(auth = Depends(get_current_auth)):
@@ -703,7 +778,8 @@ async def list_api_keys(auth = Depends(get_current_auth)):
         keys = pg_api_keys.list_api_keys()
         return {"keys": keys, "total": len(keys)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list API keys: {str(e)}")
+        logger.error("Failed to list API keys: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to list API keys")
 
 @app.delete("/api/auth/keys/{key_id}")
 async def delete_api_key(key_id: int, auth = Depends(get_current_auth)):
@@ -716,7 +792,8 @@ async def delete_api_key(key_id: int, auth = Depends(get_current_auth)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete API key: {str(e)}")
+        logger.error("Failed to delete API key %s: %s", key_id, e)
+        raise HTTPException(status_code=500, detail="Failed to delete API key")
 
 @app.post("/api/auth/keys/{key_id}/revoke")
 async def revoke_api_key(key_id: int, auth = Depends(get_current_auth)):
@@ -729,7 +806,8 @@ async def revoke_api_key(key_id: int, auth = Depends(get_current_auth)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to revoke API key: {str(e)}")
+        logger.error("Failed to revoke API key %s: %s", key_id, e)
+        raise HTTPException(status_code=500, detail="Failed to revoke API key")
 
 # ============================================================================
 # USER MANAGEMENT ENDPOINTS (Admin only)
@@ -742,7 +820,8 @@ async def list_users(auth = Depends(require_admin)):
         users = pg_auth.list_users()
         return {"users": users, "total": len(users)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list users: {str(e)}")
+        logger.error("Failed to list users: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to list users")
 
 @app.delete("/api/users/{user_id}")
 async def delete_user(user_id: int, auth = Depends(require_admin)):
@@ -759,7 +838,8 @@ async def delete_user(user_id: int, auth = Depends(require_admin)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
+        logger.error("Failed to delete user %s: %s", user_id, e)
+        raise HTTPException(status_code=500, detail="Failed to delete user")
 
 # ============================================================================
 # PROTECTED ENDPOINTS (Require authentication based on AUTH_MODE)
@@ -768,17 +848,18 @@ async def delete_user(user_id: int, auth = Depends(require_admin)):
 @app.get("/api/lookup/{barcode}")
 async def lookup_barcode(barcode: str, request: Request, auth = Depends(get_current_auth)):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{LOOKUP_SERVICE_URL}/lookup/{barcode}", timeout=10.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Lookup service error: {str(e)}")
+        logger.error("Lookup service error: %s", e)
+        raise HTTPException(status_code=500, detail="Lookup service unavailable")
 
 @app.post("/api/items")
-async def add_item(request: AddItemRequest, auth = Depends(get_current_auth)):
+async def add_item(request: AddItemRequest, auth = Depends(require_write_scope)):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             lookup_response = await client.get(f"{LOOKUP_SERVICE_URL}/lookup/{request.barcode}", timeout=10.0)
             
             if lookup_response.status_code == 200:
@@ -812,12 +893,13 @@ async def add_item(request: AddItemRequest, auth = Depends(get_current_auth)):
             result["product_info"] = product_info
             return result
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Service error: {str(e)}")
+        logger.error("Service error: %s", e)
+        raise HTTPException(status_code=500, detail="Service unavailable")
 
 @app.post("/api/items/manual")
-async def add_item_manual(request: ManualAddRequest, auth = Depends(get_current_auth)):
+async def add_item_manual(request: ManualAddRequest, auth = Depends(require_write_scope)):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             inventory_data = {
                 "barcode": request.barcode,
                 "name": request.name,
@@ -834,51 +916,58 @@ async def add_item_manual(request: ManualAddRequest, auth = Depends(get_current_
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Inventory service error: {str(e)}")
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
 
 @app.get("/api/items")
-async def get_items(location: Optional[str] = None, search: Optional[str] = None, auth = Depends(get_current_auth)):
+async def get_items(location: Optional[str] = None, search: Optional[str] = None, limit: Optional[int] = None, offset: int = 0, auth = Depends(get_current_auth)):
     try:
         params = {}
         if location:
             params["location"] = location
         if search:
             params["search"] = search
-        async with httpx.AsyncClient() as client:
+        if limit is not None:
+            params["limit"] = limit
+            params["offset"] = offset
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{INVENTORY_SERVICE_URL}/items", params=params, timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Inventory service error: {str(e)}")
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
 
 @app.get("/api/items/{item_id}")
 async def get_item(item_id: int, auth = Depends(get_current_auth)):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{INVENTORY_SERVICE_URL}/items/{item_id}", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Item not found")
-        raise HTTPException(status_code=500, detail=f"Inventory service error: {str(e)}")
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
 
 @app.put("/api/items/{item_id}")
-async def update_item(item_id: int, request: UpdateItemRequest, auth = Depends(get_current_auth)):
+async def update_item(item_id: int, request: UpdateItemRequest, auth = Depends(require_write_scope)):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.put(f"{INVENTORY_SERVICE_URL}/items/{item_id}", json=request.dict(exclude_unset=True), timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Item not found")
-        raise HTTPException(status_code=500, detail=f"Inventory service error: {str(e)}")
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
 
 @app.get("/api/export/csv")
 async def export_csv(auth = Depends(get_current_auth)):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{INVENTORY_SERVICE_URL}/export/csv", timeout=30.0)
             response.raise_for_status()
             return Response(
@@ -887,45 +976,49 @@ async def export_csv(auth = Depends(get_current_auth)):
                 headers={"Content-Disposition": response.headers.get("Content-Disposition", "attachment; filename=pantrypal_export.csv")}
             )
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+        logger.error("Export failed: %s", e)
+        raise HTTPException(status_code=500, detail="Export failed")
 
 @app.delete("/api/items/{item_id}")
-async def delete_item(item_id: int, auth = Depends(get_current_auth)):
+async def delete_item(item_id: int, auth = Depends(require_write_scope)):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.delete(f"{INVENTORY_SERVICE_URL}/items/{item_id}", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Item not found")
-        raise HTTPException(status_code=500, detail=f"Inventory service error: {str(e)}")
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
 
 @app.get("/api/locations")
 async def get_locations(auth = Depends(get_current_auth)):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{INVENTORY_SERVICE_URL}/locations", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Inventory service error: {str(e)}")
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
 
 @app.get("/api/categories")
 async def get_categories(auth = Depends(get_current_auth)):
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{INVENTORY_SERVICE_URL}/categories", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Inventory service error: {str(e)}")
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
     
 @app.get("/api/stats/expiring")
 async def get_expiring_items(days: int = 7, auth = Depends(get_current_auth)):
     """Get items expiring within specified days"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{INVENTORY_SERVICE_URL}/items", timeout=5.0)
             response.raise_for_status()
             items = response.json()
@@ -989,7 +1082,8 @@ async def get_expiring_items(days: int = 7, auth = Depends(get_current_auth)):
             }
             
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Inventory service error: {str(e)}")
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
 
 # ============================================================================
 # SHOPPING LIST ENDPOINTS
@@ -1000,118 +1094,127 @@ async def get_shopping_list(include_checked: bool = False, auth = Depends(get_cu
     """Get shopping list items"""
     try:
         params = {"include_checked": include_checked}
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{INVENTORY_SERVICE_URL}/shopping-list", params=params, timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.post("/api/shopping-list")
-async def create_shopping_list_item(item: dict, auth = Depends(get_current_auth)):
+async def create_shopping_list_item(item: dict, auth = Depends(require_write_scope)):
     """Add item to shopping list"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.post(f"{INVENTORY_SERVICE_URL}/shopping-list", json=item, timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.get("/api/shopping-list/{item_id}")
 async def get_shopping_list_item(item_id: int, auth = Depends(get_current_auth)):
     """Get specific shopping list item"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{INVENTORY_SERVICE_URL}/shopping-list/{item_id}", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Shopping list item not found")
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.put("/api/shopping-list/{item_id}")
-async def update_shopping_list_item(item_id: int, item_update: dict, auth = Depends(get_current_auth)):
+async def update_shopping_list_item(item_id: int, item_update: dict, auth = Depends(require_write_scope)):
     """Update shopping list item"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.put(f"{INVENTORY_SERVICE_URL}/shopping-list/{item_id}", json=item_update, timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Shopping list item not found")
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.delete("/api/shopping-list/{item_id}")
-async def delete_shopping_list_item(item_id: int, auth = Depends(get_current_auth)):
+async def delete_shopping_list_item(item_id: int, auth = Depends(require_write_scope)):
     """Delete shopping list item"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.delete(f"{INVENTORY_SERVICE_URL}/shopping-list/{item_id}", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Shopping list item not found")
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.post("/api/shopping-list/from-inventory/{inventory_id}")
-async def add_from_inventory_to_shopping_list(inventory_id: int, auth = Depends(get_current_auth)):
+async def add_from_inventory_to_shopping_list(inventory_id: int, auth = Depends(require_write_scope)):
     """Add inventory item to shopping list"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.post(f"{INVENTORY_SERVICE_URL}/shopping-list/from-inventory/{inventory_id}", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Inventory item not found")
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.post("/api/shopping-list/add-checked-to-inventory")
-async def add_checked_to_inventory(auth = Depends(get_current_auth)):
+async def add_checked_to_inventory(auth = Depends(require_write_scope)):
     """Move checked shopping list items to inventory"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.post(f"{INVENTORY_SERVICE_URL}/shopping-list/add-checked-to-inventory", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.post("/api/shopping-list/suggest-low-stock")
 async def suggest_low_stock(auth = Depends(get_current_auth)):
     """Add low stock items to shopping list"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.post(f"{INVENTORY_SERVICE_URL}/shopping-list/suggest-low-stock", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.delete("/api/shopping-list/clear-checked")
-async def clear_checked_shopping_items(auth = Depends(get_current_auth)):
+async def clear_checked_shopping_items(auth = Depends(require_write_scope)):
     """Clear all checked items from shopping list"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.delete(f"{INVENTORY_SERVICE_URL}/shopping-list/clear-checked", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 # ============================================================================
 # HOME ASSISTANT SHOPPING LIST INTEGRATION
 # ============================================================================
 
 @app.get("/api/homeassistant/shopping-list")
-async def homeassistant_get_shopping_list():
-    """Get shopping list in Home Assistant format (no auth required for HA)"""
+async def homeassistant_get_shopping_list(auth=Depends(get_current_auth)):
+    """Get shopping list in Home Assistant format"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.get(f"{INVENTORY_SERVICE_URL}/shopping-list", params={"include_checked": False}, timeout=5.0)
             response.raise_for_status()
             items = response.json()
@@ -1127,11 +1230,12 @@ async def homeassistant_get_shopping_list():
 
             return ha_items
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.post("/api/homeassistant/shopping-list/item")
-async def homeassistant_add_shopping_list_item(item: dict):
-    """Add item to shopping list in Home Assistant format (no auth required for HA)"""
+async def homeassistant_add_shopping_list_item(item: dict, auth=Depends(require_write_scope)):
+    """Add item to shopping list in Home Assistant format"""
     try:
         # Convert from Home Assistant format to PantryPal format
         pantrypal_item = {
@@ -1143,7 +1247,7 @@ async def homeassistant_add_shopping_list_item(item: dict):
             "checked": False
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.post(f"{INVENTORY_SERVICE_URL}/shopping-list", json=pantrypal_item, timeout=5.0)
             response.raise_for_status()
             result = response.json()
@@ -1155,11 +1259,12 @@ async def homeassistant_add_shopping_list_item(item: dict):
                 "complete": result["checked"]
             }
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.post("/api/homeassistant/shopping-list/item/{item_id}")
-async def homeassistant_update_shopping_list_item(item_id: str, item: dict):
-    """Update shopping list item in Home Assistant format (no auth required for HA)"""
+async def homeassistant_update_shopping_list_item(item_id: str, item: dict, auth=Depends(require_write_scope)):
+    """Update shopping list item in Home Assistant format"""
     try:
         # Convert from Home Assistant format
         update_data = {}
@@ -1168,7 +1273,7 @@ async def homeassistant_update_shopping_list_item(item_id: str, item: dict):
         if "complete" in item:
             update_data["checked"] = item["complete"]
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.put(f"{INVENTORY_SERVICE_URL}/shopping-list/{item_id}", json=update_data, timeout=5.0)
             response.raise_for_status()
             result = response.json()
@@ -1182,31 +1287,34 @@ async def homeassistant_update_shopping_list_item(item_id: str, item: dict):
     except httpx.HTTPError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Shopping list item not found")
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.delete("/api/homeassistant/shopping-list/item/{item_id}")
-async def homeassistant_delete_shopping_list_item(item_id: str):
-    """Delete shopping list item in Home Assistant format (no auth required for HA)"""
+async def homeassistant_delete_shopping_list_item(item_id: str, auth=Depends(require_write_scope)):
+    """Delete shopping list item in Home Assistant format"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.delete(f"{INVENTORY_SERVICE_URL}/shopping-list/{item_id}", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Shopping list item not found")
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 @app.post("/api/homeassistant/shopping-list/clear-items")
-async def homeassistant_clear_shopping_list():
+async def homeassistant_clear_shopping_list(auth=Depends(require_write_scope)):
     """Clear all completed items from shopping list (Home Assistant format)"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
             response = await client.delete(f"{INVENTORY_SERVICE_URL}/shopping-list/clear-checked", timeout=5.0)
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Shopping list service error: {str(e)}")
+        logger.error("Shopping list service error: %s", e)
+        raise HTTPException(status_code=500, detail="Shopping list service unavailable")
 
 # ============================================================================
 # NOTIFICATION PREFERENCES
@@ -1225,43 +1333,69 @@ _DEFAULT_NOTIFICATION_PREFS = {
 @app.get("/api/notifications/preferences")
 async def get_notification_preferences(auth = Depends(get_current_auth)):
     """Get notification preferences for the current user"""
+    from .database import SessionLocal
+    from .models import NotificationPreferences
+    user_id = auth.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        import json
-        prefs_file = '/app/data/notification_preferences.json'
-        os.makedirs(os.path.dirname(prefs_file), exist_ok=True)
-
-        user_id = auth.get("id", "default")
-        all_prefs = {}
-        if os.path.exists(prefs_file):
-            with open(prefs_file, 'r') as f:
-                all_prefs = json.load(f)
-
-        user_prefs = all_prefs.get(user_id, {})
-        return {**_DEFAULT_NOTIFICATION_PREFS, **user_prefs}
+        db = SessionLocal()
+        try:
+            row = db.query(NotificationPreferences).filter_by(user_id=user_id).first()
+            if row:
+                return {
+                    'notify_expired': row.notify_expired,
+                    'notify_tomorrow': row.notify_tomorrow,
+                    'notify_soon': row.notify_soon,
+                    'notify_reminder': row.notify_reminder,
+                    'notification_time': row.notification_time,
+                    'warning_threshold': row.warning_threshold,
+                    'critical_threshold': row.critical_threshold,
+                }
+            return {**_DEFAULT_NOTIFICATION_PREFS}
+        finally:
+            db.close()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get preferences: {str(e)}")
+        logger.error("Failed to get notification preferences: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to get preferences")
 
 @app.post("/api/notifications/preferences")
 async def save_notification_preferences(preferences: dict, auth = Depends(get_current_auth)):
     """Save notification preferences for the current user"""
+    from .database import SessionLocal
+    from .models import NotificationPreferences
+    import uuid as _uuid
+    user_id = auth.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     try:
-        import json
-        prefs_file = '/app/data/notification_preferences.json'
-        os.makedirs(os.path.dirname(prefs_file), exist_ok=True)
-
-        user_id = auth.get("id", "default")
-        all_prefs = {}
-        if os.path.exists(prefs_file):
-            with open(prefs_file, 'r') as f:
-                all_prefs = json.load(f)
-
-        all_prefs[user_id] = preferences
-        with open(prefs_file, 'w') as f:
-            json.dump(all_prefs, f, indent=2)
-
-        return {'status': 'success', 'preferences': preferences}
+        db = SessionLocal()
+        try:
+            row = db.query(NotificationPreferences).filter_by(user_id=user_id).first()
+            if row:
+                for key in _DEFAULT_NOTIFICATION_PREFS:
+                    if key in preferences:
+                        setattr(row, key, preferences[key])
+            else:
+                row = NotificationPreferences(
+                    id=str(_uuid.uuid4()),
+                    user_id=user_id,
+                    notify_expired=preferences.get('notify_expired', True),
+                    notify_tomorrow=preferences.get('notify_tomorrow', True),
+                    notify_soon=preferences.get('notify_soon', True),
+                    notify_reminder=preferences.get('notify_reminder', True),
+                    notification_time=preferences.get('notification_time', '09:00'),
+                    warning_threshold=preferences.get('warning_threshold', 7),
+                    critical_threshold=preferences.get('critical_threshold', 3),
+                )
+                db.add(row)
+            db.commit()
+            return {'status': 'success', 'preferences': preferences}
+        finally:
+            db.close()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save preferences: {str(e)}")
+        logger.error("Failed to save notification preferences: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to save preferences")
 
 if __name__ == "__main__":
     import uvicorn
@@ -1351,13 +1485,18 @@ async def change_my_password(
     # Verify current password using pg_auth helper
     user = pg_auth.authenticate_user(auth["username"], password_data.current_password)
     if not user:
+        logger.warning("AUDIT failed_password_change user_id=%s username=%s", auth["id"], auth["username"])
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
     # Update password using pg_auth helper
-    success = pg_auth.update_user_password(auth["id"], password_data.new_password)
+    try:
+        success = pg_auth.update_user_password(auth["id"], password_data.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
 
+    logger.info("AUDIT password_changed user_id=%s username=%s", auth["id"], auth["username"])
     return {"message": "Password changed successfully"}
 
 # ============================================
@@ -1446,7 +1585,7 @@ async def update_user(
 @app.post("/api/admin/users/{user_id}/resend-invite")
 async def admin_resend_invite(
     user_id: str,
-    http_request: Request,
+    request: Request,
     auth = Depends(require_admin)
 ):
     """Resend welcome/invite email with a fresh password reset link (admin only)"""
@@ -1458,7 +1597,7 @@ async def admin_resend_invite(
         raise HTTPException(status_code=404, detail="User not found")
 
     try:
-        base_url = str(http_request.base_url).rstrip("/")
+        base_url = str(request.base_url).rstrip("/")
         import os as _os
         app_url = _os.environ.get("APP_URL", "").rstrip("/")
         if app_url:
@@ -1473,7 +1612,8 @@ async def admin_resend_invite(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to send invite: {str(e)}")
+        logger.error("Failed to send invite: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to send invite")
 
 
 @app.post("/api/admin/users/{user_id}/reset-password")
@@ -1493,7 +1633,7 @@ async def admin_reset_password(
 @app.post("/api/admin/users")
 async def create_user_by_admin(
     request: AdminCreateUserRequest,
-    http_request: Request,
+    http_req: Request,
     auth = Depends(require_admin)
 ):
     """Create a new user (admin only)"""
@@ -1539,7 +1679,7 @@ async def create_user_by_admin(
         if request.send_welcome_email and is_email_configured():
             try:
                 # Use APP_URL if configured, otherwise fall back to request URL
-                base_url = APP_URL or (http_request.url.scheme + "://" + http_request.url.netloc)
+                base_url = APP_URL or (http_req.url.scheme + "://" + http_req.url.netloc)
 
                 # Create password reset token
                 reset_token = pg_auth.create_password_reset_token(request.email)
@@ -1584,9 +1724,10 @@ async def create_user_by_admin(
             }
 
     except Exception as e:
+        logger.error("Failed to create user: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create user: {str(e)}"
+            detail="Failed to create user"
         )
 
 @app.delete("/api/admin/users/{user_id}")
@@ -1620,20 +1761,3 @@ async def get_admin_stats(auth = Depends(require_admin)):
         "admin_users": admin_users
     }
 
-@app.get("/api/debug/network")
-async def debug_network(request: Request):
-    """Debug endpoint to check IP and network status"""
-    client_ip = get_client_ip(request)
-    is_trusted = is_trusted_network(client_ip)
-    
-    return {
-        "client_ip": client_ip,
-        "is_trusted_network": is_trusted,
-        "headers": {
-            "x-forwarded-for": request.headers.get("x-forwarded-for"),
-            "x-real-ip": request.headers.get("x-real-ip"),
-            "host": request.headers.get("host"),
-        },
-        "auth_mode": AUTH_MODE,
-        "trusted_networks": os.getenv("TRUSTED_NETWORKS", "192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,127.0.0.0/8")
-    }

@@ -2,8 +2,10 @@
 import { Edit, Trash2, MapPin, Tag, Calendar, Plus, Minus } from 'lucide-react';
 import { getColors, borderRadius, spacing, getShadows } from '../colors';
 import { formatDate, getExpiryBadgeText, getExpiryColor } from '../utils/dateUtils';
+import { useTheme } from '../context/ThemeContext';
 
-export function ItemCard({ item, onEdit, onDelete, onSelect, isSelected, isDark, onQuantityChange }) {
+export function ItemCard({ item, onEdit, onDelete, onSelect, isSelected, onQuantityChange }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const shadows = getShadows(isDark);
   const expiryColor = getExpiryColor(item.expiry_date);

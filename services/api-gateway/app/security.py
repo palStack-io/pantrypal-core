@@ -32,9 +32,16 @@ class SecurityService:
 
         Uses PBKDF2 to derive a proper encryption key
         """
-        # Use fixed salt (stored in code)
-        # In production, you might want to use environment variable
-        salt = b'pantrypal_encryption_salt_v1'
+        # Salt read from env var. Changing this will invalidate all existing
+        # encrypted API tokens — users will need to re-enter their integrations.
+        salt_str = os.getenv('ENCRYPTION_SALT', 'pantrypal_encryption_salt_v1')
+        if salt_str == 'pantrypal_encryption_salt_v1':
+            import logging
+            logging.getLogger(__name__).warning(
+                "ENCRYPTION_SALT is using the default value. "
+                "Set ENCRYPTION_SALT to a unique secret in your environment."
+            )
+        salt = salt_str.encode()
 
         # Derive key using PBKDF2
         kdf = PBKDF2HMAC(

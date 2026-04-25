@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -18,7 +18,23 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="PantryPal Inventory Service", version="1.0.0")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://pantrypal:pantrypal_secure_password@postgres:5432/pantrypal")
+INTERNAL_SERVICE_TOKEN = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+
+@app.middleware("http")
+async def verify_internal_token(request: Request, call_next):
+    if request.url.path == "/health":
+        return await call_next(request)
+    if INTERNAL_SERVICE_TOKEN:
+        if request.headers.get("X-Internal-Token", "") != INTERNAL_SERVICE_TOKEN:
+            return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+    return await call_next(request)
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Example: postgresql://pantrypal:yourpassword@postgres:5432/pantrypal"
+    )
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -144,22 +160,26 @@ async def health_check():
 
 @app.post("/items", response_model=ItemResponse)
 async def create_item(item: ItemCreate, db: Session = Depends(get_db)):
-    db_item = ItemDB(**item.dict())
+    db_item = ItemDB(**item.model_dump())
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
     return db_item
 
-@app.get("/items", response_model=List[ItemResponse])
-async def get_items(location: Optional[str] = None, search: Optional[str] = None, db: Session = Depends(get_db)):
+@app.get("/items")
+async def get_items(location: Optional[str] = None, search: Optional[str] = None, limit: Optional[int] = None, offset: int = 0, db: Session = Depends(get_db)):
     query = db.query(ItemDB)
     if location:
         query = query.filter(ItemDB.location == location)
     if search:
         search_term = f"%{search}%"
         query = query.filter((ItemDB.name.ilike(search_term)) | (ItemDB.brand.ilike(search_term)) | (ItemDB.barcode.ilike(search_term)))
-    items = query.order_by(ItemDB.updated_date.desc()).all()
-    return items
+    query = query.order_by(ItemDB.updated_date.desc())
+    if limit is not None:
+        total = query.count()
+        items = query.offset(offset).limit(limit).all()
+        return {"items": items, "total": total, "limit": limit, "offset": offset}
+    return query.all()
 
 @app.get("/items/expiring")
 async def get_expiring_items(days: int = 7, db: Session = Depends(get_db)):
@@ -287,7 +307,7 @@ async def export_csv(db: Session = Depends(get_db)):
 @app.post("/shopping-list", response_model=ShoppingListResponse)
 async def create_shopping_list_item(item: ShoppingListCreate, db: Session = Depends(get_db)):
     """Add an item to the shopping list"""
-    db_item = ShoppingListDB(**item.dict())
+    db_item = ShoppingListDB(**item.model_dump())
     db.add(db_item)
     db.commit()
     db.refresh(db_item)

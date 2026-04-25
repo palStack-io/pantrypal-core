@@ -13,9 +13,10 @@ import LandingPage from './LandingPage';
 import VerifyEmailPage from './VerifyEmailPage';
 import ResetPasswordPage from './ResetPasswordPage';
 import { getItems, getCurrentUser, isServerConfigured } from './api';
-import { useDarkMode } from './hooks/useDarkMode';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ToastProvider } from './components/Toast';
 import { DialogProvider } from './components/DialogProvider';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
 function AppContent() {
@@ -24,7 +25,7 @@ function AppContent() {
   const [currentUser, setCurrentUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [filters, setFilters] = useState({});
-  const { isDark, toggle: toggleDark } = useDarkMode();
+  const { isDark, toggle: toggleDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -90,7 +91,7 @@ function AppContent() {
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: isDark ? '#0c0a09' : '#fafaf9' }}>
         <div style={{ textAlign: 'center' }}>
           <img src="/pantryPal.png" alt="pantryPal" style={{ width: '48px', height: '48px', marginBottom: '16px' }} />
-          <div style={{ fontSize: '18px', color: isDark ? '#d6d3d1' : '#78716c' }}>Loading pantryPal...</div>
+          <div style={{ fontSize: '18px', color: isDark ? '#d6d3d1' : '#6b6460' }}>Loading pantryPal...</div>
         </div>
       </div>
     );
@@ -107,24 +108,23 @@ function AppContent() {
         currentUser={currentUser}
         onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }}
         onBack={() => navigate('/')}
-        isDark={isDark}
       />
     );
   }
 
   return (
     <div className="app">
-      <Sidebar isOpen={sidebarOpen} currentPath={location.pathname} onNavigate={navigate} onFilterChange={handleFilterChange} currentFilters={filters} isDark={isDark} />
-      <TopBar currentUser={currentUser} onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }} onSettingsClick={() => navigate('/settings')} isDark={isDark} onToggleDark={toggleDark} />
+      <Sidebar isOpen={sidebarOpen} currentPath={location.pathname} onNavigate={navigate} onFilterChange={handleFilterChange} currentFilters={filters} />
+      <TopBar currentUser={currentUser} onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }} onSettingsClick={() => navigate('/settings')} onToggleDark={toggleDark} />
       <div className="main-content-wrapper">
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<InventoryPage isDark={isDark} sidebarFilters={filters} />} />
-            <Route path="/inventory" element={<InventoryPage isDark={isDark} sidebarFilters={filters} />} />
-            <Route path="/add" element={<AddItemPage onBack={() => navigate('/inventory')} isDark={isDark} />} />
-            <Route path="/shopping" element={<ShoppingListPage isDark={isDark} />} />
-            <Route path="/insights" element={<InsightsPage isDark={isDark} />} />
-            <Route path="/recipes" element={<RecipesPage isDark={isDark} currentUser={currentUser} />} />
+            <Route path="/" element={<InventoryPage sidebarFilters={filters} />} />
+            <Route path="/inventory" element={<InventoryPage sidebarFilters={filters} />} />
+            <Route path="/add" element={<AddItemPage onBack={() => navigate('/inventory')} />} />
+            <Route path="/shopping" element={<ShoppingListPage />} />
+            <Route path="/insights" element={<InsightsPage />} />
+            <Route path="/recipes" element={<RecipesPage currentUser={currentUser} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
@@ -133,19 +133,20 @@ function AppContent() {
   );
 }
 
-function AppWithToast() {
-  const { isDark } = useDarkMode();
-  return (
-    <ToastProvider isDark={isDark}>
-      <DialogProvider>
-        <AppContent />
-      </DialogProvider>
-    </ToastProvider>
-  );
-}
-
 function App() {
-  return <Router><AppWithToast /></Router>;
+  return (
+    <ErrorBoundary>
+      <ThemeProvider>
+        <Router>
+          <ToastProvider>
+            <DialogProvider>
+              <AppContent />
+            </DialogProvider>
+          </ToastProvider>
+        </Router>
+      </ThemeProvider>
+    </ErrorBoundary>
+  );
 }
 
 export default App;

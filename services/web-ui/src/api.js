@@ -2,39 +2,31 @@ import axios from 'axios';
 
 const DEFAULT_API_URL = '';  // Use relative URLs by default (same origin)
 
-// In-memory fallback for incognito mode
-const memoryStorage = {
-  API_BASE_URL: null,
+// Sensitive tokens live only in memory — never written to localStorage.
+// The server sets an HttpOnly cookie on login; same-origin requests benefit
+// from cookie-based persistence across refreshes automatically.
+const tokenMemory = {
   API_KEY: null,
   SESSION_TOKEN: null,
 };
 
-// Safe localStorage wrapper with fallback to memory storage
+// Scrub any tokens that a previous build may have left in localStorage.
+try {
+  localStorage.removeItem('SESSION_TOKEN');
+  localStorage.removeItem('API_KEY');
+} catch (e) { /* incognito / storage denied */ }
+
+// Safe localStorage wrapper for non-sensitive config (API_BASE_URL only).
 const storage = {
   getItem: (key) => {
-    try {
-      return localStorage.getItem(key) || memoryStorage[key];
-    } catch (e) {
-      // localStorage not available (incognito mode)
-      return memoryStorage[key];
-    }
+    try { return localStorage.getItem(key); } catch (e) { return null; }
   },
   setItem: (key, value) => {
-    try {
-      localStorage.setItem(key, value);
-    } catch (e) {
-      // localStorage not available (incognito mode), use memory
-      memoryStorage[key] = value;
-    }
+    try { localStorage.setItem(key, value); } catch (e) { /* incognito */ }
   },
   removeItem: (key) => {
-    try {
-      localStorage.removeItem(key);
-    } catch (e) {
-      // localStorage not available (incognito mode)
-      memoryStorage[key] = null;
-    }
-  }
+    try { localStorage.removeItem(key); } catch (e) { /* incognito */ }
+  },
 };
 
 // Get API URL from storage or use default (empty string = relative URLs)
@@ -42,43 +34,27 @@ const getApiBaseUrl = () => {
   return storage.getItem('API_BASE_URL') || DEFAULT_API_URL;
 };
 
-// Get API key from storage
-const getApiKey = () => {
-  return storage.getItem('API_KEY') || null;
-};
+// Get API key from memory
+const getApiKey = () => tokenMemory.API_KEY;
 
-// Get session token from storage
-const getSessionToken = () => {
-  return storage.getItem('SESSION_TOKEN') || null;
-};
+// Get session token from memory
+const getSessionToken = () => tokenMemory.SESSION_TOKEN;
 
-// Set API key in storage
+// Set API key (memory-only)
 export const setApiKey = (apiKey) => {
-  if (apiKey && apiKey.trim()) {
-    storage.setItem('API_KEY', apiKey.trim());
-  } else {
-    storage.removeItem('API_KEY');
-  }
+  tokenMemory.API_KEY = (apiKey && apiKey.trim()) ? apiKey.trim() : null;
 };
 
-// Set session token in storage
+// Set session token (memory-only)
 export const setSessionToken = (token) => {
-  if (token && token.trim()) {
-    storage.setItem('SESSION_TOKEN', token.trim());
-  } else {
-    storage.removeItem('SESSION_TOKEN');
-  }
+  tokenMemory.SESSION_TOKEN = (token && token.trim()) ? token.trim() : null;
 };
 
 // Remove API key
-export const removeApiKey = () => {
-  storage.removeItem('API_KEY');
-};
+export const removeApiKey = () => { tokenMemory.API_KEY = null; };
 
 // Remove session token
-export const removeSessionToken = () => {
-  storage.removeItem('SESSION_TOKEN');
-};
+export const removeSessionToken = () => { tokenMemory.SESSION_TOKEN = null; };
 
 // Server configuration functions
 export const setApiBaseUrl = (url) => {
@@ -122,7 +98,7 @@ const createApiInstance = () => {
     baseURL: getApiBaseUrl(),
     timeout: 10000,
     headers,
-    withCredentials: false,  // Set to false for wildcard CORS; use Bearer token instead
+    withCredentials: true,  // Send HttpOnly session cookie on same-origin requests
   });
 
   // Add response interceptor to handle 401 errors
@@ -130,16 +106,9 @@ const createApiInstance = () => {
     (response) => response,
     (error) => {
       if (error.response && error.response.status === 401) {
-        const message = error.response.data?.detail || 'Authentication required';
-        console.error('Authentication error:', message);
-
-        // Clear invalid credentials silently
-        if (getApiKey()) {
-          removeApiKey();
-        }
-        if (getSessionToken()) {
-          removeSessionToken();
-        }
+        // Clear in-memory credentials silently
+        removeApiKey();
+        removeSessionToken();
       }
       return Promise.reject(error);
     }
@@ -161,12 +130,16 @@ export const checkAuthStatus = async () => {
 };
 
 // Get items
-export const getItems = async (location = null, search = null) => {
+export const getItems = async (location = null, search = null, limit = null, offset = 0, signal = null) => {
   const api = createApiInstance();
   const params = {};
   if (location) params.location = location;
   if (search) params.search = search;
-  const response = await api.get('/api/items', { params });
+  if (limit !== null) {
+    params.limit = limit;
+    params.offset = offset;
+  }
+  const response = await api.get('/api/items', { params, signal });
   return response.data;
 };
 
@@ -365,6 +338,48 @@ export const markCooked = async (recipeId) => {
 export const deleteRecipe = async (recipeId) => {
   const api = createApiInstance();
   const response = await api.delete(`/api/recipes/${recipeId}`);
+  return response.data;
+};
+
+// Shopping List
+export const getShoppingList = async (signal = null) => {
+  const api = createApiInstance();
+  const response = await api.get('/api/shopping-list', { signal });
+  return response.data;
+};
+
+export const addShoppingItem = async (itemData) => {
+  const api = createApiInstance();
+  const response = await api.post('/api/shopping-list', itemData);
+  return response.data;
+};
+
+export const updateShoppingItem = async (itemId, updates) => {
+  const api = createApiInstance();
+  const response = await api.put(`/api/shopping-list/${itemId}`, updates);
+  return response.data;
+};
+
+export const deleteShoppingItem = async (itemId) => {
+  const api = createApiInstance();
+  await api.delete(`/api/shopping-list/${itemId}`);
+};
+
+export const clearCheckedShoppingItems = async () => {
+  const api = createApiInstance();
+  const response = await api.delete('/api/shopping-list/clear-checked');
+  return response.data;
+};
+
+export const importCheckedToInventory = async () => {
+  const api = createApiInstance();
+  const response = await api.post('/api/shopping-list/add-checked-to-inventory');
+  return response.data;
+};
+
+export const suggestLowStock = async () => {
+  const api = createApiInstance();
+  const response = await api.post('/api/shopping-list/suggest-low-stock');
   return response.data;
 };
 

@@ -31,7 +31,7 @@ def verify_api_key(plain_key: str, hashed_key: str) -> bool:
     return pwd_context.verify(plain_key, hashed_key)
 
 
-def create_api_key(name: str, description: Optional[str] = None, expires_in_days: Optional[int] = None) -> Dict:
+def create_api_key(name: str, description: Optional[str] = None, expires_in_days: Optional[int] = None, is_read_only: bool = False) -> Dict:
     """
     Create a new API key
     Returns: Dict with the plain key (only time it's shown!) and key info
@@ -55,7 +55,8 @@ def create_api_key(name: str, description: Optional[str] = None, expires_in_days
             description=description,
             created_at=created_at,
             expires_at=expires_at,
-            is_active=True
+            is_active=True,
+            is_read_only=is_read_only
         )
         db.add(api_key)
         db.commit()
@@ -68,7 +69,8 @@ def create_api_key(name: str, description: Optional[str] = None, expires_in_days
             "description": api_key.description,
             "created_at": api_key.created_at.isoformat(),
             "expires_at": api_key.expires_at.isoformat() if api_key.expires_at else None,
-            "is_active": api_key.is_active
+            "is_active": api_key.is_active,
+            "is_read_only": api_key.is_read_only
         }
     finally:
         db.close()
@@ -99,7 +101,8 @@ def validate_api_key(plain_key: str) -> Optional[Dict]:
                     "name": api_key.name,
                     "description": api_key.description,
                     "last_used_at": api_key.last_used_at.isoformat(),
-                    "expires_at": api_key.expires_at.isoformat() if api_key.expires_at else None
+                    "expires_at": api_key.expires_at.isoformat() if api_key.expires_at else None,
+                    "is_read_only": api_key.is_read_only
                 }
 
         return None
@@ -120,7 +123,8 @@ def list_api_keys() -> List[Dict]:
             "created_at": api_key.created_at.isoformat(),
             "last_used_at": api_key.last_used_at.isoformat() if api_key.last_used_at else None,
             "expires_at": api_key.expires_at.isoformat() if api_key.expires_at else None,
-            "is_active": api_key.is_active
+            "is_active": api_key.is_active,
+            "is_read_only": api_key.is_read_only
         } for api_key in api_keys]
     finally:
         db.close()
@@ -142,7 +146,8 @@ def get_api_key(key_id: str) -> Optional[Dict]:
             "created_at": api_key.created_at.isoformat(),
             "last_used_at": api_key.last_used_at.isoformat() if api_key.last_used_at else None,
             "expires_at": api_key.expires_at.isoformat() if api_key.expires_at else None,
-            "is_active": api_key.is_active
+            "is_active": api_key.is_active,
+            "is_read_only": api_key.is_read_only
         }
     finally:
         db.close()

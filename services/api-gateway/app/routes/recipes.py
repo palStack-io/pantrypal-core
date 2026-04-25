@@ -14,6 +14,9 @@ from sqlalchemy import desc, asc
 from typing import List, Optional
 from pydantic import BaseModel
 import httpx
+import logging
+
+logger = logging.getLogger(__name__)
 
 from ..database import get_db
 from ..models import User, Recipe, RecipeIntegration, UserRecipePreference
@@ -122,7 +125,8 @@ async def create_recipe_integration(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Connection test failed: {str(e)}")
+        logger.warning("Recipe integration connection test failed: %s", e)
+        raise HTTPException(status_code=400, detail="Connection test failed — check the URL and token")
 
     # Encrypt API token
     security = get_security_service()
@@ -469,18 +473,21 @@ async def match_recipes_to_pantry(
     """
     import os
     inventory_url = os.getenv("INVENTORY_SERVICE_URL", "http://inventory-service:8001")
+    _internal_token = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+    _internal_headers = {"X-Internal-Token": _internal_token} if _internal_token else {}
 
     # Fetch pantry items from inventory service
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 f"{inventory_url}/items",
-                headers={"X-User-ID": current_user.id}
+                headers={"X-User-ID": current_user.id, **_internal_headers}
             )
             response.raise_for_status()
             pantry_items = response.json()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch pantry: {str(e)}")
+        logger.error("Failed to fetch pantry from inventory service: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to fetch pantry items")
 
     # Run matcher
     matcher = get_recipe_matcher(db)

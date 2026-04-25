@@ -1,182 +1,128 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+import {
+  getShoppingList,
+  addShoppingItem,
+  updateShoppingItem,
+  deleteShoppingItem,
+  clearCheckedShoppingItems,
+  importCheckedToInventory as apiImportChecked,
+  suggestLowStock as apiSuggestLowStock,
+} from '../api';
 
 export function useShoppingItems() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const abortRef = useRef(null);
 
   const fetchItems = async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       setLoading(true);
-      const response = await fetch('/api/shopping-list', {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch shopping list');
-      }
-
-      const data = await response.json();
+      const data = await getShoppingList(controller.signal);
       setItems(data);
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch shopping items:', err);
-      setError(err.message);
+      if (axios.isCancel(err) || err.name === 'AbortError' || err.name === 'CanceledError') return;
+      setError(err.message || 'Failed to fetch shopping list');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchItems();
+    return () => { abortRef.current?.abort(); };
   }, []);
 
   const addItem = async (itemData) => {
-    try {
-      const response = await fetch('/api/shopping-list', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(itemData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add item');
-      }
-
-      const newItem = await response.json();
-      setItems([newItem, ...items]);
-      return newItem;
-    } catch (err) {
-      console.error('Failed to add item:', err);
-      throw err;
-    }
+    const newItem = await addShoppingItem(itemData);
+    setItems((prev) => [newItem, ...prev]);
+    return newItem;
   };
 
   const updateItem = async (itemId, updates) => {
-    try {
-      const response = await fetch(`/api/shopping-list/${itemId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(updates)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update item');
-      }
-
-      const updatedItem = await response.json();
-      setItems(items.map(item =>
-        item.id === itemId ? updatedItem : item
-      ));
-      return updatedItem;
-    } catch (err) {
-      console.error('Failed to update item:', err);
-      throw err;
-    }
+    const updatedItem = await updateShoppingItem(itemId, updates);
+    setItems((prev) => prev.map((item) => (item.id === itemId ? updatedItem : item)));
+    return updatedItem;
   };
 
-  const deleteItem = async (itemId) => {
-    try {
-      const response = await fetch(`/api/shopping-list/${itemId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
+  const UNDO_DELAY_MS = 5000;
 
-      if (!response.ok) {
-        throw new Error('Failed to delete item');
+  const deleteItem = (itemId) => {
+    const snapshot = items.find(item => item.id === itemId);
+    setItems(prev => prev.filter(item => item.id !== itemId));
+
+    let cancelled = false;
+    const timeoutId = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        await deleteShoppingItem(itemId);
+      } catch (_err) {
+        if (snapshot) setItems(prev => {
+          const existing = new Set(prev.map(i => i.id));
+          return existing.has(itemId) ? prev : [...prev, snapshot];
+        });
       }
+    }, UNDO_DELAY_MS);
 
-      setItems(items.filter(item => item.id !== itemId));
-    } catch (err) {
-      console.error('Failed to delete item:', err);
-      throw err;
-    }
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      if (snapshot) setItems(prev => {
+        const existing = new Set(prev.map(i => i.id));
+        return existing.has(itemId) ? prev : [...prev, snapshot];
+      });
+    };
   };
 
   const toggleChecked = async (itemId) => {
-    const item = items.find(i => i.id === itemId);
+    const item = items.find((i) => i.id === itemId);
     if (!item) return;
-
-    try {
-      const response = await fetch(`/api/shopping-list/${itemId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ checked: !item.checked })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to toggle item');
-      }
-
-      const updatedItem = await response.json();
-      setItems(items.map(i =>
-        i.id === itemId ? updatedItem : i
-      ));
-    } catch (err) {
-      console.error('Failed to toggle item:', err);
-      throw err;
-    }
+    const updatedItem = await updateShoppingItem(itemId, { checked: !item.checked });
+    setItems((prev) => prev.map((i) => (i.id === itemId ? updatedItem : i)));
   };
 
-  const clearChecked = async () => {
-    try {
-      const response = await fetch('/api/shopping-list/clear-checked', {
-        method: 'DELETE',
-        credentials: 'include'
-      });
+  const clearChecked = () => {
+    const checked = items.filter(item => item.checked);
+    setItems(prev => prev.filter(item => !item.checked));
 
-      if (!response.ok) {
-        throw new Error('Failed to clear checked items');
+    let cancelled = false;
+    const timeoutId = setTimeout(async () => {
+      if (cancelled) return;
+      try {
+        await clearCheckedShoppingItems();
+      } catch (_err) {
+        setItems(prev => {
+          const existing = new Set(prev.map(i => i.id));
+          return [...prev, ...checked.filter(c => !existing.has(c.id))];
+        });
       }
+    }, UNDO_DELAY_MS);
 
-      setItems(items.filter(item => !item.checked));
-    } catch (err) {
-      console.error('Failed to clear checked items:', err);
-      throw err;
-    }
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      setItems(prev => {
+        const existing = new Set(prev.map(i => i.id));
+        return [...prev, ...checked.filter(c => !existing.has(c.id))];
+      });
+    };
   };
 
   const importCheckedToInventory = async () => {
-    try {
-      const response = await fetch('/api/shopping-list/add-checked-to-inventory', {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to import items');
-      }
-
-      const result = await response.json();
-      setItems(items.filter(item => !item.checked));
-      return result;
-    } catch (err) {
-      console.error('Failed to import items:', err);
-      throw err;
-    }
+    const result = await apiImportChecked();
+    setItems((prev) => prev.filter((item) => !item.checked));
+    return result;
   };
 
   const suggestLowStock = async () => {
-    try {
-      const response = await fetch('/api/shopping-list/suggest-low-stock', {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to suggest items');
-      }
-
-      const result = await response.json();
-      await fetchItems(); // Refresh the list
-      return result;
-    } catch (err) {
-      console.error('Failed to suggest items:', err);
-      throw err;
-    }
+    const result = await apiSuggestLowStock();
+    await fetchItems();
+    return result;
   };
 
   return {
@@ -190,6 +136,6 @@ export function useShoppingItems() {
     clearChecked,
     importCheckedToInventory,
     suggestLowStock,
-    refetch: fetchItems
+    refetch: fetchItems,
   };
 }

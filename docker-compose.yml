@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_DB: pantrypal
       POSTGRES_USER: pantrypal
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-pantrypal_secure_password}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -33,8 +33,8 @@ services:
     container_name: pantrypal-minio
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
     volumes:
       - minio_data:/data
     networks:
@@ -93,14 +93,15 @@ services:
       # Service URLs
       - INVENTORY_SERVICE_URL=http://inventory-service:8001
       - LOOKUP_SERVICE_URL=http://lookup-service:8002
+      - "INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN must be set in .env}"
 
       # Database (PostgreSQL)
-      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:-pantrypal_secure_password}@postgres:5432/pantrypal
+      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:?DB_PASSWORD must be set in .env}@postgres:5432/pantrypal
 
       # MinIO Configuration
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in .env}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
       - MINIO_SECURE=false
 
       # Bucket Names
@@ -113,24 +114,18 @@ services:
       - ENABLE_RECIPE_INTEGRATION=true
 
       # Security
-      - SECRET_KEY=${SECRET_KEY:-change-this-to-a-random-secret-key-in-production}
+      - "SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}"
+      - "ENCRYPTION_SALT=${ENCRYPTION_SALT:?ENCRYPTION_SALT must be set in .env}"
 
       # Authentication
-      - AUTH_MODE=${AUTH_MODE:-full}  # Options: none, api_key_only, full, smart
-      # none: No authentication (open access)
-      # api_key_only: API keys required for all requests
-      # full: Login required for UI, API keys OR session for API
-      # smart: Local network = open, external = login/API key required (uses TRUSTED_NETWORKS)
-      #
-      # Shared Household Model:
-      # - Default admin account: admin/admin (change password on first login!)
-      # - Registration disabled by default (admin creates users)
-      # - Recipes and pantry shared across all users
-      # - Favorites, notes, and cooking history are per-user
-      - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-false}  # Default: false (admin creates users)
+      # Options: none, api_key_only, full, smart
+      - AUTH_MODE=${AUTH_MODE:-full}
+      - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-false}
 
-      # Demo Mode (creates demo accounts on startup: demo/demo123, admin/admin123)
+      # Demo Mode (creates demo accounts on startup)
       - DEMO_MODE=${DEMO_MODE:-false}
+      - DEMO_ACCOUNT_PASSWORD=${DEMO_ACCOUNT_PASSWORD:-demo12345}
+      - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:-admin12345}
       - DEMO_MEALIE_URL=${DEMO_MEALIE_URL:-}
       - DEMO_MEALIE_TOKEN=${DEMO_MEALIE_TOKEN:-}
       # CORS Configuration
@@ -169,7 +164,8 @@ services:
       dockerfile: Dockerfile
     container_name: pantrypal-inventory-service
     environment:
-      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:-pantrypal_secure_password}@postgres:5432/pantrypal
+      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:?DB_PASSWORD must be set in .env}@postgres:5432/pantrypal
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN must be set in .env}
       - BACKUP_ENABLED=false
       - BACKUP_SCHEDULE=0 2 * * *
       - BACKUP_RETENTION_DAYS=7
@@ -189,7 +185,8 @@ services:
       dockerfile: Dockerfile
     container_name: pantrypal-lookup-service
     environment:
-      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:-pantrypal_secure_password}@postgres:5432/pantrypal
+      - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:?DB_PASSWORD must be set in .env}@postgres:5432/pantrypal
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN must be set in .env}
       - CACHE_TTL_DAYS=30
     networks:
       - pantrypal-network
@@ -218,14 +215,14 @@ services:
       # Set to true to run a backup immediately on container start
       - BACKUP_ON_START=${BACKUP_ON_START:-false}
       # PostgreSQL credentials
-      - DB_PASSWORD=${DB_PASSWORD:-pantrypal_secure_password}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set in .env}
       - POSTGRES_HOST=postgres
       - POSTGRES_USER=pantrypal
       - POSTGRES_DB=pantrypal
       # MinIO credentials
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin123}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in .env}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
       # Backup output path (inside container)
       - BACKUP_PATH=/backups
     volumes:

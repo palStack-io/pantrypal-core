@@ -1,10 +1,26 @@
 // Filter panel for inventory
+import { useState, useEffect } from 'react';
 import { Search, MapPin, Tag, Calendar, X } from 'lucide-react';
 import { getColors, borderRadius, spacing, getShadows } from '../colors';
+import { useDebounce } from '../hooks/useDebounce';
+import { useTheme } from '../context/ThemeContext';
 
-export function FilterPanel({ filters, onFilterChange, locations, categories, isDark }) {
+export function FilterPanel({ filters, onFilterChange, locations, categories }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const shadows = getShadows(isDark);
+  const [searchInput, setSearchInput] = useState(filters.search || '');
+  const debouncedSearch = useDebounce(searchInput, 300);
+
+  useEffect(() => {
+    if (debouncedSearch !== (filters.search || '')) {
+      onFilterChange({ search: debouncedSearch });
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    if (!filters.search) setSearchInput('');
+  }, [filters.search]);
   const expiryOptions = [
     { value: 'all', label: 'All Items' },
     { value: 'good', label: 'Good (7+ days)' },
@@ -58,8 +74,8 @@ export function FilterPanel({ filters, onFilterChange, locations, categories, is
           </label>
           <input
             type="text"
-            value={filters.search || ''}
-            onChange={(e) => onFilterChange({ search: e.target.value })}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search items..."
             style={{
               width: '100%',

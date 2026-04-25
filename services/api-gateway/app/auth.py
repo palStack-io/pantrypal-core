@@ -12,7 +12,7 @@ from .models import User
 get_password_hash = hash_password
 
 # Authentication mode: none, api_key_only, full, or smart
-AUTH_MODE = os.getenv("AUTH_MODE", "none").lower()
+AUTH_MODE = os.getenv("AUTH_MODE", "full").lower()
 
 
 async def verify_api_key_only(x_api_key: Optional[str] = Header(None)):
@@ -235,6 +235,19 @@ async def require_admin(
             detail="Admin access required"
         )
     
+    return auth
+
+
+async def require_write_scope(auth=Depends(get_current_auth)):
+    """
+    Dependency that rejects read-only API keys on mutation endpoints.
+    Session users and non-read-only API keys pass through unchanged.
+    """
+    if auth.get("type") == "api_key" and auth.get("is_read_only"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This API key is read-only and cannot perform write operations"
+        )
     return auth
 
 

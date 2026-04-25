@@ -1,11 +1,9 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { Modal } from './Modal';
-import { useDarkMode } from '../hooks/useDarkMode';
 
 const DialogContext = createContext(null);
 
 export function DialogProvider({ children }) {
-  const { isDark } = useDarkMode();
   const [dialog, setDialog] = useState(null);
   const resolveRef = useRef(null);
 
@@ -39,7 +37,6 @@ export function DialogProvider({ children }) {
         isOpen={!!dialog}
         onClose={handleCancel}
         title={dialog?.title || 'Confirm'}
-        isDark={isDark}
         variant="confirm"
         icon={dialog?.icon}
         confirmLabel={dialog?.confirmLabel || 'Confirm'}

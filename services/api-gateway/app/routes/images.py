@@ -9,6 +9,24 @@ Shared Household Model:
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
 from sqlalchemy.orm import Session
 from typing import Optional
+import os
+
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))  # 10 MB default
+
+_VALID_IMAGE_SIGNATURES = (
+    b'\xff\xd8\xff',       # JPEG
+    b'\x89PNG\r\n\x1a\n',  # PNG
+    b'GIF87a',             # GIF
+    b'GIF89a',             # GIF
+)
+
+def _validate_image(data: bytes) -> None:
+    if any(data.startswith(sig) for sig in _VALID_IMAGE_SIGNATURES):
+        return
+    # WebP: RIFF????WEBP
+    if len(data) >= 12 and data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return
+    raise HTTPException(status_code=400, detail="File does not appear to be a valid image")
 
 from ..database import get_db
 from ..models import ProductImage, UserImage, RecipeImage, Recipe, User
@@ -131,12 +149,17 @@ async def upload_custom_image(
     Upload custom image for an inventory item
     Requires authentication - per-user images
     """
-    # Validate file type
+    # Validate file type (content-type header check — quick, not authoritative)
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="File must be an image")
 
-    # Read file data
-    image_data = await file.read()
+    # Read up to limit + 1 byte to detect oversized files without loading everything
+    image_data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(image_data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")
+
+    # Validate actual file bytes (magic number check)
+    _validate_image(image_data)
 
     # Upload to MinIO
     try:
@@ -195,12 +218,17 @@ async def upload_recipe_image(
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
-    # Validate file type
+    # Validate file type (content-type header check — quick, not authoritative)
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="File must be an image")
 
-    # Read file data
-    image_data = await file.read()
+    # Read up to limit + 1 byte to detect oversized files without loading everything
+    image_data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(image_data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)")
+
+    # Validate actual file bytes (magic number check)
+    _validate_image(image_data)
 
     # Upload to MinIO (use "shared" as user_id for shared recipes)
     try:

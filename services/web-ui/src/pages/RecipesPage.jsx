@@ -17,6 +17,8 @@ import {
   markCooked,
   updateRecipeNotes
 } from '../api';
+import { RecipeSkeleton } from '../components/SkeletonLoader';
+import { useTheme } from '../context/ThemeContext';
 
 // Extract clean ingredient name from full ingredient string
 // e.g., "4T ground flax mixed with 10t water" -> "ground flax"
@@ -71,7 +73,8 @@ const addToShoppingList = async (items) => {
   return results;
 };
 
-export function RecipesPage({ isDark, currentUser }) {
+export function RecipesPage({ currentUser }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const isAdmin = currentUser?.is_admin;
 
@@ -515,14 +518,14 @@ export function RecipesPage({ isDark, currentUser }) {
                   style={{
                     padding: '14px',
                     borderRadius: '12px',
-                    background: colors.card,
-                    border: `2px solid ${colors.borderDark}`,
-                    color: colors.textSecondary,
+                    background: 'transparent',
+                    border: '2px solid #f97316',
+                    color: '#f97316',
                     fontWeight: '700',
                     fontSize: '15px',
                     cursor: testingConnection || !serverUrl || !apiToken ? 'not-allowed' : 'pointer',
                     fontFamily: 'inherit',
-                    opacity: testingConnection || !serverUrl || !apiToken ? 0.6 : 1,
+                    opacity: testingConnection || !serverUrl || !apiToken ? 0.45 : 1,
                   }}
                 >
                   {testingConnection ? '🔄 Testing...' : '🧪 Test Connection'}
@@ -532,15 +535,16 @@ export function RecipesPage({ isDark, currentUser }) {
                   disabled={setupLoading || !serverUrl || !apiToken}
                   style={{
                     padding: '14px 32px',
-                    borderRadius: '14px',
-                    background: setupLoading || !serverUrl || !apiToken ? colors.textSecondary : 'linear-gradient(135deg, #f97316, #fbbf24)',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #f97316, #fbbf24)',
                     color: 'white',
                     fontWeight: '700',
-                    fontSize: '16px',
+                    fontSize: '15px',
                     cursor: setupLoading || !serverUrl || !apiToken ? 'not-allowed' : 'pointer',
                     border: 'none',
-                    boxShadow: '0 6px 16px rgba(245, 158, 11, 0.3)',
+                    boxShadow: setupLoading || !serverUrl || !apiToken ? 'none' : '0 4px 14px rgba(249, 115, 22, 0.35)',
                     fontFamily: 'inherit',
+                    opacity: setupLoading || !serverUrl || !apiToken ? 0.45 : 1,
                   }}
                 >
                   {setupLoading ? 'Saving...' : '💾 Save Connection'}
@@ -655,13 +659,14 @@ export function RecipesPage({ isDark, currentUser }) {
                     style={{
                       padding: '14px',
                       borderRadius: '12px',
-                      background: colors.card,
-                      border: `2px solid #f97316`,
+                      background: 'transparent',
+                      border: '2px solid #f97316',
                       color: '#f97316',
                       fontWeight: '700',
                       fontSize: '15px',
                       cursor: matching ? 'not-allowed' : 'pointer',
                       fontFamily: 'inherit',
+                      opacity: matching ? 0.45 : 1,
                     }}
                   >
                     {matching ? '🔄 Syncing...' : '🔄 Sync Now'}
@@ -671,15 +676,16 @@ export function RecipesPage({ isDark, currentUser }) {
                     disabled={importing}
                     style={{
                       padding: '14px 32px',
-                      borderRadius: '14px',
-                      background: importing ? colors.textSecondary : 'linear-gradient(135deg, #f97316, #fbbf24)',
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #f97316, #fbbf24)',
                       color: 'white',
                       fontWeight: '700',
-                      fontSize: '16px',
+                      fontSize: '15px',
                       cursor: importing ? 'not-allowed' : 'pointer',
                       border: 'none',
-                      boxShadow: '0 6px 16px rgba(245, 158, 11, 0.3)',
+                      boxShadow: importing ? 'none' : '0 4px 14px rgba(249, 115, 22, 0.35)',
                       fontFamily: 'inherit',
+                      opacity: importing ? 0.45 : 1,
                     }}
                   >
                     {importing ? '📥 Importing...' : '📥 Re-Import All Recipes'}
@@ -728,7 +734,6 @@ export function RecipesPage({ isDark, currentUser }) {
       <RecipeDetailView
         recipe={selectedRecipe}
         colors={colors}
-        isDark={isDark}
         onBack={() => {
           setView('list');
           setSelectedRecipe(null);
@@ -915,11 +920,7 @@ export function RecipesPage({ isDark, currentUser }) {
       )}
 
       {/* Loading */}
-      {loading && (
-        <div style={{ textAlign: 'center', padding: spacing.xxl, color: colors.textSecondary }}>
-          Loading recipes...
-        </div>
-      )}
+      {loading && <RecipeSkeleton count={4} />}
 
       {/* Empty State */}
       {!loading && recipes.length === 0 && (
@@ -971,7 +972,6 @@ export function RecipesPage({ isDark, currentUser }) {
               key={recipe.id}
               recipe={recipe}
               colors={colors}
-              isDark={isDark}
               onToggleFavorite={handleToggleFavorite}
               onClick={() => handleRecipeClick(recipe)}
               onAddMissingToShoppingList={handleAddMissingToShoppingList}
@@ -983,7 +983,8 @@ export function RecipesPage({ isDark, currentUser }) {
   );
 }
 
-function RecipeCard({ recipe, colors, isDark, onToggleFavorite, onClick, onAddMissingToShoppingList }) {
+function RecipeCard({ recipe, colors, onToggleFavorite, onClick, onAddMissingToShoppingList }) {
+  const { isDark } = useTheme();
   const matchPercentage = Math.round(recipe.match_percentage || 0);
   const hasExpiring = (recipe.expiring_ingredient_count || 0) > 0;
   const missingCount = recipe.missing_ingredient_count || 0;
@@ -1183,7 +1184,8 @@ function RecipeCard({ recipe, colors, isDark, onToggleFavorite, onClick, onAddMi
   );
 }
 
-function RecipeDetailView({ recipe, colors, isDark, onBack, onToggleFavorite, onAddMissingToShoppingList, showSuccess }) {
+function RecipeDetailView({ recipe, colors, onBack, onToggleFavorite, onAddMissingToShoppingList, showSuccess }) {
+  const { isDark } = useTheme();
   const [notes, setNotes] = useState(recipe.notes || '');
   const [savingNotes, setSavingNotes] = useState(false);
 

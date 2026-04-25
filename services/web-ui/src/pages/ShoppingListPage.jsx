@@ -5,8 +5,10 @@ import { useShoppingItems } from '../hooks/useShoppingItems';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../components/Toast';
 import { useDialog } from '../components/DialogProvider';
+import { useTheme } from '../context/ThemeContext';
 
-export function ShoppingListPage({ isDark }) {
+export function ShoppingListPage() {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const toast = useToast();
   const dialog = useDialog();
@@ -69,18 +71,31 @@ export function ShoppingListPage({ isDark }) {
     }
   };
 
+  const handleDeleteShoppingItem = (itemId) => {
+    const undo = deleteItem(itemId);
+    toast.show({
+      message: 'Item removed.',
+      type: 'info',
+      duration: 5500,
+      action: { label: 'Undo', onClick: undo },
+    });
+  };
+
   const handleClearChecked = async () => {
+    const checkedCount = items.filter(i => i.checked).length;
+    if (!checkedCount) return;
     if (!await dialog.confirm('All checked items will be removed from the list.', {
       title: 'Clear Checked Items',
       confirmLabel: 'Clear',
       icon: '🛒',
     })) return;
-    try {
-      await clearChecked();
-      toast.success('Checked items cleared');
-    } catch (err) {
-      toast.error('Failed to clear items');
-    }
+    const undo = clearChecked();
+    toast.show({
+      message: `${checkedCount} item${checkedCount !== 1 ? 's' : ''} cleared.`,
+      type: 'info',
+      duration: 5500,
+      action: { label: 'Undo', onClick: undo },
+    });
   };
 
   const groupedItems = groupBy === 'category'
@@ -244,7 +259,7 @@ export function ShoppingListPage({ isDark }) {
                         )}
                       </div>
                       <button
-                        onClick={() => deleteItem(item.id)}
+                        onClick={() => handleDeleteShoppingItem(item.id)}
                         style={{
                           width: '32px',
                           height: '32px',

@@ -5,8 +5,10 @@ import { getColors, spacing, borderRadius } from '../colors';
 import { useItems } from '../hooks/useItems';
 import { formatDate, getExpiryBadgeText, getExpiryStatus } from '../utils/dateUtils';
 import { getEmojiForCategory, getEmojiForLocation } from '../defaults';
+import { useTheme } from '../context/ThemeContext';
 
-export function InventoryTable({ isDark, filters = {}, searchQuery = '' }) {
+export function InventoryTable({ filters = {}, searchQuery = '' }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const { items, loading, removeItem } = useItems();
   const [sortBy, setSortBy] = useState('expiry');

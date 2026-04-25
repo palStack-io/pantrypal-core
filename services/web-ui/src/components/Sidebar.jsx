@@ -5,8 +5,10 @@ import { getColors, spacing, borderRadius, getShadows, getGradient } from '../co
 import { useItems } from '../hooks/useItems';
 import { getExpiryStatus } from '../utils/dateUtils';
 import { getEmojiForLocation, getEmojiForCategory } from '../defaults';
+import { useTheme } from '../context/ThemeContext';
 
-export function Sidebar({ isOpen, currentPath, onNavigate, isDark, onFilterChange, currentFilters = {} }) {
+export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, currentFilters = {} }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const gradient = getGradient(isDark);
   const shadows = getShadows(isDark);

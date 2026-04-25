@@ -12,6 +12,7 @@
 
 import { useState } from 'react';
 import { getColors, getGradient, borderRadius, spacing } from '../colors';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Button({
   children,
@@ -23,11 +24,11 @@ export default function Button({
   icon,
   iconRight,
   fullWidth = false,
-  isDark = false,
   style = {},
   type = 'button',
 }) {
   const [pressed, setPressed] = useState(false);
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const gradient = getGradient(isDark);
 

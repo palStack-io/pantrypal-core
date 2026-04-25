@@ -103,7 +103,9 @@ services:
       MINIO_BUCKET_RECIPES: pantrypal-recipes
 
       # ── Security ──────────────────────────────────────────────────────────
-      SECRET_KEY: CHANGEME_run_openssl_rand_hex_32    # ← required
+      SECRET_KEY: CHANGEME_run_openssl_rand_hex_32          # ← required
+      ENCRYPTION_SALT: CHANGEME_run_openssl_rand_base64_32  # ← required
+      INTERNAL_SERVICE_TOKEN: CHANGEME_run_openssl_rand_hex_32  # ← required
 
       # ── Authentication ────────────────────────────────────────────────────
       # none | api_key_only | full | smart
@@ -118,6 +120,7 @@ services:
 
       # ── Demo Mode (optional) ──────────────────────────────────────────────
       DEMO_MODE: "false"
+      DEMO_ACCOUNT_PASSWORD: demo123
       DEMO_MEALIE_URL: ""
       DEMO_MEALIE_TOKEN: ""
 
@@ -152,6 +155,7 @@ services:
     container_name: pantrypal-inventory-service
     environment:
       DATABASE_URL: postgresql://pantrypal:CHANGEME_DB_PASSWORD@postgres:5432/pantrypal
+      INTERNAL_SERVICE_TOKEN: CHANGEME_run_openssl_rand_hex_32  # ← must match api-gateway above
       BACKUP_ENABLED: "false"
       BACKUP_SCHEDULE: "0 2 * * *"
       BACKUP_RETENTION_DAYS: "7"
@@ -170,6 +174,7 @@ services:
     container_name: pantrypal-lookup-service
     environment:
       DATABASE_URL: postgresql://pantrypal:CHANGEME_DB_PASSWORD@postgres:5432/pantrypal
+      INTERNAL_SERVICE_TOKEN: CHANGEME_run_openssl_rand_hex_32  # ← must match api-gateway above
       CACHE_TTL_DAYS: "30"
     networks:
       - pantrypal-network

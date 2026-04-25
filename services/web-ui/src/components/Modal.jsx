@@ -2,13 +2,13 @@
  * Modal — animated, dark-mode-aware overlay dialog.
  *
  * Usage:
- *   <Modal isOpen={open} onClose={() => setOpen(false)} title="Edit Item" isDark={isDark}>
+ *   <Modal isOpen={open} onClose={() => setOpen(false)} title="Edit Item">
  *     ...content
  *   </Modal>
  *
  *   // Confirmation variant
  *   <Modal
- *     isOpen={open} onClose={cancel} title="Delete Item" isDark={isDark}
+ *     isOpen={open} onClose={cancel} title="Delete Item"
  *     variant="confirm"
  *     icon="🗑️"
  *     confirmLabel="Delete" confirmVariant="danger"
@@ -23,6 +23,7 @@ import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { getColors, borderRadius, spacing } from '../colors';
 import Button from './Button';
+import { useTheme } from '../context/ThemeContext';
 
 export function Modal({
   isOpen,
@@ -30,7 +31,6 @@ export function Modal({
   title,
   children,
   width = '500px',
-  isDark = false,
   // Confirm variant extras
   variant = 'default',
   icon,
@@ -40,6 +40,7 @@ export function Modal({
   onConfirm,
   loading = false,
 }) {
+  const { isDark } = useTheme();
   const colors = getColors(isDark);
   const contentRef = useRef(null);
 
@@ -169,10 +170,10 @@ export function Modal({
               borderTop: `1px solid ${borderColor}`,
               flexShrink: 0,
             }}>
-              <Button variant="ghost" size="md" isDark={isDark} onClick={onClose}>
+              <Button variant="ghost" size="md" onClick={onClose}>
                 {cancelLabel}
               </Button>
-              <Button variant={confirmVariant} size="md" isDark={isDark} loading={loading} onClick={onConfirm}>
+              <Button variant={confirmVariant} size="md" loading={loading} onClick={onConfirm}>
                 {confirmLabel}
               </Button>
             </div>
