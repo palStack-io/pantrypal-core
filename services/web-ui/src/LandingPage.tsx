@@ -252,8 +252,8 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
           )}
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: spacing.md }}>
-              <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Username</label>
-              <input type="text" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} required autoFocus style={inputStyle} />
+              <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Username or Email</label>
+              <input type="text" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} required autoFocus autoComplete="username" style={inputStyle} />
             </div>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Password</label>

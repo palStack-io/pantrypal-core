@@ -90,12 +90,15 @@ def create_user(
 
 def authenticate_user(username: str, password: str) -> Optional[Dict]:
     """
-    Authenticate a user with username and password
-    Returns user info if successful, None otherwise
+    Authenticate a user with username or email and password.
+    Returns user info if successful, None otherwise.
     """
     db = SessionLocal()
     try:
+        # Allow login with either username or email
         user = db.query(User).filter(User.username == username).first()
+        if not user:
+            user = db.query(User).filter(User.email == username).first()
 
         if not user:
             return None

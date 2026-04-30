@@ -65,14 +65,22 @@ def send_email(to_email: str, subject: str, html_content: str, text_content: Opt
         raise
 
 
-def send_password_reset_email(to_email: str, reset_token: str, base_url: str):
+def send_password_reset_email(to_email: str, reset_token: str, base_url: str, username: str = ""):
     """
     Send password reset email with token link
     """
     reset_link = f"{base_url}/reset-password?token={reset_token}"
-    
+
     subject = "Reset Your PantryPal Password"
-    
+
+    greeting = f"<h2>Hi {username}! 👋</h2>" if username else "<h2>Reset Your Password</h2>"
+    username_block = (
+        f'<div style="background: #f3f4f6; border-left: 4px solid #667eea; padding: 12px 16px; margin: 16px 0; border-radius: 0 6px 6px 0;">'
+        f'<p style="margin: 0; font-size: 14px; color: #6b7280;">Your username</p>'
+        f'<p style="margin: 4px 0 0 0; font-size: 18px; font-weight: bold; font-family: monospace; color: #111;">{username}</p>'
+        f'</div>'
+    ) if username else ""
+
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -94,8 +102,9 @@ def send_password_reset_email(to_email: str, reset_token: str, base_url: str):
                 <p style="margin: 5px 0 0 0; opacity: 0.9;">Part of PalStack</p>
             </div>
             <div class="content">
-                <h2>Reset Your Password</h2>
+                {greeting}
                 <p>We received a request to reset your password for your PantryPal account.</p>
+                {username_block}
                 <p>Click the button below to create a new password:</p>
                 <div style="text-align: center;">
                     <a href="{reset_link}" class="button">Reset Password</a>
@@ -105,7 +114,7 @@ def send_password_reset_email(to_email: str, reset_token: str, base_url: str):
                     For your security, this password reset link will only work once and expires in 60 minutes.
                 </div>
                 <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-                    If you didn't request this password reset, you can safely ignore this email. 
+                    If you didn't request this password reset, you can safely ignore this email.
                     Your password will remain unchanged.
                 </p>
                 <p style="color: #6b7280; font-size: 14px;">
@@ -121,23 +130,26 @@ def send_password_reset_email(to_email: str, reset_token: str, base_url: str):
     </body>
     </html>
     """
-    
+
+    username_line = f"\n    Your username: {username}\n" if username else ""
+
     text_content = f"""
     Reset Your PantryPal Password
-    
+    {"Hi " + username + "!" if username else ""}
+
     We received a request to reset your password for your PantryPal account.
-    
+    {username_line}
     Click this link to create a new password:
     {reset_link}
-    
+
     This link expires in 1 hour.
-    
+
     If you didn't request this password reset, you can safely ignore this email.
-    
+
     ---
     PantryPal - Self-hosted pantry management
     """
-    
+
     send_email(to_email, subject, html_content, text_content)
 
 

@@ -495,14 +495,15 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest):
             detail="Email service not configured. Contact your administrator."
         )
 
-    # Create reset token (returns None if user not found - don't reveal this)
-    token = pg_auth.create_password_reset_token(body.email)
+    # Look up user first to get username (don't reveal if email exists)
+    user = pg_auth.find_user_by_email(body.email)
+    token = pg_auth.create_password_reset_token(body.email) if user else None
 
     if token:
         try:
             # Use APP_URL if configured, otherwise fall back to request URL
             base_url = APP_URL or (request.url.scheme + "://" + request.url.netloc)
-            send_password_reset_email(body.email, token, base_url)
+            send_password_reset_email(body.email, token, base_url, username=user["username"])
         except Exception as e:
             print(f"Failed to send reset email: {e}")
             raise HTTPException(
