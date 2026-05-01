@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getLocations, getCategories } from '../api';
-import { getDefaultLocationNames, getDefaultCategoryNames } from '../defaults';
+import { getDefaultLocationNames, getDefaultCategories, getDefaultCategoryNames } from '../defaults';
+import type { CategoryOption } from '../types';
 
 export interface UseLocationsReturn {
   locations: string[];
   categories: string[];
+  categoryObjects: CategoryOption[];
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -15,6 +17,7 @@ export interface UseLocationsReturn {
 export function useLocations(): UseLocationsReturn {
   const [locations, setLocations] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [categoryObjects, setCategoryObjects] = useState<CategoryOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,13 +46,27 @@ export function useLocations(): UseLocationsReturn {
       setError(null);
       try {
         const data = await getCategories();
-        setCategories(Array.isArray(data) ? data.map(c => (typeof c === 'string' ? c : c.name)) : []);
+        if (Array.isArray(data) && data.length > 0) {
+          const objs: CategoryOption[] = data.map(c =>
+            typeof c === 'string' ? { name: c, emoji: '📦' } : { name: c.name, emoji: c.emoji ?? '📦' }
+          );
+          setCategoryObjects(objs);
+          setCategories(objs.map(c => c.name));
+        } else {
+          const defaults = getDefaultCategories();
+          setCategoryObjects(defaults);
+          setCategories(defaults.map(c => c.name));
+        }
       } catch {
+        const defaults = getDefaultCategories();
+        setCategoryObjects(defaults);
         setCategories(getDefaultCategoryNames());
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load categories';
       setError(msg);
+      const defaults = getDefaultCategories();
+      setCategoryObjects(defaults);
       setCategories(getDefaultCategoryNames());
     } finally {
       setLoading(false);
@@ -62,7 +79,7 @@ export function useLocations(): UseLocationsReturn {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  return { locations, categories, loading, error, refresh: loadAll, refreshLocations: loadLocations, refreshCategories: loadCategories };
+  return { locations, categories, categoryObjects, loading, error, refresh: loadAll, refreshLocations: loadLocations, refreshCategories: loadCategories };
 }
 
 export default useLocations;

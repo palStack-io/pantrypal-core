@@ -35,7 +35,7 @@ export function InventoryPage({ sidebarFilters = {} }: InventoryPageProps) {
   const toast = useToast();
   const dialog = useDialog();
   const { items, loading, error, removeItems, editItem, page, totalPages, total, goToPage } = useItems();
-  const { locations, categories } = useLocations();
+  const { locations, categories, categoryObjects } = useLocations();
   const [filters, setFilters] = useState<SidebarFilters>({ expiryStatus: 'all' });
   const [selectedItems, setSelectedItems] = useState<Set<number | string>>(new Set());
   const [groupBy, setGroupBy] = useState('none');
@@ -263,7 +263,7 @@ export function InventoryPage({ sidebarFilters = {} }: InventoryPageProps) {
 
       <BulkActions selectedCount={selectedItems.size} onDelete={handleBulkDelete} onExport={handleExport} onClear={() => setSelectedItems(new Set())} onAddToShoppingList={handleAddToShoppingList} />
 
-      {editingItem && <EditItemModal item={editingItem} onClose={() => setEditingItem(null)} onSave={editItem} locations={locations} categories={categories} />}
+      {editingItem && <EditItemModal item={editingItem} onClose={() => setEditingItem(null)} onSave={editItem} locations={locations} categories={categories} categoryObjects={categoryObjects} />}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { getColors, spacing, borderRadius } from '../colors';
 import { useToast } from '../components/Toast';
 import { useItems } from '../hooks/useItems';
 import { useLocations } from '../hooks/useLocations';
-import { getDefaultLocationNames, getDefaultCategoryNames } from '../defaults';
+import { getDefaultLocationNames, getDefaultCategories, getDefaultCategoryNames } from '../defaults';
 import { validateItem } from '../utils/validators';
 import { useTheme } from '../context/ThemeContext';
 
@@ -30,7 +30,7 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
   const colors = getColors(isDark);
   const toast = useToast();
   const { items, addItem, editItem } = useItems();
-  const { locations: apiLocations, categories: apiCategories } = useLocations();
+  const { locations: apiLocations, categoryObjects: apiCategoryObjects } = useLocations();
   const [formData, setFormData] = useState<FormData>({ name: '', barcode: '', brand: '', quantity: 1, location: '', category: '', expiry_date: '', notes: '' });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -38,7 +38,7 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
   const [editId, setEditId] = useState<number | null>(null);
 
   const locations = apiLocations.length > 0 ? apiLocations : getDefaultLocationNames();
-  const categories = apiCategories.length > 0 ? apiCategories : getDefaultCategoryNames();
+  const categoryObjects = apiCategoryObjects.length > 0 ? apiCategoryObjects : getDefaultCategories();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -127,7 +127,7 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
             <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Category *</label>
             <select value={formData.category} onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('category'), borderRadius: borderRadius.md, fontSize: '15px' }}>
               <option value="">Select category</option>
-              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              {categoryObjects.map(cat => <option key={cat.name} value={cat.name}>{cat.emoji} {cat.name}</option>)}
             </select>
             {fieldErrors.category && <p style={errorStyle}>{fieldErrors.category}</p>}
           </div>

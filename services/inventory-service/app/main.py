@@ -69,12 +69,623 @@ class ShoppingListDB(Base):
     quantity = Column(Integer, default=1)
     notes = Column(String, nullable=True)
     checked = Column(Boolean, default=False)
-    inventory_item_id = Column(Integer, nullable=True)  # Reference to original inventory item
+    inventory_item_id = Column(Integer, nullable=True)
     added_date = Column(DateTime, default=datetime.utcnow)
     updated_date = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     checked_date = Column(DateTime, nullable=True)
 
+class CategoryDB(Base):
+    __tablename__ = "categories"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    emoji = Column(String, default="📦")
+    sort_order = Column(Integer, default=0)
+
 Base.metadata.create_all(bind=engine)
+
+CATEGORIES_SEED = [
+    {"name": "Produce",        "emoji": "🥦",  "sort_order": 1},
+    {"name": "Dairy",          "emoji": "🥛",  "sort_order": 2},
+    {"name": "Meat & Seafood", "emoji": "🥩",  "sort_order": 3},
+    {"name": "Frozen",         "emoji": "🧊",  "sort_order": 4},
+    {"name": "Bakery",         "emoji": "🍞",  "sort_order": 5},
+    {"name": "Breakfast",      "emoji": "🥣",  "sort_order": 6},
+    {"name": "Snacks",         "emoji": "🍿",  "sort_order": 7},
+    {"name": "Beverages",      "emoji": "🥤",  "sort_order": 8},
+    {"name": "Coffee & Tea",   "emoji": "☕",  "sort_order": 9},
+    {"name": "Wine & Spirits", "emoji": "🍷",  "sort_order": 10},
+    {"name": "Condiments",     "emoji": "🧂",  "sort_order": 11},
+    {"name": "Baking",         "emoji": "🧁",  "sort_order": 12},
+    {"name": "Pasta & Grains", "emoji": "🍝",  "sort_order": 13},
+    {"name": "Canned Goods",   "emoji": "🥫",  "sort_order": 14},
+    {"name": "Oils & Vinegars","emoji": "🫙",  "sort_order": 15},
+    {"name": "Spices",         "emoji": "🌶️", "sort_order": 16},
+    {"name": "Deli",           "emoji": "🥪",  "sort_order": 17},
+    {"name": "International",  "emoji": "🌍",  "sort_order": 18},
+    {"name": "Household",      "emoji": "🏠",  "sort_order": 19},
+    {"name": "Cleaning",       "emoji": "🧼",  "sort_order": 20},
+    {"name": "Personal Care",  "emoji": "🧴",  "sort_order": 21},
+    {"name": "Health",         "emoji": "💊",  "sort_order": 22},
+    {"name": "Baby",           "emoji": "🍼",  "sort_order": 23},
+    {"name": "Pet Food",       "emoji": "🐾",  "sort_order": 24},
+    {"name": "Uncategorized",  "emoji": "📦",  "sort_order": 25},
+]
+
+def seed_categories(db: Session):
+    """Idempotently seed canonical categories — only inserts rows that don't exist."""
+    for cat in CATEGORIES_SEED:
+        exists = db.query(CategoryDB).filter(CategoryDB.name == cat["name"]).first()
+        if not exists:
+            db.add(CategoryDB(**cat))
+    db.commit()
+    logger.info("Categories seeded")
+
+# Two-pass rules: ALL multi-word compounds first, then single-word fallbacks.
+# First match wins, so longer/more-specific phrases must come before their constituent words.
+_KEYWORD_RULES: List[tuple] = [
+    # ── PASS 1: Multi-word compound phrases ───────────────────────────────────
+
+    # Frozen
+    ("ice cream",              "Frozen"),
+    ("frozen",                 "Frozen"),
+    ("popsicle",               "Frozen"),
+
+    # Dairy compounds
+    ("cream cheese",           "Dairy"),
+    ("sour cream",             "Dairy"),
+    ("cottage cheese",         "Dairy"),
+    ("heavy cream",            "Dairy"),
+    ("whipped cream",          "Dairy"),
+    ("almond milk",            "Dairy"),
+    ("oat milk",               "Dairy"),
+    ("skim milk",              "Dairy"),
+    ("whole milk",             "Dairy"),
+    ("goat milk",              "Dairy"),
+    ("half and half",          "Dairy"),
+
+    # Meat compounds (broth/stock before meat words)
+    ("chicken broth",          "Canned Goods"),
+    ("chicken stock",          "Canned Goods"),
+    ("beef broth",             "Canned Goods"),
+    ("beef stock",             "Canned Goods"),
+    ("vegetable broth",        "Canned Goods"),
+    ("vegetable stock",        "Canned Goods"),
+    ("bone broth",             "Canned Goods"),
+    ("deli meat",              "Deli"),
+    ("ground beef",            "Meat & Seafood"),
+    ("ground turkey",          "Meat & Seafood"),
+    ("ground pork",            "Meat & Seafood"),
+    ("ground chicken",         "Meat & Seafood"),
+    ("ground lamb",            "Meat & Seafood"),
+    ("hot dog",                "Meat & Seafood"),
+    ("chicken breast",         "Meat & Seafood"),
+    ("chicken thigh",          "Meat & Seafood"),
+    ("chicken wing",           "Meat & Seafood"),
+    ("chicken leg",            "Meat & Seafood"),
+    ("roast beef",             "Deli"),
+    ("sliced turkey",          "Deli"),
+    ("sliced ham",             "Deli"),
+
+    # Coffee & Tea compounds
+    ("green tea",              "Coffee & Tea"),
+    ("black tea",              "Coffee & Tea"),
+    ("herbal tea",             "Coffee & Tea"),
+    ("iced tea",               "Coffee & Tea"),
+    ("tea bag",                "Coffee & Tea"),
+
+    # Spice compounds (before produce words like garlic, onion, ginger, basil, etc.)
+    ("garlic powder",          "Spices"),
+    ("garlic salt",            "Spices"),
+    ("onion powder",           "Spices"),
+    ("onion flake",            "Spices"),
+    ("ground ginger",          "Spices"),
+    ("ginger powder",          "Spices"),
+    ("dried basil",            "Spices"),
+    ("dried oregano",          "Spices"),
+    ("dried thyme",            "Spices"),
+    ("dried cilantro",         "Spices"),
+    ("dried dill",             "Spices"),
+    ("dried mint",             "Spices"),
+    ("dried parsley",          "Spices"),
+    ("red pepper flake",       "Spices"),
+    ("chili powder",           "Spices"),
+    ("curry powder",           "Spices"),
+    ("garlic powder",          "Spices"),
+    ("italian seasoning",      "Spices"),
+    ("bay leaf",               "Spices"),
+    ("bay leaves",             "Spices"),
+
+    # Baby compounds before produce (e.g. "baby food sweet potato" → Baby not Produce)
+    ("baby food",              "Baby"),
+    ("baby formula",           "Baby"),
+    ("baby wipe",              "Baby"),
+
+    # Produce compounds (before single tomato/potato/etc.)
+    ("bell pepper",            "Produce"),
+    ("sweet potato",           "Produce"),
+    ("ginger root",            "Produce"),
+    ("fresh herb",             "Produce"),
+
+    # Canned tomato compounds (before single "tomato" → Produce)
+    ("tomato paste",           "Canned Goods"),
+    ("tomato sauce",           "Canned Goods"),
+    ("diced tomato",           "Canned Goods"),
+    ("tomato puree",           "Canned Goods"),
+    ("black bean",             "Canned Goods"),
+    ("kidney bean",            "Canned Goods"),
+    ("coconut milk",           "Canned Goods"),
+
+    # Snack compounds (before "butter" → Dairy, "chip" → Snacks, etc.)
+    ("peanut butter",          "Snacks"),
+    ("almond butter",          "Snacks"),
+    ("granola bar",            "Snacks"),
+    ("protein bar",            "Snacks"),
+    ("energy bar",             "Snacks"),
+    ("trail mix",              "Snacks"),
+    ("fruit snack",            "Snacks"),
+    ("chocolate bar",          "Snacks"),
+
+    # Baking compounds (before "chip" → Snacks, "powder" → ambiguous, etc.)
+    ("chocolate chip",         "Baking"),
+    ("cocoa powder",           "Baking"),
+    ("cake mix",               "Baking"),
+    ("brownie mix",            "Baking"),
+    ("baking powder",          "Baking"),
+    ("baking soda",            "Baking"),
+    ("vanilla extract",        "Baking"),
+    ("powdered sugar",         "Baking"),
+    ("brown sugar",            "Baking"),
+    ("bread crumb",            "Pasta & Grains"),
+    ("breadcrumb",             "Pasta & Grains"),
+
+    # Condiment compounds (before "pasta" → Pasta, "sauce" → generic)
+    ("pasta sauce",            "Condiments"),
+    ("hot sauce",              "Condiments"),
+    ("soy sauce",              "Condiments"),
+    ("fish sauce",             "Condiments"),
+    ("oyster sauce",           "Condiments"),
+    ("barbecue sauce",         "Condiments"),
+    ("bbq sauce",              "Condiments"),
+    ("buffalo sauce",          "Condiments"),
+    ("ranch dressing",         "Condiments"),
+    ("caesar dressing",        "Condiments"),
+    ("maple syrup",            "Condiments"),
+
+    # Oil compounds (before single "oil")
+    ("olive oil",              "Oils & Vinegars"),
+    ("vegetable oil",          "Oils & Vinegars"),
+    ("canola oil",             "Oils & Vinegars"),
+    ("coconut oil",            "Oils & Vinegars"),
+    ("sesame oil",             "Oils & Vinegars"),
+    ("avocado oil",            "Oils & Vinegars"),
+    ("sunflower oil",          "Oils & Vinegars"),
+    ("peanut oil",             "Oils & Vinegars"),
+    ("grapeseed oil",          "Oils & Vinegars"),
+    ("cooking spray",          "Oils & Vinegars"),
+    ("balsamic vinegar",       "Oils & Vinegars"),
+    ("apple cider vinegar",    "Oils & Vinegars"),
+    ("white vinegar",          "Oils & Vinegars"),
+    ("red wine vinegar",       "Oils & Vinegars"),
+    ("rice vinegar",           "Oils & Vinegars"),
+
+    # Beverage compounds (before "water", "juice", "orange")
+    ("sparkling water",        "Beverages"),
+    ("bottled water",          "Beverages"),
+    ("orange juice",           "Beverages"),
+    ("apple juice",            "Beverages"),
+    ("energy drink",           "Beverages"),
+    ("sports drink",           "Beverages"),
+    ("coconut water",          "Beverages"),
+
+    # Bakery compounds
+    ("english muffin",         "Bakery"),
+    ("sourdough",              "Bakery"),
+
+    # Breakfast compounds
+    ("pancake mix",            "Breakfast"),
+    ("waffle mix",             "Breakfast"),
+    ("pop tart",               "Breakfast"),
+
+    # Household compounds (before single "paper", "tissue")
+    ("paper towel",            "Household"),
+    ("toilet paper",           "Household"),
+    ("paper plate",            "Household"),
+    ("aluminum foil",          "Household"),
+    ("plastic wrap",           "Household"),
+    ("parchment paper",        "Household"),
+    ("wax paper",              "Household"),
+    ("garbage bag",            "Household"),
+    ("trash bag",              "Household"),
+    ("storage bag",            "Household"),
+    ("plastic bag",            "Household"),
+
+    # Cleaning compounds
+    ("dish soap",              "Cleaning"),
+    ("laundry detergent",      "Cleaning"),
+    ("dishwasher pod",         "Cleaning"),
+    ("dishwasher tab",         "Cleaning"),
+    ("fabric softener",        "Cleaning"),
+    ("dryer sheet",            "Cleaning"),
+
+    # Personal Care compounds (shampoo before "ham" → Meat)
+    ("shampoo",                "Personal Care"),
+    ("body wash",              "Personal Care"),
+    ("bar soap",               "Personal Care"),
+    ("face wash",              "Personal Care"),
+    ("shaving cream",          "Personal Care"),
+
+    # Health compounds
+    ("protein powder",         "Health"),
+    ("fish oil",               "Health"),
+    ("first aid",              "Health"),
+
+    # Baby compounds (before produce words in names like "baby food sweet potato")
+    ("baby food",              "Baby"),
+    ("baby formula",           "Baby"),
+    ("baby wipe",              "Baby"),
+
+    # Pet compounds
+    ("dog food",               "Pet Food"),
+    ("cat food",               "Pet Food"),
+    ("dog treat",              "Pet Food"),
+    ("cat treat",              "Pet Food"),
+    ("pet food",               "Pet Food"),
+    ("pet treat",              "Pet Food"),
+    ("bird seed",              "Pet Food"),
+
+    # International compounds
+    ("curry paste",            "International"),
+    ("miso paste",             "International"),
+    ("rice paper",             "International"),
+
+    # ── PASS 2: Single-word fallbacks ─────────────────────────────────────────
+
+    # Dairy
+    ("milk",                   "Dairy"),
+    ("cheese",                 "Dairy"),
+    ("yogurt",                 "Dairy"),
+    ("yoghurt",                "Dairy"),
+    ("butter",                 "Dairy"),
+    ("eggs",                   "Dairy"),
+    ("egg",                    "Dairy"),
+    ("cream",                  "Dairy"),
+    ("kefir",                  "Dairy"),
+    ("dairy",                  "Dairy"),
+
+    # Meat & Seafood
+    ("chicken",                "Meat & Seafood"),
+    ("beef",                   "Meat & Seafood"),
+    ("pork",                   "Meat & Seafood"),
+    ("lamb",                   "Meat & Seafood"),
+    ("turkey",                 "Meat & Seafood"),
+    ("salmon",                 "Meat & Seafood"),
+    ("tuna",                   "Meat & Seafood"),
+    ("shrimp",                 "Meat & Seafood"),
+    ("prawn",                  "Meat & Seafood"),
+    ("crab",                   "Meat & Seafood"),
+    ("lobster",                "Meat & Seafood"),
+    ("scallop",                "Meat & Seafood"),
+    ("clam",                   "Meat & Seafood"),
+    ("oyster",                 "Meat & Seafood"),
+    ("sardine",                "Meat & Seafood"),
+    ("anchovy",                "Meat & Seafood"),
+    ("tilapia",                "Meat & Seafood"),
+    ("cod",                    "Meat & Seafood"),
+    ("halibut",                "Meat & Seafood"),
+    ("mahi",                   "Meat & Seafood"),
+    ("catfish",                "Meat & Seafood"),
+    ("trout",                  "Meat & Seafood"),
+    ("bacon",                  "Meat & Seafood"),
+    ("ham",                    "Meat & Seafood"),
+    ("sausage",                "Meat & Seafood"),
+    ("salami",                 "Meat & Seafood"),
+    ("pepperoni",              "Meat & Seafood"),
+    ("prosciutto",             "Meat & Seafood"),
+    ("bratwurst",              "Meat & Seafood"),
+    ("chorizo",                "Meat & Seafood"),
+    ("steak",                  "Meat & Seafood"),
+    ("brisket",                "Meat & Seafood"),
+    ("rib",                    "Meat & Seafood"),
+    ("meatball",               "Meat & Seafood"),
+    ("seafood",                "Meat & Seafood"),
+    ("fish",                   "Meat & Seafood"),
+
+    # Coffee & Tea
+    ("coffee",                 "Coffee & Tea"),
+    ("espresso",               "Coffee & Tea"),
+    ("cappuccino",             "Coffee & Tea"),
+    ("latte",                  "Coffee & Tea"),
+    ("matcha",                 "Coffee & Tea"),
+    ("chai",                   "Coffee & Tea"),
+    ("tea",                    "Coffee & Tea"),
+
+    # Produce
+    ("apple",                  "Produce"),
+    ("banana",                 "Produce"),
+    ("orange",                 "Produce"),
+    ("lemon",                  "Produce"),
+    ("lime",                   "Produce"),
+    ("grape",                  "Produce"),
+    ("mango",                  "Produce"),
+    ("pear",                   "Produce"),
+    ("peach",                  "Produce"),
+    ("plum",                   "Produce"),
+    ("cherry",                 "Produce"),
+    ("strawberry",             "Produce"),
+    ("blueberry",              "Produce"),
+    ("raspberry",              "Produce"),
+    ("blackberry",             "Produce"),
+    ("melon",                  "Produce"),
+    ("watermelon",             "Produce"),
+    ("cantaloupe",             "Produce"),
+    ("kiwi",                   "Produce"),
+    ("pineapple",              "Produce"),
+    ("papaya",                 "Produce"),
+    ("avocado",                "Produce"),
+    ("tomato",                 "Produce"),
+    ("potato",                 "Produce"),
+    ("onion",                  "Produce"),
+    ("garlic",                 "Produce"),
+    ("carrot",                 "Produce"),
+    ("celery",                 "Produce"),
+    ("broccoli",               "Produce"),
+    ("cauliflower",            "Produce"),
+    ("spinach",                "Produce"),
+    ("kale",                   "Produce"),
+    ("lettuce",                "Produce"),
+    ("arugula",                "Produce"),
+    ("cucumber",               "Produce"),
+    ("zucchini",               "Produce"),
+    ("squash",                 "Produce"),
+    ("pumpkin",                "Produce"),
+    ("corn",                   "Produce"),
+    ("asparagus",              "Produce"),
+    ("artichoke",              "Produce"),
+    ("beet",                   "Produce"),
+    ("radish",                 "Produce"),
+    ("turnip",                 "Produce"),
+    ("leek",                   "Produce"),
+    ("scallion",               "Produce"),
+    ("mushroom",               "Produce"),
+    ("cilantro",               "Produce"),
+    ("parsley",                "Produce"),
+    ("basil",                  "Produce"),
+    ("mint",                   "Produce"),
+    ("dill",                   "Produce"),
+    ("chive",                  "Produce"),
+    ("herb",                   "Produce"),
+    ("ginger",                 "Produce"),
+    ("produce",                "Produce"),
+    ("vegetable",              "Produce"),
+    ("fruit",                  "Produce"),
+
+    # Wine & Spirits
+    ("wine",                   "Wine & Spirits"),
+    ("whiskey",                "Wine & Spirits"),
+    ("whisky",                 "Wine & Spirits"),
+    ("vodka",                  "Wine & Spirits"),
+    ("tequila",                "Wine & Spirits"),
+    ("bourbon",                "Wine & Spirits"),
+    ("champagne",              "Wine & Spirits"),
+    ("prosecco",               "Wine & Spirits"),
+    ("rum",                    "Wine & Spirits"),
+    ("gin",                    "Wine & Spirits"),
+    ("beer",                   "Wine & Spirits"),
+    ("ale",                    "Wine & Spirits"),
+    ("lager",                  "Wine & Spirits"),
+    ("cider",                  "Wine & Spirits"),
+    ("spirits",                "Wine & Spirits"),
+    ("liquor",                 "Wine & Spirits"),
+    ("brandy",                 "Wine & Spirits"),
+    ("sake",                   "Wine & Spirits"),
+
+    # Beverages
+    ("lemonade",               "Beverages"),
+    ("soda",                   "Beverages"),
+    ("cola",                   "Beverages"),
+    ("juice",                  "Beverages"),
+    ("smoothie",               "Beverages"),
+    ("water",                  "Beverages"),
+    ("beverage",               "Beverages"),
+    ("drink",                  "Beverages"),
+
+    # Bakery
+    ("bread",                  "Bakery"),
+    ("bagel",                  "Bakery"),
+    ("croissant",              "Bakery"),
+    ("muffin",                 "Bakery"),
+    ("baguette",               "Bakery"),
+    ("pita",                   "Bakery"),
+    ("naan",                   "Bakery"),
+    ("tortilla",               "Bakery"),
+    ("roll",                   "Bakery"),
+    ("bun",                    "Bakery"),
+    ("brioche",                "Bakery"),
+    ("focaccia",               "Bakery"),
+
+    # Breakfast
+    ("cereal",                 "Breakfast"),
+    ("oatmeal",                "Breakfast"),
+    ("oat",                    "Breakfast"),
+    ("granola",                "Breakfast"),
+    ("waffle",                 "Breakfast"),
+    ("pancake",                "Breakfast"),
+    ("syrup",                  "Breakfast"),
+    ("jam",                    "Breakfast"),
+    ("jelly",                  "Breakfast"),
+    ("breakfast",              "Breakfast"),
+
+    # Pasta & Grains
+    ("spaghetti",              "Pasta & Grains"),
+    ("pasta",                  "Pasta & Grains"),
+    ("noodle",                 "Pasta & Grains"),
+    ("rice",                   "Pasta & Grains"),
+    ("quinoa",                 "Pasta & Grains"),
+    ("couscous",               "Pasta & Grains"),
+    ("barley",                 "Pasta & Grains"),
+    ("lentil",                 "Pasta & Grains"),
+    ("farro",                  "Pasta & Grains"),
+    ("polenta",                "Pasta & Grains"),
+    ("bulgur",                 "Pasta & Grains"),
+    ("crouton",                "Pasta & Grains"),
+    ("grain",                  "Pasta & Grains"),
+
+    # Canned Goods
+    ("chickpea",               "Canned Goods"),
+    ("garbanzo",               "Canned Goods"),
+    ("canned",                 "Canned Goods"),
+    ("broth",                  "Canned Goods"),
+    ("stock",                  "Canned Goods"),
+    ("soup",                   "Canned Goods"),
+
+    # Snacks
+    ("chip",                   "Snacks"),
+    ("cracker",                "Snacks"),
+    ("pretzel",                "Snacks"),
+    ("popcorn",                "Snacks"),
+    ("nut",                    "Snacks"),
+    ("seed",                   "Snacks"),
+    ("gummy",                  "Snacks"),
+    ("candy",                  "Snacks"),
+    ("cookie",                 "Snacks"),
+    ("chocolate",              "Snacks"),
+    ("snack",                  "Snacks"),
+
+    # Baking
+    ("flour",                  "Baking"),
+    ("sugar",                  "Baking"),
+    ("yeast",                  "Baking"),
+    ("cornstarch",             "Baking"),
+    ("gelatin",                "Baking"),
+    ("frosting",               "Baking"),
+    ("sprinkle",               "Baking"),
+
+    # Condiments
+    ("ketchup",                "Condiments"),
+    ("mustard",                "Condiments"),
+    ("mayonnaise",             "Condiments"),
+    ("mayo",                   "Condiments"),
+    ("relish",                 "Condiments"),
+    ("gherkin",                "Condiments"),
+    ("salsa",                  "Condiments"),
+    ("guacamole",              "Condiments"),
+    ("sriracha",               "Condiments"),
+    ("teriyaki",               "Condiments"),
+    ("worcestershire",         "Condiments"),
+    ("hoisin",                 "Condiments"),
+    ("marinara",               "Condiments"),
+    ("honey",                  "Condiments"),
+    ("vinaigrette",            "Condiments"),
+    ("dressing",               "Condiments"),
+    ("sauce",                  "Condiments"),
+    ("dip",                    "Condiments"),
+    ("spread",                 "Condiments"),
+
+    # Oils & Vinegars
+    ("oil",                    "Oils & Vinegars"),
+    ("vinegar",                "Oils & Vinegars"),
+
+    # Spices
+    ("salt",                   "Spices"),
+    ("pepper",                 "Spices"),
+    ("paprika",                "Spices"),
+    ("cumin",                  "Spices"),
+    ("coriander",              "Spices"),
+    ("turmeric",               "Spices"),
+    ("cinnamon",               "Spices"),
+    ("nutmeg",                 "Spices"),
+    ("cayenne",                "Spices"),
+    ("oregano",                "Spices"),
+    ("thyme",                  "Spices"),
+    ("rosemary",               "Spices"),
+    ("sage",                   "Spices"),
+    ("clove",                  "Spices"),
+    ("allspice",               "Spices"),
+    ("cardamom",               "Spices"),
+    ("saffron",                "Spices"),
+    ("seasoning",              "Spices"),
+    ("spice",                  "Spices"),
+
+    # Deli
+    ("pastrami",               "Deli"),
+    ("bologna",                "Deli"),
+    ("mortadella",             "Deli"),
+    ("deli",                   "Deli"),
+
+    # International
+    ("miso",                   "International"),
+    ("wonton",                 "International"),
+    ("dumpling",               "International"),
+    ("nori",                   "International"),
+    ("wasabi",                 "International"),
+    ("tahini",                 "International"),
+    ("hummus",                 "International"),
+    ("kimchi",                 "International"),
+    ("sushi",                  "International"),
+    ("tamari",                 "International"),
+    ("ponzu",                  "International"),
+
+    # Household
+    ("ziplock",                "Household"),
+    ("tissue",                 "Household"),
+    ("napkin",                 "Household"),
+
+    # Cleaning
+    ("bleach",                 "Cleaning"),
+    ("detergent",              "Cleaning"),
+    ("disinfectant",           "Cleaning"),
+    ("cleaner",                "Cleaning"),
+    ("cleaning",               "Cleaning"),
+    ("scrubber",               "Cleaning"),
+    ("sponge",                 "Cleaning"),
+
+    # Personal Care
+    ("shampoo",                "Personal Care"),
+    ("conditioner",            "Personal Care"),
+    ("toothpaste",             "Personal Care"),
+    ("toothbrush",             "Personal Care"),
+    ("mouthwash",              "Personal Care"),
+    ("deodorant",              "Personal Care"),
+    ("moisturizer",            "Personal Care"),
+    ("sunscreen",              "Personal Care"),
+    ("lotion",                 "Personal Care"),
+    ("floss",                  "Personal Care"),
+    ("razor",                  "Personal Care"),
+    ("tampon",                 "Personal Care"),
+    ("feminine",               "Personal Care"),
+
+    # Health
+    ("vitamin",                "Health"),
+    ("supplement",             "Health"),
+    ("probiotic",              "Health"),
+    ("melatonin",              "Health"),
+    ("medicine",               "Health"),
+    ("medication",             "Health"),
+    ("aspirin",                "Health"),
+    ("ibuprofen",              "Health"),
+    ("tylenol",                "Health"),
+    ("acetaminophen",          "Health"),
+    ("antibiotic",             "Health"),
+    ("bandage",                "Health"),
+    ("omega",                  "Health"),
+
+    # Baby (single-word fallbacks; compounds are in Pass 1)
+    ("baby",                   "Baby"),
+    ("diaper",                 "Baby"),
+    ("formula",                "Baby"),
+
+    # Pet Food
+    ("kibble",                 "Pet Food"),
+    ("catnip",                 "Pet Food"),
+]
+
+def auto_categorize(name: str) -> str:
+    """Map item name to a canonical category using keyword rules. Only call when category is unset."""
+    name_lower = name.lower()
+    for keyword, category in _KEYWORD_RULES:
+        if keyword in name_lower:
+            return category
+    return "Uncategorized"
 
 class ItemCreate(BaseModel):
     barcode: Optional[str] = None
@@ -160,7 +771,10 @@ async def health_check():
 
 @app.post("/items", response_model=ItemResponse)
 async def create_item(item: ItemCreate, db: Session = Depends(get_db)):
-    db_item = ItemDB(**item.model_dump())
+    data = item.model_dump()
+    if not data.get("category") or data["category"] == "Uncategorized":
+        data["category"] = auto_categorize(data.get("name", ""))
+    db_item = ItemDB(**data)
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
@@ -228,8 +842,8 @@ async def get_locations(db: Session = Depends(get_db)):
 
 @app.get("/categories")
 async def get_categories(db: Session = Depends(get_db)):
-    categories = db.query(ItemDB.category).distinct().all()
-    return {"categories": [cat[0] for cat in categories], "count": len(categories)}
+    cats = db.query(CategoryDB).order_by(CategoryDB.sort_order).all()
+    return [{"id": c.id, "name": c.name, "emoji": c.emoji, "sort_order": c.sort_order} for c in cats]
 
 @app.get("/stats")
 async def get_stats(db: Session = Depends(get_db)):
@@ -708,9 +1322,15 @@ def seed_demo_inventory(db: Session):
 
 @app.on_event("startup")
 async def startup_event():
+    db = SessionLocal()
+    try:
+        seed_categories(db)
+    finally:
+        db.close()
+
     # Seed demo inventory if DEMO_MODE is enabled
     if DEMO_MODE:
-        logger.info("🎭 DEMO_MODE enabled - checking inventory...")
+        logger.info("DEMO_MODE enabled - checking inventory...")
         db = SessionLocal()
         try:
             seed_demo_inventory(db)

@@ -4,7 +4,7 @@ import { getColors, spacing, borderRadius } from '../colors';
 import { formatDateForInput } from '../utils/dateUtils';
 import { validateItem } from '../utils/validators';
 import { useTheme } from '../context/ThemeContext';
-import type { Item } from '../types';
+import type { Item, CategoryOption } from '../types';
 
 interface FormData {
   name: string;
@@ -22,11 +22,12 @@ interface EditItemModalProps {
   onSave: (id: number | string, data: Partial<Item>) => Promise<void>;
   locations: string[];
   categories: string[];
+  categoryObjects?: CategoryOption[];
 }
 
 const errorStyle = { color: '#dc2626', fontSize: '12px', marginTop: '4px' };
 
-export function EditItemModal({ item, onClose, onSave, locations, categories }: EditItemModalProps) {
+export function EditItemModal({ item, onClose, onSave, locations, categories, categoryObjects }: EditItemModalProps) {
   const { isDark } = useTheme();
   const colors = getColors(isDark);
   const [formData, setFormData] = useState<FormData>({ name: '', brand: '', category: '', location: '', quantity: 1, expiry_date: '', notes: '' });
@@ -85,7 +86,9 @@ export function EditItemModal({ item, onClose, onSave, locations, categories }: 
               <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} style={inputStyle('category')}>
                 <option value="">Select...</option>
                 {formData.category && !categories.includes(formData.category) && <option key={formData.category} value={formData.category}>{formData.category}</option>}
-                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                {(categoryObjects ?? categories.map(c => ({ name: c, emoji: '📦' }))).map(cat => (
+                  <option key={cat.name} value={cat.name}>{cat.emoji} {cat.name}</option>
+                ))}
               </select>
               {fieldErrors.category && <p style={errorStyle}>{fieldErrors.category}</p>}
             </div>

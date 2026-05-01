@@ -1,7 +1,8 @@
-import { Edit, Trash2, MapPin, Tag, Calendar, Plus, Minus } from 'lucide-react';
+import { Edit, Trash2, MapPin, Calendar, Plus, Minus } from 'lucide-react';
 import { getColors, borderRadius, spacing, getShadows } from '../colors';
 import { formatDate, getExpiryBadgeText, getExpiryColor } from '../utils/dateUtils';
 import { useTheme } from '../context/ThemeContext';
+import { getEmojiForCategory } from '../defaults';
 import type { Item } from '../types';
 
 interface ItemCardProps {
@@ -46,7 +47,8 @@ export function ItemCard({ item, onEdit, onDelete, onSelect, isSelected, onQuant
           <MapPin size={16} /><span>{item.location || 'No location'}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.textSecondary }}>
-          <Tag size={16} /><span>{item.category || 'No category'}</span>
+          <span>{getEmojiForCategory(item.category ?? '')}</span>
+          <span>{item.category || 'No category'}</span>
         </div>
         {item.expiry_date && (
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
