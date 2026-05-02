@@ -227,6 +227,15 @@ class MinIOService:
             print(f"Error generating presigned URL: {e}")
             return None
 
+    def get_object_bytes(self, bucket_name: str, object_name: str) -> bytes:
+        """Fetch raw object bytes from MinIO for proxying to browsers (avoids internal DNS exposure)"""
+        response = self.client.get_object(bucket_name, object_name)
+        try:
+            return response.read()
+        finally:
+            response.close()
+            response.release_conn()
+
     def delete_object(self, bucket_name: str, object_name: str) -> bool:
         """Delete object from MinIO"""
         try:
