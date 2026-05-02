@@ -67,6 +67,14 @@ export const getDefaultCategories = (): CategoryOption[] => {
   if (saved) {
     const parsed = JSON.parse(saved);
     const migrated = migrateToObjects(parsed, DEFAULT_CATEGORIES) as CategoryOption[];
+    // Merge in any canonical categories missing from the saved list
+    const savedNames = new Set(migrated.map(c => c.name));
+    const missing = DEFAULT_CATEGORIES.filter(c => !savedNames.has(c.name));
+    if (missing.length > 0) {
+      const merged = [...migrated, ...missing];
+      localStorage.setItem('DEFAULT_CATEGORIES', JSON.stringify(merged));
+      return merged;
+    }
     if (migrated !== parsed) {
       localStorage.setItem('DEFAULT_CATEGORIES', JSON.stringify(migrated));
     }

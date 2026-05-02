@@ -7,6 +7,7 @@ Shared Household Model:
 - Custom user images remain per-user
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 import os
@@ -103,6 +104,35 @@ async def get_custom_image(
         raise HTTPException(status_code=500, detail="Failed to generate image URL")
 
     return {"image_url": url}
+
+
+@router.get("/recipe/{recipe_id}/view")
+async def view_recipe_image(
+    recipe_id: str,
+    current_user: User = Depends(get_current_user),
+    minio: MinIOService = Depends(get_minio_service),
+    db: Session = Depends(get_db)
+):
+    """
+    Redirect to presigned recipe image URL — allows direct <img src> usage
+    """
+    recipe_image = db.query(RecipeImage).filter(
+        RecipeImage.recipe_id == recipe_id
+    ).first()
+
+    if not recipe_image:
+        raise HTTPException(status_code=404, detail="Recipe image not found")
+
+    url = minio.get_presigned_url(
+        bucket_name=recipe_image.bucket_name,
+        object_name=recipe_image.object_name,
+        expires_seconds=3600
+    )
+
+    if not url:
+        raise HTTPException(status_code=500, detail="Failed to generate image URL")
+
+    return RedirectResponse(url=url, status_code=302)
 
 
 @router.get("/recipe/{recipe_id}")

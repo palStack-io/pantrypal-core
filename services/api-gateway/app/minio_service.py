@@ -177,15 +177,18 @@ class MinIOService:
         self,
         user_id: str,
         recipe_id: str,
-        source_url: str
+        source_url: str,
+        auth_headers: Optional[dict] = None
     ) -> Optional[str]:
         """
-        Download recipe image from Mealie/Tandoor and store in MinIO
+        Download recipe image from Mealie/Tandoor and store in MinIO.
+        auth_headers should carry the provider's Authorization header so
+        protected media endpoints don't return 401/403.
         Returns: object name or None if failed
         """
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(source_url)
+                response = await client.get(source_url, headers=auth_headers or {})
                 if response.status_code == 200:
                     return self.upload_recipe_image(
                         user_id=user_id,

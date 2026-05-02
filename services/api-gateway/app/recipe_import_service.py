@@ -60,6 +60,9 @@ class RecipeImportService:
         }
 
         try:
+            # Build auth headers for image downloads (both providers use Bearer)
+            provider_auth_headers = {'Authorization': f'Bearer {api_token}'}
+
             # Fetch recipes from provider
             if provider == 'mealie':
                 integration = MealieIntegration(server_url, api_token)
@@ -82,7 +85,8 @@ class RecipeImportService:
                     result = await self._import_recipe(
                         imported_by_user_id=imported_by_user_id,
                         recipe_data=recipe_data,
-                        import_images=import_images
+                        import_images=import_images,
+                        auth_headers=provider_auth_headers
                     )
 
                     if result['status'] == 'imported':
@@ -118,7 +122,8 @@ class RecipeImportService:
         self,
         imported_by_user_id: str,
         recipe_data: Dict,
-        import_images: bool
+        import_images: bool,
+        auth_headers: Optional[dict] = None
     ) -> Dict:
         """
         Import a single recipe (shared across household)
@@ -173,7 +178,8 @@ class RecipeImportService:
                 image_downloaded = await self._download_recipe_image(
                     recipe_id=recipe.id,
                     source_url=recipe_data['image_url'],
-                    provider=recipe_data['provider']
+                    provider=recipe_data['provider'],
+                    auth_headers=auth_headers
                 )
 
                 if image_downloaded:
@@ -242,7 +248,8 @@ class RecipeImportService:
         self,
         recipe_id: str,
         source_url: str,
-        provider: str
+        provider: str,
+        auth_headers: Optional[dict] = None
     ) -> bool:
         """
         Download recipe image from Mealie/Tandoor and store in MinIO
@@ -255,7 +262,8 @@ class RecipeImportService:
             object_name = await self.minio.download_recipe_image_from_url(
                 user_id="shared",  # Use a fixed identifier for shared recipes
                 recipe_id=recipe_id,
-                source_url=source_url
+                source_url=source_url,
+                auth_headers=auth_headers
             )
 
             if not object_name:

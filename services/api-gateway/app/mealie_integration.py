@@ -109,6 +109,27 @@ class MealieIntegration:
 
         return self._normalize_recipes(all_recipes[:limit])
 
+    _UNIT_RE = re.compile(
+        r'^[\d\s/.,¼-¾⅐-↉]*\s*'
+        r'(?:tablespoons?|teaspoons?|fluid\s+ounces?|ounces?|pounds?|grams?|kilograms?'
+        r'|milliliters?|millilitres?|liters?|litres?'
+        r'|tbsps?|tsps?|cups?|oz|lbs?|g|kg|ml|l'
+        r'|pinch(?:es)?|dash(?:es)?|cans?|packages?|pkg|bunch(?:es)?'
+        r'|heads?|cloves?|slices?|pieces?)\s+',
+        re.IGNORECASE,
+    )
+
+    def _food_name_from_display(self, display: str) -> str:
+        """Strip quantity and unit from a display string like '2 Tablespoons butter (cold)' → 'butter'."""
+        text = display.strip()
+        text = self._UNIT_RE.sub('', text)
+        # Remove any remaining leading number with no unit
+        text = re.sub(r'^[\d\s/.,]+\s*', '', text)
+        # Strip trailing parenthetical notes and comma-separated descriptors
+        text = re.sub(r'\s*\([^)]*\)\s*$', '', text)
+        text = re.sub(r',.*$', '', text)
+        return text.strip() or display.strip()
+
     def _normalize_recipes(self, recipes: List[Dict]) -> List[Dict]:
         """
         Convert Mealie format to pantryPal standard format
@@ -136,9 +157,10 @@ class MealieIntegration:
 
                 # Determine ingredient name:
                 # 1. Try structured food.name (if available)
-                # 2. Fall back to display (full text)
+                # 2. Fall back to display, stripping quantity/unit so we get just the food
                 # 3. Fall back to note
-                ingredient_name = food_name or ing.get('display', '') or ing.get('note', '')
+                display = ing.get('display', '')
+                ingredient_name = food_name or (self._food_name_from_display(display) if display else '') or ing.get('note', '')
 
                 if ingredient_name:
                     ingredients.append({

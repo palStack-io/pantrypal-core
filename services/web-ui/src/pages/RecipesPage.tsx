@@ -28,6 +28,7 @@ interface Recipe {
   times_cooked?: number;
   last_made?: string;
   notes?: string;
+  image_url?: string;
 }
 
 interface Integration {
@@ -67,9 +68,11 @@ interface RecipeDetailViewProps {
 const extractIngredientName = (ingredient: string | Record<string, unknown>): string => {
   if (!ingredient) return '';
   const str = typeof ingredient === 'string' ? ingredient : ((ingredient.name || ingredient.note || '') as string);
+  const unitPattern = /tablespoons?|teaspoons?|fluid\s+ounces?|ounces?|pounds?|grams?|kilograms?|milliliters?|millilitres?|liters?|litres?|tbsps?|tsps?|cups?|oz|lbs?|g|kg|ml|pinch(?:es)?|dash(?:es)?|cans?|packages?|pkg|bunch(?:es)?|heads?|cloves?|slices?|pieces?/i;
   let cleaned = str
-    .replace(/^[\d\s/.,]+\s*(t|T|tbsp|Tbsp|tsp|Tsp|cup|cups|oz|ounce|ounces|lb|lbs|pound|pounds|g|gram|grams|kg|ml|l|liter|liters|pinch|dash|can|cans|package|packages|pkg|bunch|bunches|head|heads|clove|cloves|slice|slices|piece|pieces)s?\b\.?\s*/i, '')
+    .replace(new RegExp(`^[\\d\\s/.,]+\\s*(?:${unitPattern.source})?\\.?\\s*`, 'i'), '')
     .replace(/^[\d\s/.,]+\s*/i, '')
+    .replace(new RegExp(`^(?:${unitPattern.source})\\s+`, 'i'), '')
     .trim();
   cleaned = cleaned
     .replace(/\s*[(\,]\s*(chopped|diced|minced|sliced|grated|shredded|crushed|melted|softened|room temperature|to taste|optional|divided|packed|sifted|plus more|for serving|for garnish|or more|as needed|if desired|fresh|dried|frozen|canned|cooked|uncooked|raw|peeled|seeded|pitted|trimmed|cut into|about|approximately|mixed with.*|combined with.*).*$/i, '')
@@ -422,6 +425,7 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
 }
 
 function RecipeCard({ recipe, colors, onToggleFavorite, onClick, onAddMissingToShoppingList }: RecipeCardProps) {
+  const [imgError, setImgError] = useState(false);
   const matchPercentage = Math.round(recipe.match_percentage || 0);
   const hasExpiring = (recipe.expiring_ingredient_count || 0) > 0;
   const missingCount = recipe.missing_ingredient_count || 0;
@@ -430,48 +434,76 @@ function RecipeCard({ recipe, colors, onToggleFavorite, onClick, onAddMissingToS
   const availableIngredients = (recipe.available_ingredients || []).map(extractIngredientName);
   const missingIngredients = (recipe.missing_ingredients || []).map(extractIngredientName);
   const expiringIngredients = (recipe.expiring_ingredients || []).map(extractIngredientName);
+  const imageViewUrl = recipe.image_url && !imgError ? `${recipe.image_url}/view` : null;
 
   return (
-    <div onClick={onClick} style={{ background: colors.card, borderRadius: borderRadius.lg, overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', border: `1px solid ${colors.border}` }}
-      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}>
-      <div style={{ padding: spacing.md, borderBottom: `1px solid ${colors.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm }}>
-          <div style={{ fontSize: '16px', fontWeight: '600', color: colors.textPrimary, flex: 1 }}>{recipe.name}</div>
-          <button onClick={(e) => onToggleFavorite(recipe.id, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: recipe.favorite ? '#ef4444' : colors.textSecondary }}><Heart size={18} fill={recipe.favorite ? '#ef4444' : 'none'} /></button>
-        </div>
-        <div style={{ display: 'flex', gap: spacing.md, fontSize: '13px', color: colors.textSecondary }}>
-          {(recipe.total_time || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={14} /> {recipe.total_time} min</span>}
-          {(recipe.servings || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Users size={14} /> {recipe.servings}</span>}
+    <div onClick={onClick}
+      style={{ background: colors.card, borderRadius: borderRadius.lg, overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s', border: `1px solid ${colors.border}` }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
+
+      {/* Hero image */}
+      <div style={{ position: 'relative', height: '180px', overflow: 'hidden' }}>
+        {imageViewUrl ? (
+          <img src={imageViewUrl} onError={() => setImgError(true)} alt={recipe.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #f97316 0%, #fbbf24 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: '72px' }}>🍳</span>
+          </div>
+        )}
+        {/* Gradient overlay for text readability */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 35%, rgba(0,0,0,0.72))' }} />
+
+        {/* Match badge — top left */}
+        {matchPercentage > 0 && (
+          <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', borderRadius: '20px', padding: '4px 10px', color: getMatchColor(matchPercentage), fontSize: '12px', fontWeight: '700' }}>
+            {matchPercentage}% match
+          </div>
+        )}
+
+        {/* Favorite — top right */}
+        <button onClick={(e) => onToggleFavorite(recipe.id, e)}
+          style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', border: 'none', borderRadius: '50%', width: '34px', height: '34px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: recipe.favorite ? '#ef4444' : 'white' }}>
+          <Heart size={16} fill={recipe.favorite ? '#ef4444' : 'none'} />
+        </button>
+
+        {/* Title + meta — bottom of image */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px 14px 12px' }}>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: 'white', lineHeight: '1.3', marginBottom: '4px' }}>{recipe.name}</div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {(recipe.total_time || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: 'rgba(255,255,255,0.85)', fontSize: '12px' }}><Clock size={12} /> {recipe.total_time} min</span>}
+            {(recipe.servings || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: 'rgba(255,255,255,0.85)', fontSize: '12px' }}><Users size={12} /> {recipe.servings} servings</span>}
+          </div>
         </div>
       </div>
+
+      {/* Stats row */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${colors.border}` }}>
-        <div style={{ flex: 1, padding: spacing.sm, textAlign: 'center', borderRight: `1px solid ${colors.border}` }}>
-          <div style={{ fontSize: '18px', fontWeight: '700', color: getMatchColor(matchPercentage) }}>{matchPercentage}%</div>
-          <div style={{ fontSize: '11px', color: colors.textSecondary }}>Match</div>
-        </div>
-        <div style={{ flex: 1, padding: spacing.sm, textAlign: 'center', borderRight: `1px solid ${colors.border}` }}>
-          <div style={{ fontSize: '18px', fontWeight: '700', color: expiringCount > 0 ? '#f59e0b' : colors.textPrimary }}>{expiringCount}</div>
+        <div style={{ flex: 1, padding: '8px', textAlign: 'center', borderRight: `1px solid ${colors.border}` }}>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: expiringCount > 0 ? '#f59e0b' : colors.textSecondary }}>{expiringCount}</div>
           <div style={{ fontSize: '11px', color: colors.textSecondary }}>Expiring</div>
         </div>
-        <div style={{ flex: 1, padding: spacing.sm, textAlign: 'center' }}>
-          <div style={{ fontSize: '18px', fontWeight: '700', color: missingCount > 0 ? '#ef4444' : colors.textPrimary }}>{missingCount}</div>
+        <div style={{ flex: 1, padding: '8px', textAlign: 'center' }}>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: missingCount > 0 ? '#ef4444' : '#22c55e' }}>{missingCount}</div>
           <div style={{ fontSize: '11px', color: colors.textSecondary }}>Missing</div>
         </div>
       </div>
-      {(hasExpiring || matchPercentage >= 75) && (
-        <div style={{ padding: `${spacing.xs} ${spacing.md}`, display: 'flex', gap: spacing.xs, flexWrap: 'wrap', borderBottom: `1px solid ${colors.border}` }}>
-          {hasExpiring && <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: borderRadius.sm, background: 'rgba(245, 158, 11, 0.15)', color: '#d97706' }}>Uses Expiring</span>}
-          {matchPercentage >= 75 && <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: borderRadius.sm, background: 'rgba(34, 197, 94, 0.15)', color: '#16a34a' }}>Ready to Cook</span>}
+
+      {/* Tags + action */}
+      <div style={{ padding: '10px 14px' }}>
+        {(hasExpiring || matchPercentage >= 75) && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+            {hasExpiring && <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: borderRadius.sm, background: 'rgba(245, 158, 11, 0.15)', color: '#d97706' }}>⚠️ Uses Expiring</span>}
+            {matchPercentage >= 75 && <span style={{ fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: borderRadius.sm, background: 'rgba(34, 197, 94, 0.15)', color: '#16a34a' }}>✓ Ready to Cook</span>}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: missingCount > 0 ? '10px' : '0' }}>
+          {availableIngredients.slice(0, 3).map((ing, idx) => <span key={`avail-${idx}`} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: borderRadius.sm, background: colors.background, color: colors.textSecondary }}>{ing}</span>)}
+          {expiringIngredients.slice(0, 2).map((ing, idx) => <span key={`exp-${idx}`} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: borderRadius.sm, background: 'rgba(245, 158, 11, 0.1)', color: '#d97706' }}>{ing}</span>)}
+          {missingIngredients.slice(0, 2).map((ing, idx) => <span key={`miss-${idx}`} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: borderRadius.sm, background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626' }}>{ing}</span>)}
         </div>
-      )}
-      <div style={{ padding: spacing.md }}>
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: missingCount > 0 ? spacing.md : '0' }}>
-          {availableIngredients.slice(0, 3).map((ing, idx) => <span key={`avail-${idx}`} style={{ fontSize: '11px', fontWeight: '500', padding: '4px 8px', borderRadius: borderRadius.sm, background: colors.background, color: colors.textSecondary }}>{ing}</span>)}
-          {expiringIngredients.slice(0, 2).map((ing, idx) => <span key={`exp-${idx}`} style={{ fontSize: '11px', fontWeight: '500', padding: '4px 8px', borderRadius: borderRadius.sm, background: 'rgba(245, 158, 11, 0.1)', color: '#d97706' }}>{ing}</span>)}
-          {missingIngredients.slice(0, 2).map((ing, idx) => <span key={`miss-${idx}`} style={{ fontSize: '11px', fontWeight: '500', padding: '4px 8px', borderRadius: borderRadius.sm, background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626' }}>{ing}</span>)}
-        </div>
-        {missingCount > 0 && <button onClick={(e) => onAddMissingToShoppingList(recipe, e)} style={{ width: '100%', padding: spacing.sm, borderRadius: borderRadius.md, background: colors.background, border: `1px solid ${colors.border}`, fontSize: '13px', fontWeight: '500', color: colors.textPrimary, textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit' }}>Add {missingCount} Missing to List</button>}
+        {missingCount > 0 && <button onClick={(e) => onAddMissingToShoppingList(recipe, e)} style={{ width: '100%', padding: '8px', borderRadius: borderRadius.md, background: colors.background, border: `1px solid ${colors.border}`, fontSize: '13px', fontWeight: '500', color: colors.textPrimary, textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit' }}>Add {missingCount} Missing to List</button>}
       </div>
     </div>
   );
@@ -480,10 +512,12 @@ function RecipeCard({ recipe, colors, onToggleFavorite, onClick, onAddMissingToS
 function RecipeDetailView({ recipe, colors, onBack, onToggleFavorite, onAddMissingToShoppingList, showSuccess }: RecipeDetailViewProps) {
   const [notes, setNotes] = useState(recipe.notes || '');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const matchPercentage = Math.round(recipe.match_percentage || 0);
   const missingCount = recipe.missing_ingredient_count || 0;
   const expiringCount = recipe.expiring_ingredient_count || 0;
   const getMatchColor = (pct: number) => pct >= 75 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+  const imageViewUrl = recipe.image_url && !imgError ? `${recipe.image_url}/view` : null;
 
   const handleSaveNotes = async () => {
     setSavingNotes(true);
@@ -517,101 +551,129 @@ function RecipeDetailView({ recipe, colors, onBack, onToggleFavorite, onAddMissi
   };
 
   return (
-    <div style={{ padding: spacing.xl }}>
-      <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: colors.textSecondary, cursor: 'pointer', padding: 0, fontSize: '14px', marginBottom: spacing.lg }}>
-        <ArrowLeft size={16} /> Back to Recipes
-      </button>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: spacing.xl }}>
-        <div>
-          <div style={{ marginBottom: spacing.xl }}>
-            <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: colors.textPrimary, margin: 0, marginBottom: spacing.sm }}>{recipe.name}</h1>
-            <div style={{ fontSize: '14px', color: colors.textSecondary, marginBottom: spacing.md }}>From {recipe.source || 'Recipe Collection'}</div>
-            <div style={{ display: 'flex', gap: spacing.lg, marginBottom: spacing.lg, fontSize: '14px', color: colors.textSecondary }}>
-              {(recipe.total_time || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={16} /> {recipe.total_time} min</span>}
-              {(recipe.servings || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Users size={16} /> {recipe.servings} servings</span>}
-            </div>
-            <div style={{ display: 'flex', gap: spacing.sm }}>
-              <button onClick={handleStartCooking} style={{ padding: `${spacing.sm} ${spacing.lg}`, borderRadius: borderRadius.md, background: colors.primary, color: 'white', fontWeight: '500', fontSize: '14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit' }}>Start Cooking</button>
-              {missingCount > 0 && <button onClick={(e) => onAddMissingToShoppingList(recipe, e)} style={{ padding: `${spacing.sm} ${spacing.lg}`, borderRadius: borderRadius.md, background: colors.card, border: `1px solid ${colors.border}`, color: colors.textPrimary, fontWeight: '500', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Add {missingCount} Missing to List</button>}
-            </div>
+    <div>
+      {/* Banner image */}
+      <div style={{ position: 'relative', height: '280px', overflow: 'hidden' }}>
+        {imageViewUrl ? (
+          <img src={imageViewUrl} onError={() => setImgError(true)} alt={recipe.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #f97316 0%, #fbbf24 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: '100px' }}>🍳</span>
           </div>
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, transparent 30%, transparent 45%, rgba(0,0,0,0.75) 100%)' }} />
 
-          <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.lg }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Ingredients ({ingredients.length})</h2>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {ingredients.map((ing, idx) => {
-                const status = getIngredientStatus(ing);
-                const ingName = typeof ing === 'string' ? ing : ((ing.note || ing.name || '') as string);
-                return (
-                  <li key={idx} style={{ padding: `${spacing.sm} 0`, borderBottom: idx < ingredients.length - 1 ? `1px solid ${colors.border}` : 'none', display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: '14px' }}>
-                    <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: status === 'missing' ? 'rgba(239, 68, 68, 0.1)' : status === 'expiring' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(34, 197, 94, 0.1)', color: status === 'missing' ? '#ef4444' : status === 'expiring' ? '#f59e0b' : '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', flexShrink: 0 }}>
-                      {status === 'missing' ? '✗' : '✓'}
-                    </span>
-                    <span style={{ color: status === 'missing' ? '#ef4444' : status === 'expiring' ? '#d97706' : colors.textPrimary }}>{ingName}</span>
-                  </li>
-                );
-              })}
-            </ul>
+        {/* Back button */}
+        <button onClick={onBack}
+          style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', border: 'none', borderRadius: '10px', padding: '8px 14px', cursor: 'pointer', color: 'white', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
+          <ArrowLeft size={16} /> Back
+        </button>
+
+        {/* Favorite button */}
+        <button onClick={(e) => onToggleFavorite(recipe.id, e)}
+          style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: recipe.favorite ? '#ef4444' : 'white' }}>
+          <Heart size={20} fill={recipe.favorite ? '#ef4444' : 'none'} />
+        </button>
+
+        {/* Title + meta overlaid at bottom */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 24px' }}>
+          <h1 style={{ fontSize: '26px', fontWeight: '800', color: 'white', margin: 0, marginBottom: '6px', textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>{recipe.name}</h1>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>From {recipe.source || 'Recipe Collection'}</span>
+            {(recipe.total_time || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'rgba(255,255,255,0.9)', fontSize: '13px' }}><Clock size={13} /> {recipe.total_time} min</span>}
+            {(recipe.servings || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'rgba(255,255,255,0.9)', fontSize: '13px' }}><Users size={13} /> {recipe.servings} servings</span>}
           </div>
-
-          {instructions.length > 0 && (
-            <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: borderRadius.lg, padding: spacing.lg }}>
-              <h2 style={{ fontSize: '16px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Instructions</h2>
-              {instructions.map((step, idx) => {
-                const stepText = typeof step === 'string' ? step : ((step.text || step.instruction || '') as string);
-                return (
-                  <div key={idx} style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.md }}>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: colors.primary, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', flexShrink: 0 }}>{idx + 1}</div>
-                    <div style={{ flex: 1, fontSize: '14px', lineHeight: '1.6', color: colors.textPrimary }}>{stepText}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
+      </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-          <div style={{ background: colors.card, borderRadius: borderRadius.lg, padding: spacing.md, border: `1px solid ${colors.border}` }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Recipe Match</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing.sm, textAlign: 'center' }}>
-              <div style={{ padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md }}><div style={{ fontSize: '20px', fontWeight: '700', color: getMatchColor(matchPercentage) }}>{matchPercentage}%</div><div style={{ fontSize: '11px', color: colors.textSecondary }}>Match</div></div>
-              <div style={{ padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md }}><div style={{ fontSize: '20px', fontWeight: '700', color: expiringCount > 0 ? '#f59e0b' : colors.textPrimary }}>{expiringCount}</div><div style={{ fontSize: '11px', color: colors.textSecondary }}>Expiring</div></div>
-              <div style={{ padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md }}><div style={{ fontSize: '20px', fontWeight: '700', color: missingCount > 0 ? '#ef4444' : colors.textPrimary }}>{missingCount}</div><div style={{ fontSize: '11px', color: colors.textSecondary }}>Missing</div></div>
+      {/* Action buttons */}
+      <div style={{ padding: `${spacing.md} ${spacing.xl}`, display: 'flex', gap: spacing.sm, borderBottom: `1px solid ${colors.border}` }}>
+        <button onClick={handleStartCooking} style={{ padding: `${spacing.sm} ${spacing.lg}`, borderRadius: borderRadius.md, background: colors.primary, color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit' }}>🍳 Start Cooking</button>
+        {missingCount > 0 && <button onClick={(e) => onAddMissingToShoppingList(recipe, e)} style={{ padding: `${spacing.sm} ${spacing.lg}`, borderRadius: borderRadius.md, background: colors.card, border: `1px solid ${colors.border}`, color: colors.textPrimary, fontWeight: '500', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Add {missingCount} Missing to List</button>}
+      </div>
+
+      {/* Content grid */}
+      <div style={{ padding: spacing.xl }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: spacing.xl }}>
+          <div>
+            <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: borderRadius.lg, padding: spacing.lg, marginBottom: spacing.lg }}>
+              <h2 style={{ fontSize: '16px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Ingredients ({ingredients.length})</h2>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {ingredients.map((ing, idx) => {
+                  const status = getIngredientStatus(ing);
+                  const ingName = typeof ing === 'string' ? ing : ((ing.note || ing.name || '') as string);
+                  return (
+                    <li key={idx} style={{ padding: `${spacing.sm} 0`, borderBottom: idx < ingredients.length - 1 ? `1px solid ${colors.border}` : 'none', display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: '14px' }}>
+                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', background: status === 'missing' ? 'rgba(239, 68, 68, 0.1)' : status === 'expiring' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(34, 197, 94, 0.1)', color: status === 'missing' ? '#ef4444' : status === 'expiring' ? '#f59e0b' : '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', flexShrink: 0 }}>
+                        {status === 'missing' ? '✗' : '✓'}
+                      </span>
+                      <span style={{ color: status === 'missing' ? '#ef4444' : status === 'expiring' ? '#d97706' : colors.textPrimary }}>{ingName}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
+
+            {instructions.length > 0 && (
+              <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: borderRadius.lg, padding: spacing.lg }}>
+                <h2 style={{ fontSize: '16px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Instructions</h2>
+                {instructions.map((step, idx) => {
+                  const stepText = typeof step === 'string' ? step : ((step.text || step.instruction || '') as string);
+                  return (
+                    <div key={idx} style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.md }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: colors.primary, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', flexShrink: 0 }}>{idx + 1}</div>
+                      <div style={{ flex: 1, fontSize: '14px', lineHeight: '1.6', color: colors.textPrimary }}>{stepText}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {missingIngredients.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
             <div style={{ background: colors.card, borderRadius: borderRadius.lg, padding: spacing.md, border: `1px solid ${colors.border}` }}>
-              <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Missing Ingredients</h3>
-              <div style={{ marginBottom: spacing.md }}>
-                {missingIngredients.map((ing, idx) => <div key={idx} style={{ padding: `${spacing.xs} 0`, borderBottom: idx < missingIngredients.length - 1 ? `1px solid ${colors.border}` : 'none', fontSize: '13px', color: colors.textPrimary }}>{ing}</div>)}
+              <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Recipe Match</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: spacing.sm, textAlign: 'center' }}>
+                <div style={{ padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md }}><div style={{ fontSize: '20px', fontWeight: '700', color: getMatchColor(matchPercentage) }}>{matchPercentage}%</div><div style={{ fontSize: '11px', color: colors.textSecondary }}>Match</div></div>
+                <div style={{ padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md }}><div style={{ fontSize: '20px', fontWeight: '700', color: expiringCount > 0 ? '#f59e0b' : colors.textPrimary }}>{expiringCount}</div><div style={{ fontSize: '11px', color: colors.textSecondary }}>Expiring</div></div>
+                <div style={{ padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md }}><div style={{ fontSize: '20px', fontWeight: '700', color: missingCount > 0 ? '#ef4444' : colors.textPrimary }}>{missingCount}</div><div style={{ fontSize: '11px', color: colors.textSecondary }}>Missing</div></div>
               </div>
-              <button onClick={(e) => onAddMissingToShoppingList(recipe, e)} style={{ width: '100%', padding: spacing.sm, borderRadius: borderRadius.md, background: colors.background, border: `1px solid ${colors.border}`, color: colors.textPrimary, fontWeight: '500', fontSize: '13px', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit' }}>Add to Shopping List</button>
             </div>
-          )}
 
-          <div style={{ background: colors.card, borderRadius: borderRadius.lg, padding: spacing.md, border: `1px solid ${colors.border}` }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Recipe Info</h3>
-            <div>
-              {[{ label: 'Source', value: recipe.source || 'Unknown' }, { label: 'Times Cooked', value: recipe.times_cooked || 0 }, { label: 'Last Made', value: recipe.last_made ? new Date(recipe.last_made).toLocaleDateString() : 'Never' }].map((stat, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: `${spacing.xs} 0`, borderBottom: idx < 2 ? `1px solid ${colors.border}` : 'none', fontSize: '13px' }}>
-                  <span style={{ color: colors.textSecondary }}>{stat.label}</span>
-                  <span style={{ color: colors.textPrimary }}>{stat.value}</span>
+            {missingIngredients.length > 0 && (
+              <div style={{ background: colors.card, borderRadius: borderRadius.lg, padding: spacing.md, border: `1px solid ${colors.border}` }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Missing Ingredients</h3>
+                <div style={{ marginBottom: spacing.md }}>
+                  {missingIngredients.map((ing, idx) => <div key={idx} style={{ padding: `${spacing.xs} 0`, borderBottom: idx < missingIngredients.length - 1 ? `1px solid ${colors.border}` : 'none', fontSize: '13px', color: colors.textPrimary }}>{ing}</div>)}
                 </div>
-              ))}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${spacing.xs} 0`, fontSize: '13px' }}>
-                <span style={{ color: colors.textSecondary }}>Favorite</span>
-                <button onClick={(e) => onToggleFavorite(recipe.id, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: recipe.favorite ? '#ef4444' : colors.textSecondary }}><Heart size={16} fill={recipe.favorite ? '#ef4444' : 'none'} /></button>
+                <button onClick={(e) => onAddMissingToShoppingList(recipe, e)} style={{ width: '100%', padding: spacing.sm, borderRadius: borderRadius.md, background: colors.background, border: `1px solid ${colors.border}`, color: colors.textPrimary, fontWeight: '500', fontSize: '13px', cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit' }}>Add to Shopping List</button>
+              </div>
+            )}
+
+            <div style={{ background: colors.card, borderRadius: borderRadius.lg, padding: spacing.md, border: `1px solid ${colors.border}` }}>
+              <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Recipe Info</h3>
+              <div>
+                {[{ label: 'Source', value: recipe.source || 'Unknown' }, { label: 'Times Cooked', value: recipe.times_cooked || 0 }, { label: 'Last Made', value: recipe.last_made ? new Date(recipe.last_made).toLocaleDateString() : 'Never' }].map((stat, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: `${spacing.xs} 0`, borderBottom: idx < 2 ? `1px solid ${colors.border}` : 'none', fontSize: '13px' }}>
+                    <span style={{ color: colors.textSecondary }}>{stat.label}</span>
+                    <span style={{ color: colors.textPrimary }}>{stat.value}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${spacing.xs} 0`, fontSize: '13px' }}>
+                  <span style={{ color: colors.textSecondary }}>Favorite</span>
+                  <button onClick={(e) => onToggleFavorite(recipe.id, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: recipe.favorite ? '#ef4444' : colors.textSecondary }}><Heart size={16} fill={recipe.favorite ? '#ef4444' : 'none'} /></button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div style={{ background: colors.card, borderRadius: borderRadius.lg, padding: spacing.md, border: `1px solid ${colors.border}` }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Your Notes</h3>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add your notes..." style={{ width: '100%', padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md, fontSize: '13px', color: colors.textPrimary, lineHeight: '1.5', border: `1px solid ${colors.border}`, minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-            <button onClick={handleSaveNotes} disabled={savingNotes} style={{ marginTop: spacing.sm, width: '100%', padding: spacing.sm, borderRadius: borderRadius.md, background: savingNotes ? colors.textSecondary : colors.primary, color: 'white', fontWeight: '500', fontSize: '13px', cursor: savingNotes ? 'not-allowed' : 'pointer', border: 'none', fontFamily: 'inherit' }}>
-              {savingNotes ? 'Saving...' : 'Save Notes'}
-            </button>
+            <div style={{ background: colors.card, borderRadius: borderRadius.lg, padding: spacing.md, border: `1px solid ${colors.border}` }}>
+              <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Your Notes</h3>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add your notes..." style={{ width: '100%', padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md, fontSize: '13px', color: colors.textPrimary, lineHeight: '1.5', border: `1px solid ${colors.border}`, minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <button onClick={handleSaveNotes} disabled={savingNotes} style={{ marginTop: spacing.sm, width: '100%', padding: spacing.sm, borderRadius: borderRadius.md, background: savingNotes ? colors.textSecondary : colors.primary, color: 'white', fontWeight: '500', fontSize: '13px', cursor: savingNotes ? 'not-allowed' : 'pointer', border: 'none', fontFamily: 'inherit' }}>
+                {savingNotes ? 'Saving...' : 'Save Notes'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
