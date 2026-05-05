@@ -313,6 +313,34 @@ Recipes Tab
     └── Add Missing → Extract clean ingredient names → Add to shopping list
 ```
 
+### Ingredient Matching Algorithm
+
+Implemented in `services/api-gateway/app/recipe_matcher.py` (`RecipeMatcher`).
+
+**Phase 1 — Normalization** (applied to both recipe ingredient and pantry item names)
+
+1. Lowercase and strip whitespace
+2. Remove neutral descriptor words: `fresh`, `organic`, `whole`, `extra`, `virgin`, `raw`, `frozen`, `chopped`, `sliced`, `diced`, `minced`, `unsalted`, `light`, `heavy`, etc.
+3. Strip parenthesized content — `"Milk (2%)"` → `"milk"`
+4. Basic singularization — `tomatoes` → `tomato`, `berries` → `berry`
+
+**Phase 2 — Fuzzy matching** (4 steps, returns on first match)
+
+| Step | Logic | Example |
+|---|---|---|
+| **1. Exact** | Normalized names identical | `"olive oil"` = `"olive oil"` |
+| **2. Forward partial** | Pantry item is a substring of the recipe ingredient (min 4 chars) | Pantry `"olive oil"` found inside recipe `"extra virgin olive oil"` |
+| **3. Bidirectional overlap** | Word-set overlap ≥70% on **both** sides | Prevents `"sugar"` matching `"brown sugar"` (pantry coverage = 50%) |
+| **4. Generic head-word** | Recipe ingredient is one unmodified word → match any pantry item ending with that base | `"flour"` → `"bread flour"`, `"rice"` → `"jasmine rice"` |
+
+Step 4 fires only for single-word recipe ingredients (the generic category name).  
+It does **not** fire for multi-word ingredients, so `"rice flour"` cannot match `"bread flour"`.
+
+**Quantity comparison** (countable ingredients only)
+
+For unitless or count-based ingredients (`eggs`, `lemons`, pieces) the recipe quantity is compared against the summed pantry quantity. If the pantry has fewer than needed the ingredient is reported as missing.  
+Volumetric/weight ingredients (`cups`, `grams`, `tbsp`) are not compared — unit conversion is not reliable without a conversion library.
+
 ---
 
 ## API Structure

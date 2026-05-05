@@ -185,7 +185,7 @@ class RecipeImportService:
                 if image_downloaded:
                     result['image_downloaded'] = True
                     # Update recipe with API image URL
-                    recipe.image_url = f"/api/images/recipe/{recipe.id}"
+                    recipe.image_url = f"/api/images/recipe/{recipe.id}/view"
 
             self.db.commit()
             result['status'] = 'imported'
@@ -222,6 +222,11 @@ class RecipeImportService:
         recipe.servings = recipe_data.get('servings', 4)
         recipe.tags = recipe_data.get('tags', [])
         recipe.category = recipe_data.get('category', [])
+
+        # Normalize image_url to /view path if it was stored with the old format
+        if recipe.image_url and not recipe.image_url.endswith('/view'):
+            recipe.image_url = f"{recipe.image_url}/view"
+            updated = True
 
         if updated:
             recipe.last_synced = datetime.utcnow()

@@ -62,7 +62,7 @@ class RecipeMatcher:
         recipes = self.db.query(Recipe).all()
 
         # Prepare pantry data
-        pantry_ingredients = self._normalize_pantry_items(pantry_items)
+        pantry_ingredients, pantry_quantities = self._normalize_pantry_items(pantry_items)
         expiring_soon = self._get_expiring_items(pantry_items, expiring_days)
 
         stats = {
@@ -77,7 +77,8 @@ class RecipeMatcher:
             match_result = self._match_recipe(
                 recipe=recipe,
                 pantry_ingredients=pantry_ingredients,
-                expiring_items=expiring_soon
+                expiring_items=expiring_soon,
+                pantry_quantities=pantry_quantities,
             )
 
             # Store match result in UserRecipePreference
@@ -96,14 +97,24 @@ class RecipeMatcher:
 
         return stats
 
+    # Units that indicate a countable/discrete ingredient (no volume/weight)
+    _COUNTABLE_UNITS: Set[str] = {'', 'count', 'piece', 'pieces', 'item', 'items', 'whole', 'unit', 'units'}
+
     def _match_recipe(
         self,
         recipe: Recipe,
         pantry_ingredients: Set[str],
-        expiring_items: Set[str]
+        expiring_items: Set[str],
+        pantry_quantities: Dict[str, int] = None
     ) -> Dict:
         """
-        Match a single recipe against pantry
+        Match a single recipe against pantry.
+
+        For unitless/countable ingredients (eggs, lemons, …) the recipe quantity
+        is compared against the pantry quantity; if the pantry has fewer than
+        needed the ingredient is treated as missing.  Volumetric/weight
+        ingredients are left as simple present/absent checks because unit
+        conversion is not reliable.
 
         Returns:
             Dict with match_percentage, available, missing, expiring counts
@@ -122,6 +133,7 @@ class RecipeMatcher:
                 'uses_expiring_items': False
             }
 
+        pantry_quantities = pantry_quantities or {}
         available_count = 0
         missing_ingredients = []
         expiring_ingredients = []
@@ -136,15 +148,38 @@ class RecipeMatcher:
             )
 
             if matched:
-                available_count += 1
+                # For countable ingredients, verify quantity is sufficient
+                recipe_unit = (ingredient.get('unit') or '').strip().lower()
+                recipe_qty_raw = ingredient.get('quantity')
+                is_countable = recipe_unit in self._COUNTABLE_UNITS
 
-                # Check if expiring soon
-                if matched in expiring_items:
-                    expiring_ingredients.append({
+                insufficient = False
+                if is_countable and recipe_qty_raw is not None:
+                    try:
+                        needed = float(recipe_qty_raw)
+                        have = pantry_quantities.get(matched, 1)
+                        if have < needed:
+                            insufficient = True
+                    except (ValueError, TypeError):
+                        pass
+
+                if insufficient:
+                    missing_ingredients.append({
                         'name': ingredient.get('name'),
                         'quantity': ingredient.get('quantity'),
-                        'unit': ingredient.get('unit')
+                        'unit': ingredient.get('unit'),
+                        'note': f'need {recipe_qty_raw}, have {pantry_quantities.get(matched, 1)}',
                     })
+                else:
+                    available_count += 1
+
+                    # Check if expiring soon
+                    if matched in expiring_items:
+                        expiring_ingredients.append({
+                            'name': ingredient.get('name'),
+                            'quantity': ingredient.get('quantity'),
+                            'unit': ingredient.get('unit')
+                        })
             else:
                 missing_ingredients.append({
                     'name': ingredient.get('name'),
@@ -184,22 +219,30 @@ class RecipeMatcher:
 
         return True
 
-    def _normalize_pantry_items(self, pantry_items: List[Dict]) -> Set[str]:
+    def _normalize_pantry_items(self, pantry_items: List[Dict]) -> tuple:
         """
-        Normalize pantry items to ingredient names
+        Normalize pantry items to ingredient names and quantities.
 
         Returns:
-            Set of lowercase normalized ingredient names
+            (names: Set[str], quantities: Dict[str, int])
+            quantities maps normalized name → total pantry quantity (summed
+            across multiple records of the same item).
         """
-        ingredients = set()
+        names: Set[str] = set()
+        quantities: Dict[str, int] = {}
 
         for item in pantry_items:
             name = item.get('product_name', '') or item.get('name', '')
             if name:
                 normalized = self._normalize_ingredient_name(name)
-                ingredients.add(normalized)
+                names.add(normalized)
+                qty = item.get('quantity', 1) or 1
+                try:
+                    quantities[normalized] = quantities.get(normalized, 0) + int(qty)
+                except (ValueError, TypeError):
+                    quantities[normalized] = quantities.get(normalized, 0) + 1
 
-        return ingredients
+        return names, quantities
 
     def _get_expiring_items(
         self,
@@ -282,36 +325,59 @@ class RecipeMatcher:
         pantry_ingredients: Set[str]
     ) -> Optional[str]:
         """
-        Fuzzy match ingredient against pantry items
+        Fuzzy match ingredient against pantry items.
+
+        Matching strategy (in priority order):
+        1. Exact normalized match.
+        2. Forward partial: pantry item is a substring of the ingredient name
+           (e.g., pantry "olive oil" found inside recipe "extra virgin olive oil").
+        3. Bidirectional word overlap: both the ingredient AND the pantry item must
+           have ≥70% of their words matched.  This prevents "sugar" (1 word, 100%
+           coverage from ingredient side) from matching "brown sugar" (2 words,
+           only 50% coverage from pantry side → fails the 70% threshold).
+        4. Generic head-word match: a single-word recipe ingredient (e.g. "flour",
+           "rice") matches any pantry item whose final word is that same base word
+           (e.g. "bread flour", "jasmine rice").  Handles the case where the user
+           stocks specific variants but a recipe asks for the generic category.
+           This is purely algorithmic — no curated taxonomy required.
 
         Returns:
             Matched pantry ingredient name or None
         """
         normalized_ingredient = self._normalize_ingredient_name(ingredient_name)
 
-        # Exact match
+        # 1. Exact match
         if normalized_ingredient in pantry_ingredients:
             return normalized_ingredient
 
-        # Partial match (ingredient contains pantry item)
-        for pantry_item in pantry_ingredients:
-            if pantry_item in normalized_ingredient:
+        # 2. Forward partial: pantry item must be contained in the ingredient string
+        #    (not the reverse — avoids "sugar" matching "brown sugar")
+        for pantry_item in sorted(pantry_ingredients):
+            if len(pantry_item) > 3 and pantry_item in normalized_ingredient:
                 return pantry_item
 
-        # Reverse partial match (pantry item contains ingredient)
-        for pantry_item in pantry_ingredients:
-            if normalized_ingredient in pantry_item:
-                return pantry_item
-
-        # Word overlap match
+        # 3. Bidirectional word-overlap match
         ingredient_words = set(normalized_ingredient.split())
-        for pantry_item in pantry_ingredients:
+        for pantry_item in sorted(pantry_ingredients):
             pantry_words = set(pantry_item.split())
+            if not ingredient_words or not pantry_words:
+                continue
+            overlap = len(ingredient_words & pantry_words)
+            ingredient_coverage = overlap / len(ingredient_words)
+            pantry_coverage = overlap / len(pantry_words)
+            # Both sides must reach 70% — prevents a single shared word from
+            # triggering a match when one item has many more words than the other.
+            if ingredient_coverage >= 0.7 and pantry_coverage >= 0.7:
+                return pantry_item
 
-            # If 50%+ words match, consider it a match
-            if len(ingredient_words) > 0:
-                overlap = len(ingredient_words & pantry_words)
-                if overlap / len(ingredient_words) >= 0.5:
+        # 4. Generic head-word match: fires only when the recipe ingredient is a
+        #    single unmodified word (the generic category name).  Matches any pantry
+        #    item whose final word equals that base — covers arbitrary variants of
+        #    flour, rice, oil, vinegar, milk, etc. without a hand-curated list.
+        if ' ' not in normalized_ingredient and len(normalized_ingredient) >= 3:
+            for pantry_item in sorted(pantry_ingredients):
+                pantry_words = pantry_item.split()
+                if pantry_words and pantry_words[-1] == normalized_ingredient:
                     return pantry_item
 
         return None

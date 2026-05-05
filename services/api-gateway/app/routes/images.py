@@ -108,13 +108,13 @@ async def get_custom_image(
 @router.get("/recipe/{recipe_id}/view")
 async def view_recipe_image(
     recipe_id: str,
-    current_user: User = Depends(get_current_user),
     minio: MinIOService = Depends(get_minio_service),
     db: Session = Depends(get_db)
 ):
     """
     Serve recipe image bytes proxied through the API gateway.
-    Keeps minio:9000 internal — browsers never see the internal Docker hostname.
+    Public endpoint — recipe images are household-shared data, and the mobile
+    Image component cannot attach auth headers.  Keeps minio:9000 internal.
     """
     recipe_image = db.query(RecipeImage).filter(
         RecipeImage.recipe_id == recipe_id
