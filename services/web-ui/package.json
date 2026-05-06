@@ -20,6 +20,7 @@
     "@types/react-window": "^1.8.8",
     "axios": "^1.12.2",
     "lucide-react": "^0.553.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^6.28.0",

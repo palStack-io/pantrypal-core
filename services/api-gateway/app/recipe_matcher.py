@@ -238,7 +238,7 @@ class RecipeMatcher:
                 names.add(normalized)
                 qty = item.get('quantity', 1) or 1
                 try:
-                    quantities[normalized] = quantities.get(normalized, 0) + int(qty)
+                    quantities[normalized] = quantities.get(normalized, 0) + float(qty)
                 except (ValueError, TypeError):
                     quantities[normalized] = quantities.get(normalized, 0) + 1
 

@@ -408,3 +408,15 @@ class NotificationPreferences(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class Release(Base):
+    """App release notes published by admin"""
+    __tablename__ = "releases"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    version = Column(String(50), unique=True, nullable=False, index=True)
+    title = Column(String(255), nullable=True)
+    items = Column(JSON, nullable=False, default=list)
+    published_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

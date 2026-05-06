@@ -21,6 +21,7 @@ interface NavSectionProps {
 }
 
 interface NavItemProps {
+  id?: string;
   icon: ReactNode;
   label: string;
   count?: number;
@@ -80,6 +81,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
       <div style={{ flex: 1, padding: spacing.lg, overflowY: 'auto' }}>
         <NavSection title="Views" colors={colors}>
           <NavItem
+            id="tour-nav-inventory"
             icon={<Package size={18} />}
             label="All Items"
             count={stats.total}
@@ -89,6 +91,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
             gradient={gradient}
           />
           <NavItem
+            id="tour-nav-shopping"
             icon={<ShoppingCart size={18} />}
             label="Shopping List"
             active={currentPath === '/shopping'}
@@ -97,6 +100,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
             gradient={gradient}
           />
           <NavItem
+            id="tour-nav-insights"
             icon={<TrendingUp size={18} />}
             label="Insights"
             active={currentPath === '/insights'}
@@ -105,6 +109,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
             gradient={gradient}
           />
           <NavItem
+            id="tour-nav-recipes"
             icon={<ChefHat size={18} />}
             label="Recipes"
             active={currentPath === '/recipes'}
@@ -169,6 +174,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
 
       <div style={{ padding: spacing.lg, borderTop: `1px solid ${colors.border}` }}>
         <button
+          id="tour-add-item"
           onClick={() => onNavigate('/add')}
           style={{ width: '100%', background: gradient.primary, color: 'white', border: 'none', padding: '14px', borderRadius: borderRadius.lg, fontSize: '15px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, boxShadow: shadows.large }}
         >
@@ -191,10 +197,11 @@ function NavSection({ title, children, colors }: NavSectionProps) {
   );
 }
 
-function NavItem({ icon, label, count, active, onClick, colors, gradient }: NavItemProps) {
+function NavItem({ id, icon, label, count, active, onClick, colors, gradient }: NavItemProps) {
   const [hover, setHover] = useState(false);
   return (
     <div
+      id={id}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}

@@ -57,6 +57,7 @@ class ItemDB(Base):
     expiry_date = Column(Date, nullable=True)
     notes = Column(String, nullable=True)
     manually_added = Column(Boolean, default=False)
+    qr_label_generated = Column(Boolean, default=False)
     added_date = Column(DateTime, default=datetime.utcnow)
     updated_date = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -707,6 +708,7 @@ class ItemUpdate(BaseModel):
     quantity: Optional[int] = None
     expiry_date: Optional[date] = None
     notes: Optional[str] = None
+    qr_label_generated: Optional[bool] = None
 
 class ItemResponse(BaseModel):
     id: int
@@ -720,6 +722,7 @@ class ItemResponse(BaseModel):
     expiry_date: Optional[date]
     notes: Optional[str]
     manually_added: bool
+    qr_label_generated: bool
     added_date: datetime
     updated_date: datetime
 
@@ -1320,8 +1323,19 @@ def seed_demo_inventory(db: Session):
     logger.info(f"   Locations: {dict(locations)}")
     logger.info(f"   Categories: {dict(categories)}")
 
+def run_migrations():
+    """Add columns introduced after initial schema creation."""
+    with engine.connect() as conn:
+        conn.execute(
+            "ALTER TABLE items ADD COLUMN IF NOT EXISTS qr_label_generated BOOLEAN DEFAULT FALSE"
+        )
+        conn.commit()
+
+
 @app.on_event("startup")
 async def startup_event():
+    Base.metadata.create_all(bind=engine)
+    run_migrations()
     db = SessionLocal()
     try:
         seed_categories(db)

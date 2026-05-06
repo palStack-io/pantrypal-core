@@ -4,6 +4,7 @@ export interface Item {
   id: string | number;
   name: string;
   barcode?: string | null;
+  brand?: string | null;
   quantity: number;
   location?: string | null;
   category?: string | null;
@@ -11,6 +12,8 @@ export interface Item {
   notes?: string | null;
   created_at?: string;
   image_url?: string | null;
+  manually_added?: boolean;
+  qr_label_generated?: boolean;
 }
 
 export interface ShoppingItem {

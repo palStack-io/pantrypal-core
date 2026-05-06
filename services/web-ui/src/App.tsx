@@ -16,16 +16,22 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ToastProvider } from './components/Toast';
 import { DialogProvider } from './components/DialogProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import WhatsNewModal, { useWhatsNew } from './components/WhatsNewModal';
+import TourOverlay from './components/onboarding/TourOverlay';
+import { useTour } from './components/onboarding/useTour';
 import type { User } from './types';
 import './App.css';
 
 function AppContent() {
+  const { pendingRelease, dismiss: dismissWhatsNew } = useWhatsNew();
   const [showLanding, setShowLanding] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [filters, setFilters] = useState<Record<string, string | null>>({});
   const { isDark, toggle: toggleDark } = useTheme();
+  const isAuthenticated = !checkingAuth && !showLanding;
+  const { active: tourActive, step: tourStep, next: tourNext, prev: tourPrev, goTo: tourGoTo, end: tourEnd, replay: tourReplay } = useTour(isAuthenticated);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -99,12 +105,24 @@ function AppContent() {
       <SettingsPage
         currentUser={currentUser}
         onBack={() => navigate('/')}
+        onReplayTour={() => { tourReplay(); navigate('/'); }}
       />
     );
   }
 
   return (
     <div className="app">
+      {pendingRelease && <WhatsNewModal release={pendingRelease} onClose={dismissWhatsNew} />}
+      {tourActive && (
+        <TourOverlay
+          step={tourStep}
+          total={5}
+          onNext={tourNext}
+          onPrev={tourPrev}
+          onGoTo={tourGoTo}
+          onEnd={tourEnd}
+        />
+      )}
       <Sidebar isOpen={sidebarOpen} currentPath={location.pathname} onNavigate={navigate} onFilterChange={handleFilterChange} currentFilters={filters} />
       <TopBar currentUser={currentUser} onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }} onSettingsClick={() => navigate('/settings')} onToggleDark={toggleDark} />
       <div className="main-content-wrapper">

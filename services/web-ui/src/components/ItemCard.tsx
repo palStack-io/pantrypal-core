@@ -1,4 +1,4 @@
-import { Edit, Trash2, MapPin, Calendar, Plus, Minus } from 'lucide-react';
+import { Edit, Trash2, MapPin, Calendar, Plus, Minus, QrCode } from 'lucide-react';
 import { getColors, borderRadius, spacing, getShadows } from '../colors';
 import { formatDate, getExpiryBadgeText, getExpiryColor } from '../utils/dateUtils';
 import { useTheme } from '../context/ThemeContext';
@@ -9,12 +9,13 @@ interface ItemCardProps {
   item: Item;
   onEdit: (item: Item) => void;
   onDelete: (item: Item) => void;
+  onQRLabel?: (item: Item) => void;
   onSelect?: (item: Item) => void;
   isSelected?: boolean;
   onQuantityChange?: (id: number | string, qty: number) => void;
 }
 
-export function ItemCard({ item, onEdit, onDelete, onSelect, isSelected, onQuantityChange }: ItemCardProps) {
+export function ItemCard({ item, onEdit, onDelete, onQRLabel, onSelect, isSelected, onQuantityChange }: ItemCardProps) {
   const { isDark } = useTheme();
   const colors = getColors(isDark);
   const shadows = getShadows(isDark);
@@ -34,6 +35,11 @@ export function ItemCard({ item, onEdit, onDelete, onSelect, isSelected, onQuant
           {item.barcode && <div style={{ fontSize: '12px', color: colors.textTertiary, marginTop: spacing.xs }}>{item.barcode}</div>}
         </div>
         <div style={{ display: 'flex', gap: spacing.sm }}>
+          {item.manually_added && onQRLabel && (
+            <button onClick={(e) => { e.stopPropagation(); onQRLabel(item); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: spacing.xs, color: item.qr_label_generated ? colors.primary : colors.textSecondary }} title={item.qr_label_generated ? 'View QR Label' : 'Get QR Label'}>
+              <QrCode size={18} />
+            </button>
+          )}
           <button onClick={(e) => { e.stopPropagation(); onEdit(item); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: spacing.xs, color: colors.textSecondary }}>
             <Edit size={18} />
           </button>

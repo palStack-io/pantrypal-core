@@ -108,6 +108,9 @@ def run_migrations():
         # This migration transforms the database from per-user isolation to shared household model
         _run_shared_household_migration(conn)
 
+        # Migration: Releases table
+        _create_releases_table_if_missing(conn)
+
 
 def _run_shared_household_migration(conn):
     """
@@ -401,3 +404,28 @@ def _run_shared_household_migration(conn):
         print(f"Migration error: {e}")
         conn.rollback()
         raise
+
+
+def _create_releases_table_if_missing(conn):
+    """Create the releases table for release notes if it doesn't exist."""
+    from sqlalchemy import text
+    try:
+        result = conn.execute(text("""
+            SELECT table_name FROM information_schema.tables
+            WHERE table_name = 'releases'
+        """))
+        if result.fetchone() is None:
+            conn.execute(text("""
+                CREATE TABLE releases (
+                    id SERIAL PRIMARY KEY,
+                    version VARCHAR(50) UNIQUE NOT NULL,
+                    title VARCHAR(255),
+                    items JSONB NOT NULL DEFAULT '[]',
+                    published_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+            """))
+            conn.commit()
+            print("Migration: Created releases table")
+    except Exception as e:
+        print(f"Migration check for releases table: {e}")

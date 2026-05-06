@@ -6,6 +6,7 @@ import BulkActions from '../components/BulkActions';
 import { InventorySkeleton } from '../components/SkeletonLoader';
 import Alert from '../components/Alert';
 import EditItemModal from '../components/EditItemModal';
+import QRLabelModal from '../components/QRLabelModal';
 import { useToast } from '../components/Toast';
 import { useDialog } from '../components/DialogProvider';
 import { getColors, spacing, borderRadius } from '../colors';
@@ -42,6 +43,7 @@ export function InventoryPage({ sidebarFilters = {} }: InventoryPageProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [qrLabelItem, setQrLabelItem] = useState<Item | null>(null);
 
   const handleDeleteItem = (ids: (number | string)[]) => {
     const undo = removeItems(ids);
@@ -197,7 +199,7 @@ export function InventoryPage({ sidebarFilters = {} }: InventoryPageProps) {
               viewMode === 'card' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: spacing.lg }}>
                   {groupItems.map(item => (
-                    <ItemCard key={item.id} item={item} isSelected={selectedItems.has(item.id)} onSelect={handleSelect} onEdit={() => setEditingItem(item)} onDelete={() => handleDeleteItem([item.id])} onQuantityChange={(id, qty) => editItem(id, { quantity: qty })} />
+                    <ItemCard key={item.id} item={item} isSelected={selectedItems.has(item.id)} onSelect={handleSelect} onEdit={() => setEditingItem(item)} onDelete={() => handleDeleteItem([item.id])} onQRLabel={(item) => setQrLabelItem(item)} onQuantityChange={(id, qty) => editItem(id, { quantity: qty })} />
                   ))}
                 </div>
               ) : (
@@ -233,6 +235,7 @@ export function InventoryPage({ sidebarFilters = {} }: InventoryPageProps) {
                             </td>
                             <td style={{ padding: spacing.md, borderBottom: `1px solid ${colors.border}`, textAlign: 'center' }}>
                               <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'center' }}>
+                                {item.manually_added && <button onClick={(e) => { e.stopPropagation(); setQrLabelItem(item); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: item.qr_label_generated ? colors.primary : colors.textSecondary, padding: spacing.xs }} title={item.qr_label_generated ? 'View QR Label' : 'Get QR Label'}>QR</button>}
                                 <button onClick={(e) => { e.stopPropagation(); setEditingItem(item); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textSecondary, padding: spacing.xs }} title="Edit item">Edit</button>
                                 <button onClick={(e) => { e.stopPropagation(); handleDeleteItem([item.id]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.danger, padding: spacing.xs }} title="Delete item">Delete</button>
                               </div>
@@ -264,6 +267,7 @@ export function InventoryPage({ sidebarFilters = {} }: InventoryPageProps) {
       <BulkActions selectedCount={selectedItems.size} onDelete={handleBulkDelete} onExport={handleExport} onClear={() => setSelectedItems(new Set())} onAddToShoppingList={handleAddToShoppingList} />
 
       {editingItem && <EditItemModal item={editingItem} onClose={() => setEditingItem(null)} onSave={editItem} locations={locations} categories={categories} categoryObjects={categoryObjects} />}
+      {qrLabelItem && <QRLabelModal item={qrLabelItem} onClose={() => setQrLabelItem(null)} />}
     </div>
   );
 }

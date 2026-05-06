@@ -1776,3 +1776,73 @@ async def get_admin_stats(auth = Depends(require_admin)):
         "admin_users": admin_users
     }
 
+
+
+# =============================================================================
+# RELEASES
+# =============================================================================
+
+class ReleaseItemSchema(BaseModel):
+    emoji: Optional[str] = None
+    text: str
+
+
+class ReleaseCreate(BaseModel):
+    version: str
+    title: Optional[str] = None
+    items: Optional[list] = None
+
+
+@app.get("/api/releases")
+async def list_releases():
+    """Public endpoint — returns all releases newest-first."""
+    from .database import SessionLocal
+    from .models import Release
+    db = SessionLocal()
+    try:
+        releases = db.query(Release).order_by(Release.published_at.desc()).all()
+        return {
+            "releases": [
+                {
+                    "id": r.id,
+                    "version": r.version,
+                    "title": r.title,
+                    "items": r.items or [],
+                    "published_at": r.published_at.isoformat() if r.published_at else None,
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                }
+                for r in releases
+            ]
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/admin/releases", status_code=201)
+async def publish_release(body: ReleaseCreate, auth=Depends(require_admin)):
+    """Publish a new release (admin only)."""
+    from .database import SessionLocal
+    from .models import Release
+    db = SessionLocal()
+    try:
+        if db.query(Release).filter(Release.version == body.version.strip()).first():
+            raise HTTPException(status_code=409, detail={"error": f"Version {body.version} already exists"})
+        release = Release(
+            version=body.version.strip(),
+            title=body.title.strip() if body.title else None,
+            items=[i for i in (body.items or []) if i.get("text", "").strip()],
+        )
+        db.add(release)
+        db.commit()
+        db.refresh(release)
+        return {
+            "release": {
+                "id": release.id,
+                "version": release.version,
+                "title": release.title,
+                "items": release.items,
+                "published_at": release.published_at.isoformat(),
+            }
+        }
+    finally:
+        db.close()
