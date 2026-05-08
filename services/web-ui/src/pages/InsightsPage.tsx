@@ -56,6 +56,13 @@ interface EntryMethodCardProps {
   colors: ReturnType<typeof getColors>;
 }
 
+interface WasteWatchEntry {
+  displayName: string;
+  count: number;
+  maxDaysOverdue: number;
+  category: string;
+}
+
 export function InsightsPage() {
   const { isDark } = useTheme();
   const colors = getColors(isDark);
@@ -66,6 +73,7 @@ export function InsightsPage() {
   const [categoryBreakdown, setCategoryBreakdown] = useState<[string, BreakdownEntry][]>([]);
   const [locationBreakdown, setLocationBreakdown] = useState<[string, BreakdownEntry][]>([]);
   const [expiryBreakdown, setExpiryBreakdown] = useState<ExpiryBreakdown>({ expired: 0, expiringSoon: 0, fresh: 0, noDate: 0 });
+  const [wasteWatch, setWasteWatch] = useState<[string, WasteWatchEntry][]>([]);
 
   useEffect(() => {
     if (items.length > 0) calculateStats();
@@ -107,10 +115,26 @@ export function InsightsPage() {
       } else { noDate++; }
     });
 
+    const wasteMap: Record<string, WasteWatchEntry> = {};
+    items.forEach((item) => {
+      if (!item.expiry_date) return;
+      const expiry = new Date(item.expiry_date);
+      if (expiry >= today) return;
+      const daysOverdue = Math.floor((today.getTime() - expiry.getTime()) / (1000 * 60 * 60 * 24));
+      const key = item.name.trim().toLowerCase();
+      if (!wasteMap[key]) wasteMap[key] = { displayName: item.name, count: 0, maxDaysOverdue: 0, category: item.category || 'Uncategorized' };
+      wasteMap[key].count += 1;
+      wasteMap[key].maxDaysOverdue = Math.max(wasteMap[key].maxDaysOverdue, daysOverdue);
+    });
+    const sortedWaste = Object.entries(wasteMap)
+      .sort((a, b) => b[1].count - a[1].count || b[1].maxDaysOverdue - a[1].maxDaysOverdue)
+      .slice(0, 5);
+
     setStats({ total_items: items.length, total_quantity: totalQuantity, locations_count: uniqueLocations.size, categories_count: uniqueCategories.size, expiring_soon: expiringSoon, manually_added_count: manuallyAddedCount });
     setCategoryBreakdown(Object.entries(categoryMap).sort((a, b) => b[1].count - a[1].count).slice(0, 5));
     setLocationBreakdown(Object.entries(locationMap).sort((a, b) => b[1].count - a[1].count).slice(0, 5));
     setExpiryBreakdown({ expired, expiringSoon: expiringSoonCount, fresh, noDate });
+    setWasteWatch(sortedWaste);
   };
 
   if (loading) {
@@ -158,6 +182,37 @@ export function InsightsPage() {
           </div>
         </div>
       </div>
+
+      {wasteWatch.length > 0 && (
+        <div style={{ marginBottom: spacing.xl }}>
+          <h2 style={{ fontSize: '12px', fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: spacing.md }}>WASTE WATCH</h2>
+          <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: borderRadius.lg, overflow: 'hidden', boxShadow: shadows.medium }}>
+            {wasteWatch.map(([key, data], index) => (
+              <div key={key}>
+                {index > 0 && <div style={{ height: '1px', background: colors.border, marginLeft: '58px' }} />}
+                <div style={ss.breakdownRow}>
+                  <div style={ss.breakdownLeft}>
+                    <span style={ss.breakdownIcon}>⏰</span>
+                    <div style={ss.breakdownContent}>
+                      <div style={{ fontSize: '15px', fontWeight: '700', color: colors.textPrimary, marginBottom: '2px' }}>{data.displayName}</div>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: colors.textSecondary }}>
+                        {data.count > 1
+                          ? `${data.count} expired in pantry · ${data.maxDaysOverdue}d overdue`
+                          : `${data.maxDaysOverdue} day${data.maxDaysOverdue !== 1 ? 's' : ''} overdue`}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ ...ss.breakdownBadge, background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.25)' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '900', color: '#ff3b30' }}>
+                      {data.count > 1 ? `×${data.count}` : `${data.maxDaysOverdue}d`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: spacing.xl }}>
         <div>
