@@ -1325,10 +1325,11 @@ def seed_demo_inventory(db: Session):
 
 def run_migrations():
     """Add columns introduced after initial schema creation."""
+    from sqlalchemy import text
     with engine.connect() as conn:
-        conn.execute(
+        conn.execute(text(
             "ALTER TABLE items ADD COLUMN IF NOT EXISTS qr_label_generated BOOLEAN DEFAULT FALSE"
-        )
+        ))
         conn.commit()
 
 
