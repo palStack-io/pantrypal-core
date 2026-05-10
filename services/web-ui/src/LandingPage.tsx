@@ -53,6 +53,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [demoMode, setDemoMode] = useState(false);
   const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([]);
   const [demoSessionMinutes, setDemoSessionMinutes] = useState(10);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const { toast, showSuccess, showError, hideToast } = useToast();
 
   useEffect(() => {
@@ -97,6 +98,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setLoginError(null);
     try {
       const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: loginUsername, password: loginPassword }), credentials: 'include' });
       if (response.ok) {
@@ -106,9 +108,9 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
         onLoginSuccess(data.user);
       } else {
         const error = await response.json();
-        showError(error.detail || 'Invalid credentials');
+        setLoginError(error.detail || 'Invalid username or password');
       }
-    } catch { showError('Could not reach server - check your connection'); }
+    } catch { setLoginError('Could not reach server — check your connection'); }
     finally { setLoading(false); }
   };
 
@@ -253,16 +255,22 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Username or Email</label>
-              <input type="text" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} required autoFocus autoComplete="username" style={inputStyle} />
+              <input type="text" value={loginUsername} onChange={(e) => { setLoginUsername(e.target.value); setLoginError(null); }} required autoFocus autoComplete="username" style={inputStyle} />
             </div>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input type={showLoginPassword ? 'text' : 'password'} value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} autoComplete="current-password" required style={{ ...inputStyle, paddingRight: '48px', boxSizing: 'border-box' }} />
+                <input type={showLoginPassword ? 'text' : 'password'} value={loginPassword} onChange={(e) => { setLoginPassword(e.target.value); setLoginError(null); }} autoComplete="current-password" required style={{ ...inputStyle, paddingRight: '48px', boxSizing: 'border-box' }} />
                 <button type="button" onClick={() => setShowLoginPassword(!showLoginPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: colors.textSecondary, padding: 0 }}>{showLoginPassword ? '🙈' : '👁'}</button>
               </div>
             </div>
             <button type="button" onClick={() => setView('forgot')} style={{ background: 'none', border: 'none', color: colors.primary, cursor: 'pointer', fontSize: '14px', marginBottom: spacing.lg }}>Forgot password?</button>
+            {loginError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: borderRadius.md, padding: `${spacing.sm} ${spacing.md}`, marginBottom: spacing.md, color: '#b91c1c', fontSize: '14px', display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                <span style={{ fontSize: '16px' }}>&#x26A0;</span>
+                {loginError}
+              </div>
+            )}
             <button type="submit" disabled={loading} style={primaryBtnStyle}>{loading ? '⏳ Signing in...' : 'Sign In'}</button>
           </form>
           <div style={{ marginTop: spacing.lg, textAlign: 'center', color: colors.textSecondary }}>

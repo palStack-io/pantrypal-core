@@ -8,6 +8,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from datetime import datetime, timedelta
 from typing import Optional
+import asyncio
 import httpx
 import logging
 import os
@@ -1029,6 +1030,51 @@ async def get_categories(auth = Depends(get_current_auth)):
         logger.error("Inventory service error: %s", e)
         raise HTTPException(status_code=500, detail="Inventory service unavailable")
     
+@app.get("/api/stats")
+async def get_stats(auth = Depends(get_current_auth)):
+    """Aggregate inventory statistics for the mobile server stats screen"""
+    try:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
+            items_resp, locations_resp, categories_resp = await asyncio.gather(
+                client.get(f"{INVENTORY_SERVICE_URL}/items", timeout=10.0),
+                client.get(f"{INVENTORY_SERVICE_URL}/locations", timeout=5.0),
+                client.get(f"{INVENTORY_SERVICE_URL}/categories", timeout=5.0),
+            )
+            items_resp.raise_for_status()
+            items = items_resp.json()
+
+            today = datetime.now().date()
+            expiring_soon = 0
+            total_quantity = 0
+            manually_added = 0
+            for item in items:
+                total_quantity += item.get("quantity", 0)
+                if item.get("manually_added"):
+                    manually_added += 1
+                if item.get("expiry_date"):
+                    try:
+                        days_left = (datetime.fromisoformat(item["expiry_date"]).date() - today).days
+                        if 0 <= days_left <= 7:
+                            expiring_soon += 1
+                    except (ValueError, TypeError):
+                        pass
+
+            locations_count = len(locations_resp.json()) if locations_resp.is_success else 0
+            categories_count = len(categories_resp.json()) if categories_resp.is_success else 0
+
+            return {
+                "total_items": len(items),
+                "total_quantity": total_quantity,
+                "expiring_soon": expiring_soon,
+                "locations_count": locations_count,
+                "categories_count": categories_count,
+                "manually_added_count": manually_added,
+            }
+    except httpx.HTTPError as e:
+        logger.error("Stats service error: %s", e)
+        raise HTTPException(status_code=500, detail="Could not load statistics")
+
+
 @app.get("/api/stats/expiring")
 async def get_expiring_items(days: int = 7, auth = Depends(get_current_auth)):
     """Get items expiring within specified days"""

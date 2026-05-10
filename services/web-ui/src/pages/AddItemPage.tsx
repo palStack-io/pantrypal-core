@@ -28,13 +28,31 @@ interface AddItemPageProps {
 
 const errorStyle = { color: '#dc2626', fontSize: '12px', marginTop: '4px' };
 
+const addCount = { value: 0, lastAddAt: 0 };
+function incrementAddCount(): number {
+  const now = Date.now();
+  if (addCount.lastAddAt > 0 && now - addCount.lastAddAt > 10 * 60 * 1000) {
+    addCount.value = 0;
+  }
+  addCount.value++;
+  addCount.lastAddAt = now;
+  return addCount.value;
+}
+function resetAddCount() {
+  addCount.value = 0;
+  addCount.lastAddAt = 0;
+}
+
+const emptyForm: FormData = { name: '', barcode: '', brand: '', quantity: 1, location: '', category: '', expiry_date: '', notes: '' };
+
 export function AddItemPage({ onBack }: AddItemPageProps) {
   const { isDark } = useTheme();
   const colors = getColors(isDark);
   const toast = useToast();
   const { items, addItem, editItem } = useItems();
   const { locations: apiLocations, categoryObjects: apiCategoryObjects } = useLocations();
-  const [formData, setFormData] = useState<FormData>({ name: '', barcode: '', brand: '', quantity: 1, location: '', category: '', expiry_date: '', notes: '' });
+  const [formData, setFormData] = useState<FormData>(emptyForm);
+  const [multiAddBanner, setMultiAddBanner] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -99,8 +117,16 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
         onBack();
       } else {
         const newItem = await addItem(formData);
+        const count = incrementAddCount();
         if (generateQR && newItem) {
           setQrItem(newItem);
+        } else if (count >= 3) {
+          toast.success('Item added!');
+          setMultiAddBanner(true);
+          setFormData(emptyForm);
+          setFieldErrors({});
+          setGenerateQR(false);
+          setSuggestions([]);
         } else {
           toast.success('Item added successfully!');
           onBack();
@@ -123,16 +149,37 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
           onClose={() => {
             setQrItem(null);
             toast.success('Item added successfully!');
+            resetAddCount();
             onBack();
           }}
         />
       )}
 
       <div style={{ padding: `${spacing.xl} ${spacing.xxl}`, maxWidth: '800px' }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.textSecondary, marginBottom: spacing.lg, fontSize: '14px', padding: spacing.sm }}>
+        <button onClick={() => { resetAddCount(); onBack(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.textSecondary, marginBottom: spacing.lg, fontSize: '14px', padding: spacing.sm }}>
           <ArrowLeft size={18} />
           Back to Inventory
         </button>
+
+        {multiAddBanner && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: isDark ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.08)',
+            border: `1px solid ${isDark ? 'rgba(34,197,94,0.3)' : 'rgba(34,197,94,0.25)'}`,
+            borderRadius: borderRadius.md, padding: `${spacing.md} ${spacing.lg}`,
+            marginBottom: spacing.lg, gap: spacing.md,
+          }}>
+            <span style={{ fontSize: '14px', color: isDark ? '#86efac' : '#166534', fontWeight: '500' }}>
+              Adding multiple items — form cleared for your next item.
+            </span>
+            <button
+              onClick={() => { resetAddCount(); onBack(); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: isDark ? '#86efac' : '#166534', fontWeight: '600', whiteSpace: 'nowrap', textDecoration: 'underline', padding: 0 }}
+            >
+              Done — Go to Inventory
+            </button>
+          </div>
+        )}
 
         <h1 style={{ marginBottom: spacing.xl, fontSize: '24px', fontWeight: '700', color: colors.textPrimary }}>
           {isEditing ? 'Edit Item' : 'Add New Item'}
