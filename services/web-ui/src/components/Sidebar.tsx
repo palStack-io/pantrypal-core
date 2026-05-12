@@ -1,5 +1,5 @@
 import { useState, useEffect, ReactNode } from 'react';
-import { Package, AlertTriangle, XCircle, Plus, ShoppingCart, TrendingUp, ChefHat } from 'lucide-react';
+import { Package, AlertTriangle, XCircle, Plus, ShoppingCart, TrendingUp, ChefHat, ChevronDown } from 'lucide-react';
 import { getColors, spacing, borderRadius, getShadows, getGradient } from '../colors';
 import { useItems } from '../hooks/useItems';
 import { getExpiryStatus } from '../utils/dateUtils';
@@ -18,6 +18,8 @@ interface NavSectionProps {
   title: string;
   children: ReactNode;
   colors: ReturnType<typeof getColors>;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }
 
 interface NavItemProps {
@@ -138,7 +140,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
         </NavSection>
 
         {Object.keys(locationCounts).length > 0 && (
-          <NavSection title="Locations" colors={colors}>
+          <NavSection title="Locations" colors={colors} collapsible defaultOpen>
             {Object.entries(locationCounts).map(([location, count]) => (
               <NavItem
                 key={location}
@@ -155,8 +157,8 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
         )}
 
         {Object.keys(categoryCounts).length > 0 && (
-          <NavSection title="Categories" colors={colors}>
-            {Object.entries(categoryCounts).slice(0, 5).map(([category, count]) => (
+          <NavSection title="Categories" colors={colors} collapsible defaultOpen>
+            {Object.entries(categoryCounts).map(([category, count]) => (
               <NavItem
                 key={category}
                 icon={getEmojiForCategory(category)}
@@ -186,13 +188,30 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
   );
 }
 
-function NavSection({ title, children, colors }: NavSectionProps) {
+function NavSection({ title, children, colors, collapsible = false, defaultOpen = true }: NavSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
   return (
     <div style={{ marginBottom: spacing.xl }}>
-      <div style={{ fontSize: '12px', fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase', marginBottom: spacing.sm, padding: `0 ${spacing.sm}` }}>
-        {title}
+      <div
+        onClick={collapsible ? () => setIsOpen(o => !o) : undefined}
+        style={{
+          fontSize: '12px', fontWeight: '600', color: colors.textSecondary,
+          textTransform: 'uppercase', marginBottom: isOpen ? spacing.sm : 0,
+          padding: `0 ${spacing.sm}`, display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: collapsible ? 'pointer' : 'default',
+          userSelect: 'none',
+        }}
+      >
+        <span>{title}</span>
+        {collapsible && (
+          <span style={{ display: 'flex', alignItems: 'center', opacity: 0.6, transition: 'transform 0.2s', transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }}>
+            <ChevronDown size={14} />
+          </span>
+        )}
       </div>
-      {children}
+      {isOpen && children}
     </div>
   );
 }

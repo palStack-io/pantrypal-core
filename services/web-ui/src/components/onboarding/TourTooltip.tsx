@@ -131,7 +131,7 @@ export default function TourTooltip({ step, total, spotRect, onNext, onPrev, onG
               ←
             </button>
           )}
-          <button onClick={onNext} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: isLast ? colors.primary : colors.textPrimary, color: '#fff', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+          <button onClick={onNext} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: colors.primary, color: '#fff', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
             {isLast ? "Let's go! 🎉" : 'Next →'}
           </button>
         </div>
