@@ -410,6 +410,22 @@ class NotificationPreferences(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class CategoryOverride(Base):
+    """Per-user category overrides for barcodes and product names"""
+    __tablename__ = "category_overrides"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    key = Column(String(500), nullable=False)  # "barcode:<value>" or "name:<lowercase-name>"
+    category = Column(String(255), nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'key', name='uq_user_category_override'),
+        Index('idx_category_overrides_user', 'user_id'),
+    )
+
+
 class Release(Base):
     """App release notes published by admin"""
     __tablename__ = "releases"

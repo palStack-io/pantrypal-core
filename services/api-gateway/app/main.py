@@ -1458,6 +1458,61 @@ async def save_notification_preferences(preferences: dict, auth = Depends(get_cu
         logger.error("Failed to save notification preferences: %s", e)
         raise HTTPException(status_code=500, detail="Failed to save preferences")
 
+# ============================================================================
+# CATEGORY OVERRIDES
+# ============================================================================
+
+@app.get("/api/category-overrides")
+async def get_category_overrides(auth = Depends(get_current_auth)):
+    """Get all category overrides for the current user"""
+    from .database import SessionLocal
+    from .models import CategoryOverride
+    user_id = auth.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        db = SessionLocal()
+        try:
+            rows = db.query(CategoryOverride).filter_by(user_id=user_id).all()
+            return {row.key: row.category for row in rows}
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error("Failed to get category overrides: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to get category overrides")
+
+@app.post("/api/category-overrides")
+async def save_category_overrides(overrides: dict, auth = Depends(get_current_auth)):
+    """Upsert category overrides for the current user"""
+    from .database import SessionLocal
+    from .models import CategoryOverride
+    user_id = auth.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not overrides:
+        return {"status": "ok", "upserted": 0}
+    try:
+        db = SessionLocal()
+        try:
+            for key, category in overrides.items():
+                if not isinstance(key, str) or not isinstance(category, str):
+                    continue
+                if not key or not category or category == "Uncategorized":
+                    continue
+                row = db.query(CategoryOverride).filter_by(user_id=user_id, key=key).first()
+                if row:
+                    row.category = category
+                else:
+                    db.add(CategoryOverride(user_id=user_id, key=key, category=category))
+            db.commit()
+            return {"status": "ok", "upserted": len(overrides)}
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error("Failed to save category overrides: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to save category overrides")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
