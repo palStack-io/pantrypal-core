@@ -145,6 +145,28 @@ export const getCategories = async (): Promise<Category[]> => {
   return response.data;
 };
 
+export const createLocation = async (name: string, emoji: string = '📍'): Promise<Location> => {
+  const api = createApiInstance();
+  const response = await api.post<Location>('/api/locations', { name, emoji });
+  return response.data;
+};
+
+export const deleteLocation = async (name: string): Promise<void> => {
+  const api = createApiInstance();
+  await api.delete(`/api/locations/${encodeURIComponent(name)}`);
+};
+
+export const createCategory = async (name: string, emoji: string = '📦'): Promise<Category> => {
+  const api = createApiInstance();
+  const response = await api.post<Category>('/api/categories', { name, emoji });
+  return response.data;
+};
+
+export const deleteCategory = async (id: number | string): Promise<void> => {
+  const api = createApiInstance();
+  await api.delete(`/api/categories/${id}`);
+};
+
 export const getAuthMode = async (): Promise<string> => {
   const api = createApiInstance();
   try {

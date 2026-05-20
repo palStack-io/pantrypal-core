@@ -3,8 +3,8 @@ import { User, Mail, Lock, Users, Shield, Activity, Settings as SettingsIcon } f
 import { getColors, spacing, borderRadius, getShadows } from './colors';
 import { useToast } from './components/Toast';
 import { useDialog } from './components/DialogProvider';
-import { getDefaultLocations, getDefaultCategories, saveDefaultLocations, saveDefaultCategories } from './defaults';
-import { getItems, addItemManual, getRecipeIntegration, createRecipeIntegration, deleteRecipeIntegration } from './api';
+import { getDefaultLocations, getDefaultCategories } from './defaults';
+import { getItems, addItemManual, getRecipeIntegration, createRecipeIntegration, deleteRecipeIntegration, getLocations, getCategories, createLocation, deleteLocation, createCategory, deleteCategory } from './api';
 import { useTheme } from './context/ThemeContext';
 import type { User as UserType } from './types';
 
@@ -221,8 +221,8 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
   const [loadingKeys, setLoadingKeys] = useState(false);
   
   // Preferences
-  const [locations, setLocations] = useState(getDefaultLocations);
-  const [categories, setCategories] = useState(getDefaultCategories);
+  const [locations, setLocations] = useState(getDefaultLocations());
+  const [categories, setCategories] = useState(getDefaultCategories());
   const [newLocation, setNewLocation] = useState('');
   const [newLocationEmoji, setNewLocationEmoji] = useState('📍');
   const [newCategory, setNewCategory] = useState('');
@@ -269,6 +269,28 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
 
   const isAdmin = currentUser?.is_admin;
 
+  const loadLocationsAndCategories = async () => {
+    try {
+      const locData = await getLocations();
+      const locs = (Array.isArray(locData) ? locData : ((locData as any)?.locations ?? [])).map((l: any) => ({ name: l.name, emoji: l.emoji || '📍' }));
+      setLocations([...locs].sort((a, b) => a.name.localeCompare(b.name)));
+    } catch {
+      setLocations(getDefaultLocations());
+    }
+    try {
+      const catData = await getCategories();
+      const cats = (Array.isArray(catData) ? catData : []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        emoji: c.emoji || '📦',
+        user_defined: c.user_defined ?? false,
+      }));
+      setCategories([...cats].sort((a, b) => a.name.localeCompare(b.name)));
+    } catch {
+      setCategories(getDefaultCategories());
+    }
+  };
+
   useEffect(() => {
     const stored = localStorage.getItem('API_BASE_URL') || 'http://localhost';
     setApiUrl(stored);
@@ -278,8 +300,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
     setCurrentApiKey(savedApiKey || '');
     setShowApiKeyInput(!!savedApiKey);
 
-    setLocations(getDefaultLocations());
-    setCategories(getDefaultCategories());
+    loadLocationsAndCategories();
 
     checkAuthStatus(stored);
     loadApiKeys(stored);
@@ -812,17 +833,28 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
   };
 
   // Preferences functions
-  const addLocation = () => {
+  const addLocation = async () => {
     const name = newLocation.trim();
-    if (name && !locations.find(l => l.name === name)) {
-      setLocations([...locations, { name, emoji: newLocationEmoji || '📍' }]);
+    if (!name || locations.find(l => l.name === name)) return;
+    try {
+      await createLocation(name, newLocationEmoji || '📍');
       setNewLocation('');
       setNewLocationEmoji('📍');
+      await loadLocationsAndCategories();
+      toast.success('Location added!');
+    } catch {
+      toast.error('Failed to add location');
     }
   };
 
-  const removeLocation = (location) => {
-    setLocations(locations.filter(l => l.name !== location.name));
+  const removeLocation = async (location) => {
+    try {
+      await deleteLocation(location.name);
+      await loadLocationsAndCategories();
+      toast.success('Location removed');
+    } catch {
+      toast.error('Failed to remove location');
+    }
   };
 
   const startEditLocation = (location) => {
@@ -850,17 +882,32 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
     setEditLocationEmoji('');
   };
 
-  const addCategory = () => {
+  const addCategory = async () => {
     const name = newCategory.trim();
-    if (name && !categories.find(c => c.name === name)) {
-      setCategories([...categories, { name, emoji: newCategoryEmoji || '🏷️' }]);
+    if (!name || categories.find(c => c.name === name)) return;
+    try {
+      await createCategory(name, newCategoryEmoji || '📦');
       setNewCategory('');
       setNewCategoryEmoji('🏷️');
+      await loadLocationsAndCategories();
+      toast.success('Category added!');
+    } catch {
+      toast.error('Failed to add category');
     }
   };
 
-  const removeCategory = (category) => {
-    setCategories(categories.filter(c => c.name !== category.name));
+  const removeCategory = async (category) => {
+    if (!category.user_defined) {
+      toast.error('Built-in categories cannot be deleted');
+      return;
+    }
+    try {
+      await deleteCategory(category.id);
+      await loadLocationsAndCategories();
+      toast.success('Category removed');
+    } catch {
+      toast.error('Failed to remove category');
+    }
   };
 
   const startEditCategory = (category) => {
@@ -889,8 +936,6 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
   };
 
   const savePreferences = () => {
-    saveDefaultLocations(locations);
-    saveDefaultCategories(categories);
     toast.success('Preferences saved!');
   };
 
@@ -3410,21 +3455,23 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                         >
                           ✎
                         </button>
-                        <button
-                          onClick={() => removeCategory(category)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            fontSize: '20px',
-                            color: colors.danger,
-                            cursor: 'pointer',
-                            fontWeight: 'bold',
-                            padding: spacing.xs,
-                          }}
-                          title="Delete category"
-                        >
-                          ✕
-                        </button>
+                        {category.user_defined && (
+                          <button
+                            onClick={() => removeCategory(category)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              fontSize: '20px',
+                              color: colors.danger,
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              padding: spacing.xs,
+                            }}
+                            title="Delete category"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                     </>
                   )}

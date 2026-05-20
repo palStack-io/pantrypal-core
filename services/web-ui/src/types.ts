@@ -60,8 +60,10 @@ export interface LocationOption {
 }
 
 export interface CategoryOption {
+  id?: number;
   name: string;
   emoji: string;
+  user_defined?: boolean;
 }
 
 export interface ApiKey {

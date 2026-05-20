@@ -81,6 +81,13 @@ class CategoryDB(Base):
     name = Column(String, unique=True, nullable=False)
     emoji = Column(String, default="📦")
     sort_order = Column(Integer, default=0)
+    user_defined = Column(Boolean, default=False)
+
+class LocationDB(Base):
+    __tablename__ = "locations"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    emoji = Column(String, default="📍")
 
 Base.metadata.create_all(bind=engine)
 
@@ -840,13 +847,75 @@ async def delete_item(item_id: int, db: Session = Depends(get_db)):
 
 @app.get("/locations")
 async def get_locations(db: Session = Depends(get_db)):
-    locations = db.query(ItemDB.location).distinct().all()
-    return {"locations": [loc[0] for loc in locations], "count": len(locations)}
+    db_locs = db.query(LocationDB).all()
+    db_loc_map = {loc.name: loc for loc in db_locs}
+    item_locs = {loc[0] for loc in db.query(ItemDB.location).distinct().all() if loc[0]}
+    merged = set(db_loc_map.keys()) | item_locs
+    result = []
+    for name in sorted(merged):
+        loc = db_loc_map.get(name)
+        result.append({
+            "id": loc.id if loc else None,
+            "name": name,
+            "emoji": loc.emoji if loc else "📍",
+            "user_defined": loc is not None,
+            "in_use": name in item_locs,
+        })
+    return {"locations": result, "count": len(result)}
+
+@app.post("/locations")
+async def create_location(body: dict, db: Session = Depends(get_db)):
+    name = (body.get("name") or "").strip()
+    emoji = (body.get("emoji") or "📍").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    existing = db.query(LocationDB).filter(LocationDB.name == name).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Location already exists")
+    loc = LocationDB(name=name, emoji=emoji)
+    db.add(loc)
+    db.commit()
+    db.refresh(loc)
+    return {"id": loc.id, "name": loc.name, "emoji": loc.emoji}
+
+@app.delete("/locations/{location_name}")
+async def delete_location(location_name: str, db: Session = Depends(get_db)):
+    loc = db.query(LocationDB).filter(LocationDB.name == location_name).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    db.delete(loc)
+    db.commit()
+    return {"message": "Location deleted", "name": location_name}
 
 @app.get("/categories")
 async def get_categories(db: Session = Depends(get_db)):
     cats = db.query(CategoryDB).order_by(CategoryDB.sort_order).all()
-    return [{"id": c.id, "name": c.name, "emoji": c.emoji, "sort_order": c.sort_order} for c in cats]
+    return [{"id": c.id, "name": c.name, "emoji": c.emoji, "sort_order": c.sort_order, "user_defined": c.user_defined} for c in cats]
+
+@app.post("/categories")
+async def create_category(body: dict, db: Session = Depends(get_db)):
+    name = (body.get("name") or "").strip()
+    emoji = (body.get("emoji") or "📦").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    existing = db.query(CategoryDB).filter(CategoryDB.name == name).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Category already exists")
+    max_order = db.query(CategoryDB).count()
+    cat = CategoryDB(name=name, emoji=emoji, sort_order=max_order + 1, user_defined=True)
+    db.add(cat)
+    db.commit()
+    db.refresh(cat)
+    return {"id": cat.id, "name": cat.name, "emoji": cat.emoji, "sort_order": cat.sort_order, "user_defined": True}
+
+@app.delete("/categories/{category_id}")
+async def delete_category(category_id: int, db: Session = Depends(get_db)):
+    cat = db.query(CategoryDB).filter(CategoryDB.id == category_id, CategoryDB.user_defined == True).first()
+    if not cat:
+        raise HTTPException(status_code=404, detail="User-defined category not found")
+    db.delete(cat)
+    db.commit()
+    return {"message": "Category deleted", "id": category_id}
 
 @app.get("/stats")
 async def get_stats(db: Session = Depends(get_db)):
@@ -1323,12 +1392,36 @@ def seed_demo_inventory(db: Session):
     logger.info(f"   Locations: {dict(locations)}")
     logger.info(f"   Categories: {dict(categories)}")
 
+LOCATIONS_SEED = [
+    {"name": "Refrigerator",   "emoji": "🧊"},
+    {"name": "Freezer",        "emoji": "❄️"},
+    {"name": "Pantry",         "emoji": "🏪"},
+    {"name": "Kitchen Pantry", "emoji": "🍳"},
+    {"name": "Basement Pantry","emoji": "📦"},
+    {"name": "Counter",        "emoji": "🍽️"},
+    {"name": "Kitchen Cabinet","emoji": "🪵"},
+    {"name": "Garage",         "emoji": "🚗"},
+    {"name": "Storage Room",   "emoji": "🗄️"},
+]
+
+def seed_locations(db: Session):
+    """Idempotently seed default locations — only inserts rows that don't exist."""
+    for loc in LOCATIONS_SEED:
+        exists = db.query(LocationDB).filter(LocationDB.name == loc["name"]).first()
+        if not exists:
+            db.add(LocationDB(**loc))
+    db.commit()
+    logger.info("Locations seeded")
+
 def run_migrations():
     """Add columns introduced after initial schema creation."""
     from sqlalchemy import text
     with engine.connect() as conn:
         conn.execute(text(
             "ALTER TABLE items ADD COLUMN IF NOT EXISTS qr_label_generated BOOLEAN DEFAULT FALSE"
+        ))
+        conn.execute(text(
+            "ALTER TABLE categories ADD COLUMN IF NOT EXISTS user_defined BOOLEAN DEFAULT FALSE"
         ))
         conn.commit()
 
@@ -1340,6 +1433,7 @@ async def startup_event():
     db = SessionLocal()
     try:
         seed_categories(db)
+        seed_locations(db)
     finally:
         db.close()
 

@@ -27,7 +27,9 @@ export function useLocations(): UseLocationsReturn {
       setError(null);
       try {
         const data = await getLocations();
-        setLocations(Array.isArray(data) ? data.map(l => (typeof l === 'string' ? l : l.name)) : []);
+        const raw = Array.isArray(data) ? data : ((data as any)?.locations ?? []);
+        const names = raw.map((l: any) => (typeof l === 'string' ? l : l.name));
+        setLocations([...names].sort((a: string, b: string) => a.localeCompare(b)));
       } catch {
         setLocations(getDefaultLocationNames());
       }
@@ -48,10 +50,13 @@ export function useLocations(): UseLocationsReturn {
         const data = await getCategories();
         if (Array.isArray(data) && data.length > 0) {
           const objs: CategoryOption[] = data.map(c =>
-            typeof c === 'string' ? { name: c, emoji: '📦' } : { name: c.name, emoji: c.emoji ?? '📦' }
+            typeof c === 'string'
+              ? { name: c, emoji: '📦' }
+              : { id: c.id, name: c.name, emoji: c.emoji ?? '📦', user_defined: c.user_defined ?? false }
           );
-          setCategoryObjects(objs);
-          setCategories(objs.map(c => c.name));
+          const sorted = [...objs].sort((a, b) => a.name.localeCompare(b.name));
+          setCategoryObjects(sorted);
+          setCategories(sorted.map(c => c.name));
         } else {
           const defaults = getDefaultCategories();
           setCategoryObjects(defaults);

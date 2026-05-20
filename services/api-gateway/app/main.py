@@ -162,6 +162,14 @@ class UpdateItemRequest(BaseModel):
     expiry_date: Optional[str] = None
     notes: Optional[str] = None
 
+class CreateLocationRequest(BaseModel):
+    name: str
+    emoji: Optional[str] = "📍"
+
+class CreateCategoryRequest(BaseModel):
+    name: str
+    emoji: Optional[str] = "📦"
+
 class CreateApiKeyRequest(BaseModel):
     name: str
     description: Optional[str] = None
@@ -452,6 +460,13 @@ async def register(request: Request, body: RegisterRequest, response: Response):
 async def get_current_user(auth = Depends(get_current_auth)):
     """Get current authenticated user info"""
     return auth
+
+@app.post("/api/auth/onboarding-done")
+async def mark_onboarding_done(auth = Depends(get_current_auth)):
+    """Mark onboarding as complete for the current session user"""
+    if auth.get("type") == "session":
+        pg_auth.mark_onboarding_done(auth["id"])
+    return {"message": "ok"}
 
 @app.post("/api/auth/change-password")
 async def change_password(request: ChangePasswordRequest, auth = Depends(get_current_auth)):
@@ -1019,6 +1034,36 @@ async def get_locations(auth = Depends(get_current_auth)):
         logger.error("Inventory service error: %s", e)
         raise HTTPException(status_code=500, detail="Inventory service unavailable")
 
+@app.post("/api/locations")
+async def create_location(request: CreateLocationRequest, auth = Depends(require_write_scope)):
+    try:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
+            response = await client.post(f"{INVENTORY_SERVICE_URL}/locations", json=request.dict(), timeout=5.0)
+            if response.status_code == 409:
+                raise HTTPException(status_code=409, detail="Location already exists")
+            response.raise_for_status()
+            return response.json()
+    except HTTPException:
+        raise
+    except httpx.HTTPError as e:
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
+
+@app.delete("/api/locations/{location_name}")
+async def delete_location(location_name: str, auth = Depends(require_write_scope)):
+    try:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
+            response = await client.delete(f"{INVENTORY_SERVICE_URL}/locations/{location_name}", timeout=5.0)
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Location not found")
+            response.raise_for_status()
+            return response.json()
+    except HTTPException:
+        raise
+    except httpx.HTTPError as e:
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
+
 @app.get("/api/categories")
 async def get_categories(auth = Depends(get_current_auth)):
     try:
@@ -1026,6 +1071,36 @@ async def get_categories(auth = Depends(get_current_auth)):
             response = await client.get(f"{INVENTORY_SERVICE_URL}/categories", timeout=5.0)
             response.raise_for_status()
             return response.json()
+    except httpx.HTTPError as e:
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
+
+@app.post("/api/categories")
+async def create_category(request: CreateCategoryRequest, auth = Depends(require_write_scope)):
+    try:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
+            response = await client.post(f"{INVENTORY_SERVICE_URL}/categories", json=request.dict(), timeout=5.0)
+            if response.status_code == 409:
+                raise HTTPException(status_code=409, detail="Category already exists")
+            response.raise_for_status()
+            return response.json()
+    except HTTPException:
+        raise
+    except httpx.HTTPError as e:
+        logger.error("Inventory service error: %s", e)
+        raise HTTPException(status_code=500, detail="Inventory service unavailable")
+
+@app.delete("/api/categories/{category_id}")
+async def delete_category(category_id: int, auth = Depends(require_write_scope)):
+    try:
+        async with httpx.AsyncClient(headers=_INTERNAL_HEADERS) as client:
+            response = await client.delete(f"{INVENTORY_SERVICE_URL}/categories/{category_id}", timeout=5.0)
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Category not found")
+            response.raise_for_status()
+            return response.json()
+    except HTTPException:
+        raise
     except httpx.HTTPError as e:
         logger.error("Inventory service error: %s", e)
         raise HTTPException(status_code=500, detail="Inventory service unavailable")

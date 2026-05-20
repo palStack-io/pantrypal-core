@@ -88,6 +88,20 @@ def create_user(
         db.close()
 
 
+def mark_onboarding_done(user_id: str) -> bool:
+    """Mark onboarding as completed for a user"""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.onboarding_done = True
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
+
+
 def authenticate_user(username: str, password: str) -> Optional[Dict]:
     """
     Authenticate a user with username or email and password.
@@ -119,7 +133,8 @@ def authenticate_user(username: str, password: str) -> Optional[Dict]:
             "email": user.email,
             "full_name": user.full_name,
             "is_admin": user.is_admin,
-            "is_demo": user.is_demo
+            "is_demo": user.is_demo,
+            "onboarding_done": user.onboarding_done
         }
     finally:
         db.close()
@@ -201,7 +216,8 @@ def validate_session(session_token: str) -> Optional[Dict]:
             "email": user.email,
             "full_name": user.full_name,
             "is_admin": user.is_admin,
-            "is_demo": user.is_demo
+            "is_demo": user.is_demo,
+            "onboarding_done": user.onboarding_done
         }
     finally:
         db.close()
