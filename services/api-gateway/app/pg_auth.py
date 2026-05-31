@@ -144,7 +144,7 @@ def create_session(
     user_id: str,
     ip_address: Optional[str] = None,
     user_agent: Optional[str] = None,
-    expires_in_days: int = 7,
+    expires_in_days: int = 30,
     expires_in_minutes: Optional[int] = None
 ) -> str:
     """Create a new session for a user
@@ -206,8 +206,15 @@ def validate_session(session_token: str) -> Optional[Dict]:
         if not user or not user.is_active:
             return None
 
-        # Update last used
-        session.last_used_at = datetime.utcnow()
+        # Update last used and slide the expiry window so active users
+        # stay logged in without manual re-authentication.
+        now = datetime.utcnow()
+        session.last_used_at = now
+        # Only slide if the remaining lifetime is less than half the full window
+        # (avoids a DB write on every request when the session is fresh).
+        remaining = (session.expires_at - now).total_seconds()
+        if remaining < 15 * 24 * 3600:  # less than 15 days left
+            session.expires_at = now + timedelta(days=30)
         db.commit()
 
         return {
