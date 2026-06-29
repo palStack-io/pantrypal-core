@@ -473,7 +473,7 @@ def mark_email_verified(user_id: str) -> bool:
         db.close()
 
 
-def update_user_profile(user_id: str, username: Optional[str] = None, email: Optional[str] = None, full_name: Optional[str] = None) -> bool:
+def update_user_profile(user_id: str, username: Optional[str] = None, email: Optional[str] = None, full_name: Optional[str] = None, timezone: Optional[str] = None) -> bool:
     """Update user profile"""
     db = SessionLocal()
     try:
@@ -497,6 +497,9 @@ def update_user_profile(user_id: str, username: Optional[str] = None, email: Opt
 
         if full_name is not None:
             user.full_name = full_name
+
+        if timezone is not None:
+            user.timezone = timezone
 
         db.commit()
         return True

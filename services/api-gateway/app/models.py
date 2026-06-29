@@ -37,6 +37,7 @@ class User(Base):
     is_demo = Column(Boolean, default=False, nullable=False)  # Demo accounts have restrictions
     email_verified = Column(Boolean, default=False, nullable=False)
     onboarding_done = Column(Boolean, default=False, nullable=False)
+    timezone = Column(String(100), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_login_at = Column(DateTime)

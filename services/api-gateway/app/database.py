@@ -119,6 +119,21 @@ def run_migrations():
         except Exception as e:
             print(f"Migration check for onboarding_done: {e}")
 
+        # Migration: users.timezone column
+        try:
+            result = conn.execute(text("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'users' AND column_name = 'timezone'
+            """))
+            if result.fetchone() is None:
+                conn.execute(text("""
+                    ALTER TABLE users ADD COLUMN timezone VARCHAR(100)
+                """))
+                conn.commit()
+                print("Migration: Added timezone column to users table")
+        except Exception as e:
+            print(f"Migration check for timezone: {e}")
+
         # Migration: Shared Household Model
         # This migration transforms the database from per-user isolation to shared household model
         _run_shared_household_migration(conn)

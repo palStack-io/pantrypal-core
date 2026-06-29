@@ -1596,6 +1596,7 @@ class UpdateProfileRequest(BaseModel):
     username: Optional[str] = None
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
+    timezone: Optional[str] = None
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
@@ -1622,15 +1623,24 @@ async def get_my_profile(auth = Depends(get_current_auth)):
     """Get current user's profile"""
     if auth.get("type") != "session":
         raise HTTPException(status_code=403, detail="Profile only available for logged-in users")
-    
-    # Your user_db already has the user info, just return it
-    return {
-        "id": auth.get("id"),
-        "username": auth.get("username"),
-        "email": auth.get("email"),
-        "full_name": auth.get("full_name"),
-        "is_admin": auth.get("is_admin")
-    }
+
+    from .database import SessionLocal
+    from .models import User as UserModel
+    db = SessionLocal()
+    try:
+        user = db.query(UserModel).filter(UserModel.id == auth["id"]).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_admin": user.is_admin,
+            "timezone": user.timezone,
+        }
+    finally:
+        db.close()
 
 @app.patch("/api/users/me")
 async def update_my_profile(
@@ -1646,7 +1656,7 @@ async def update_my_profile(
         raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
 
     # Check if any updates provided
-    if profile.username is None and profile.email is None and profile.full_name is None:
+    if profile.username is None and profile.email is None and profile.full_name is None and profile.timezone is None:
         return {"message": "No changes made"}
 
     # Use pg_auth helper to update profile (handles uniqueness checks)
@@ -1655,7 +1665,8 @@ async def update_my_profile(
             user_id=auth["id"],
             username=profile.username,
             email=profile.email,
-            full_name=profile.full_name
+            full_name=profile.full_name,
+            timezone=profile.timezone,
         )
         if success:
             return {"message": "Profile updated successfully"}
