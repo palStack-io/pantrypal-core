@@ -1,180 +1,105 @@
 """
-OIDC (OpenID Connect) Authentication Module
+Native OIDC (Google, Apple) — ID token verification.
 
-Provides generic OIDC authentication support for PantryPal.
-Works with any OIDC-compliant provider (Google, Microsoft, Keycloak, Authentik, etc.)
+The client obtains an ID token directly from the provider's native SDK
+on-device (expo-auth-session for Google, expo-apple-authentication for
+Apple) and POSTs it to /api/auth/oidc. This module verifies the token's
+signature against the provider's published JWKS — there is no server-side
+redirect_uri and no browser hand-off.
 """
-
-from authlib.integrations.starlette_client import OAuth
-from authlib.integrations.base_client import OAuthError
-from fastapi import HTTPException, status
 import os
-from typing import Optional, Dict
+import time
+from typing import Dict, Optional
+
 import httpx
+from jose import jwt as jose_jwt
 
-# OIDC Configuration from environment variables
-OIDC_ENABLED = os.getenv("OIDC_ENABLED", "false").lower() == "true"
-OIDC_PROVIDER_NAME = os.getenv("OIDC_PROVIDER_NAME", "oidc")  # Display name
-OIDC_CLIENT_ID = os.getenv("OIDC_CLIENT_ID")
-OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET")
-OIDC_DISCOVERY_URL = os.getenv("OIDC_DISCOVERY_URL")  # e.g., https://accounts.google.com/.well-known/openid-configuration
-OIDC_REDIRECT_URI = os.getenv("OIDC_REDIRECT_URI")  # e.g., https://pantrypal.palstack.io/api/auth/oidc/callback
+# Apple's native Sign In always sets `aud` to the app's bundle identifier —
+# this is a fixed, non-secret value, not a rotatable credential.
+APPLE_BUNDLE_ID = "com.palstack.pantrypal"
 
-# Optional: Manual endpoint configuration (if provider doesn't support discovery)
-OIDC_AUTHORIZATION_ENDPOINT = os.getenv("OIDC_AUTHORIZATION_ENDPOINT")
-OIDC_TOKEN_ENDPOINT = os.getenv("OIDC_TOKEN_ENDPOINT")
-OIDC_USERINFO_ENDPOINT = os.getenv("OIDC_USERINFO_ENDPOINT")
+GOOGLE_DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
+APPLE_DISCOVERY_URL = "https://appleid.apple.com/.well-known/openid-configuration"
 
-# OAuth scopes (default: openid, profile, email)
-OIDC_SCOPES = os.getenv("OIDC_SCOPES", "openid profile email")
-
-# Account linking strategy
-OIDC_AUTO_LINK = os.getenv("OIDC_AUTO_LINK", "true").lower() == "true"  # Auto-link by email
-OIDC_AUTO_CREATE = os.getenv("OIDC_AUTO_CREATE", "true").lower() == "true"  # Auto-create users
+_JWKS_CACHE_TTL = 3600
+_jwks_cache: Dict[str, tuple] = {}  # discovery_url -> (keys, expires_at)
 
 
-def is_oidc_enabled() -> bool:
-    """Check if OIDC is enabled and properly configured"""
-    if not OIDC_ENABLED:
-        return False
-
-    # Check required configuration
-    if not OIDC_CLIENT_ID or not OIDC_CLIENT_SECRET:
-        print("Warning: OIDC enabled but CLIENT_ID or CLIENT_SECRET not configured")
-        return False
-
-    if not OIDC_DISCOVERY_URL and not (OIDC_AUTHORIZATION_ENDPOINT and OIDC_TOKEN_ENDPOINT):
-        print("Warning: OIDC enabled but neither DISCOVERY_URL nor manual endpoints configured")
-        return False
-
-    return True
+def google_client_id() -> Optional[str]:
+    """Google OAuth client ID — self-hosters set this via the GOOGLE_CLIENT_ID env var."""
+    return os.getenv("GOOGLE_CLIENT_ID")
 
 
-def get_oidc_config() -> Optional[Dict]:
-    """Get OIDC configuration for the UI"""
-    if not is_oidc_enabled():
-        return None
-
-    return {
-        "enabled": True,
-        "provider_name": OIDC_PROVIDER_NAME,
-        "login_url": "/api/auth/oidc/login",
-    }
+def oidc_public_config() -> Dict[str, str]:
+    """Public config exposed via /api/auth/status for the mobile/web login screen."""
+    return {"google_client_id": google_client_id() or ""}
 
 
-# Initialize OAuth client
-oauth = OAuth()
-
-if is_oidc_enabled():
-    # Register OIDC provider
-    if OIDC_DISCOVERY_URL:
-        # Use OIDC discovery
-        oauth.register(
-            name='oidc',
-            client_id=OIDC_CLIENT_ID,
-            client_secret=OIDC_CLIENT_SECRET,
-            server_metadata_url=OIDC_DISCOVERY_URL,
-            client_kwargs={
-                'scope': OIDC_SCOPES,
-            }
-        )
-    else:
-        # Manual endpoint configuration
-        oauth.register(
-            name='oidc',
-            client_id=OIDC_CLIENT_ID,
-            client_secret=OIDC_CLIENT_SECRET,
-            authorize_url=OIDC_AUTHORIZATION_ENDPOINT,
-            access_token_url=OIDC_TOKEN_ENDPOINT,
-            userinfo_endpoint=OIDC_USERINFO_ENDPOINT,
-            client_kwargs={
-                'scope': OIDC_SCOPES,
-            }
-        )
+def _provider_config(provider: str) -> Dict[str, str]:
+    if provider == "google":
+        client_id = google_client_id()
+        if not client_id:
+            raise ValueError("Google sign-in is not configured on this server")
+        return {"client_id": client_id, "discovery_url": GOOGLE_DISCOVERY_URL}
+    if provider == "apple":
+        return {"client_id": APPLE_BUNDLE_ID, "discovery_url": APPLE_DISCOVERY_URL}
+    raise ValueError(f"Unknown OIDC provider: {provider}")
 
 
-async def get_oidc_user_info(token: str) -> Dict:
-    """
-    Fetch user information from OIDC provider using access token
-    """
-    if not is_oidc_enabled():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="OIDC is not enabled"
-        )
+async def _fetch_jwks(discovery_url: str) -> list:
+    cached = _jwks_cache.get(discovery_url)
+    if cached and cached[1] > time.time():
+        return cached[0]
+    async with httpx.AsyncClient(timeout=10) as client:
+        disc_resp = await client.get(discovery_url)
+        disc_resp.raise_for_status()
+        jwks_uri = disc_resp.json()["jwks_uri"]
+        jwks_resp = await client.get(jwks_uri)
+        jwks_resp.raise_for_status()
+        keys = jwks_resp.json().get("keys", [])
+    _jwks_cache[discovery_url] = (keys, time.time() + _JWKS_CACHE_TTL)
+    return keys
+
+
+async def verify_id_token(provider: str, id_token: str) -> Dict:
+    """Verify a provider ID token and return its claims. Raises ValueError on any failure."""
+    config = _provider_config(provider)
+    keys = await _fetch_jwks(config["discovery_url"])
 
     try:
-        # Get userinfo endpoint from provider metadata
-        client = oauth.create_client('oidc')
+        header = jose_jwt.get_unverified_header(id_token)
+    except Exception as exc:
+        raise ValueError(f"Malformed ID token: {exc}")
 
-        # Fetch user info
-        async with httpx.AsyncClient() as http_client:
-            if OIDC_USERINFO_ENDPOINT:
-                endpoint = OIDC_USERINFO_ENDPOINT
-            else:
-                # Get from discovery document
-                metadata = await client.load_server_metadata()
-                endpoint = metadata.get('userinfo_endpoint')
+    kid = header.get("kid")
+    matching = next((k for k in keys if not kid or k.get("kid") == kid), None)
+    if not matching:
+        raise ValueError("No matching JWKS key found for token")
 
-            if not endpoint:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Could not determine userinfo endpoint"
-                )
-
-            response = await http_client.get(
-                endpoint,
-                headers={'Authorization': f'Bearer {token}'}
-            )
-
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Failed to fetch user info from OIDC provider"
-                )
-
-            return response.json()
-
-    except OAuthError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"OIDC authentication failed: {str(e)}"
+    try:
+        # Algorithm is pinned here (RS256) — never trust the alg from the untrusted JWT header.
+        claims = jose_jwt.decode(
+            id_token, matching, algorithms=["RS256"], audience=config["client_id"]
         )
+    except Exception as exc:
+        raise ValueError(f"ID token verification failed: {exc}")
+
+    return claims
 
 
-def extract_user_info(oidc_user: Dict) -> Dict:
+async def fetch_userinfo(provider: str, access_token: str) -> Dict:
     """
-    Extract standardized user information from OIDC user data
-
-    Different OIDC providers use different claim names:
-    - Google: sub, email, name, picture
-    - Microsoft: oid, email, name
-    - Keycloak: sub, email, name, preferred_username
+    Fallback path for Google's native mobile flow, which commonly yields an
+    OAuth access_token rather than an id_token — exchange it for profile
+    claims via the provider's userinfo endpoint. Apple never uses this path
+    (expo-apple-authentication only ever returns an identityToken).
     """
-    # Try to get user ID (sub is standard OIDC claim)
-    user_id = oidc_user.get('sub') or oidc_user.get('oid')
-
-    # Try to get email
-    email = oidc_user.get('email') or oidc_user.get('upn')
-
-    # Try to get name
-    name = (
-        oidc_user.get('name') or
-        oidc_user.get('displayName') or
-        f"{oidc_user.get('given_name', '')} {oidc_user.get('family_name', '')}".strip()
-    )
-
-    # Try to get username
-    username = (
-        oidc_user.get('preferred_username') or
-        oidc_user.get('email', '').split('@')[0] or
-        user_id
-    )
-
-    return {
-        'oidc_id': user_id,
-        'email': email,
-        'name': name,
-        'username': username,
-        'email_verified': oidc_user.get('email_verified', False)
-    }
+    config = _provider_config(provider)
+    async with httpx.AsyncClient(timeout=10) as client:
+        disc_resp = await client.get(config["discovery_url"])
+        disc_resp.raise_for_status()
+        userinfo_endpoint = disc_resp.json()["userinfo_endpoint"]
+        resp = await client.get(userinfo_endpoint, headers={"Authorization": f"Bearer {access_token}"})
+        if resp.status_code != 200:
+            raise ValueError("Access token rejected by OIDC provider")
+        return resp.json()

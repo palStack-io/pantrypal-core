@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { colors, spacing, borderRadius } from './colors';
 import Toast from './components/Toast';
 import { useToast } from './hooks/useToast';
@@ -7,11 +8,6 @@ import type { User } from './types';
 
 interface LandingPageProps {
   onLoginSuccess: (user: User) => void;
-}
-
-interface OidcConfig {
-  enabled: boolean;
-  provider_name: string;
 }
 
 interface DemoAccount {
@@ -33,6 +29,34 @@ function Feature({ icon, text }: FeatureProps) {
   );
 }
 
+interface GoogleSignInBlockProps {
+  googleClientId: string;
+  onCredential: (credential: string) => void;
+  onError: () => void;
+}
+
+function GoogleSignInBlock({ googleClientId, onCredential, onError }: GoogleSignInBlockProps) {
+  if (!googleClientId) return null;
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: spacing.md }}>
+        <GoogleOAuthProvider clientId={googleClientId}>
+          <GoogleLogin
+            onSuccess={(res) => { if (res.credential) onCredential(res.credential); else onError(); }}
+            onError={onError}
+            width="100%"
+          />
+        </GoogleOAuthProvider>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+        <div style={{ flex: 1, height: '1px', background: colors.border }} />
+        <span style={{ color: colors.textSecondary, fontSize: '14px' }}>or</span>
+        <div style={{ flex: 1, height: '1px', background: colors.border }} />
+      </div>
+    </>
+  );
+}
+
 function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'forgot'>('login');
   const [loading, setLoading] = useState(false);
@@ -49,7 +73,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
-  const [oidcConfig, setOidcConfig] = useState<OidcConfig | null>(null);
+  const [googleClientId, setGoogleClientId] = useState('');
   const [demoMode, setDemoMode] = useState(false);
   const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([]);
   const [demoSessionMinutes, setDemoSessionMinutes] = useState(10);
@@ -77,13 +101,34 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
       const response = await fetch('/api/auth/status');
       if (response.ok) {
         const data = await response.json();
-        if (data.oidc) setOidcConfig(data.oidc);
+        if (data.oidc?.google_client_id) setGoogleClientId(data.oidc.google_client_id);
         if (data.demo_mode) { setDemoMode(true); setDemoAccounts(data.demo_accounts || []); setDemoSessionMinutes(data.demo_session_minutes || 10); }
       }
     } catch { /* OIDC is optional */ }
   };
 
-  const handleOidcLogin = () => { window.location.href = '/api/auth/oidc/login'; };
+  // Google's Identity Services JS SDK hands us an ID token directly — same
+  // verification contract the mobile app uses, no server-side redirect.
+  const handleGoogleCredential = async (credential: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth/oidc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'google', id_token: credential }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        if (data.session_token) setSessionToken(data.session_token);
+        showSuccess('Login successful!');
+        onLoginSuccess(data.user);
+      } else {
+        showError(data.detail || 'Google sign-in failed.');
+      }
+    } catch { showError('Could not reach server - check your connection'); }
+    finally { setLoading(false); }
+  };
 
   const handleConfigureServer = () => {
     if (!serverUrl.trim()) { showError('Please enter a server URL'); return; }
@@ -194,12 +239,11 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
                   <p style={{ color: colors.textSecondary, marginTop: spacing.sm }}>Sign in to manage your pantry</p>
                   <button onClick={() => setServerConfigured(false)} style={{ background: 'none', border: 'none', color: colors.textSecondary, cursor: 'pointer', fontSize: '12px', marginTop: spacing.xs }}>Change server →</button>
                 </div>
-                {oidcConfig?.enabled && (
-                  <>
-                    <button onClick={handleOidcLogin} style={{ width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: '#4285f4', color: 'white', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', marginBottom: spacing.md }}>Sign in with {oidcConfig.provider_name}</button>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}><div style={{ flex: 1, height: '1px', background: colors.border }} /><span style={{ color: colors.textSecondary, fontSize: '14px' }}>or</span><div style={{ flex: 1, height: '1px', background: colors.border }} /></div>
-                  </>
-                )}
+                <GoogleSignInBlock
+                  googleClientId={googleClientId}
+                  onCredential={handleGoogleCredential}
+                  onError={() => showError('Google sign-in failed. Please try again.')}
+                />
                 <div style={{ display: 'flex', gap: spacing.md }}>
                   <button onClick={() => setView('login')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign In</button>
                   <button onClick={() => setView('signup')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: `2px solid ${colors.primary}`, background: 'white', color: colors.primary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign Up</button>
@@ -246,12 +290,11 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
               </div>
             </div>
           )}
-          {oidcConfig?.enabled && (
-            <>
-              <button onClick={handleOidcLogin} style={{ width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: '#4285f4', color: 'white', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', marginBottom: spacing.md }}>Sign in with {oidcConfig.provider_name}</button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}><div style={{ flex: 1, height: '1px', background: colors.border }} /><span style={{ color: colors.textSecondary, fontSize: '14px' }}>or</span><div style={{ flex: 1, height: '1px', background: colors.border }} /></div>
-            </>
-          )}
+          <GoogleSignInBlock
+            googleClientId={googleClientId}
+            onCredential={handleGoogleCredential}
+            onError={() => showError('Google sign-in failed. Please try again.')}
+          />
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Username or Email</label>

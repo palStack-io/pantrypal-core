@@ -1,8 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Response, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -37,7 +35,7 @@ if _SENTRY_DSN:
 from .auth import get_current_auth, require_admin, require_write_scope
 from . import pg_api_keys, pg_auth
 from .email_service import send_password_reset_email, send_welcome_email, send_verification_email, is_email_configured
-from .oidc import is_oidc_enabled, get_oidc_config, oauth, extract_user_info
+from .oidc import oidc_public_config, verify_id_token, fetch_userinfo
 
 # Import database and services
 from .database import init_db
@@ -65,12 +63,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("SECRET_KEY", os.getenv("ENCRYPTION_SALT", "change-me-in-production")),
-    https_only=False,
-    same_site="lax",
-)
 
 # Startup event: Initialize database and MinIO
 @app.on_event("startup")
@@ -260,10 +252,7 @@ async def auth_status():
         ]
         response["demo_session_minutes"] = 10
 
-    # Add OIDC config if enabled
-    oidc_config = get_oidc_config()
-    if oidc_config:
-        response["oidc"] = oidc_config
+    response["oidc"] = oidc_public_config()
 
     return response
 
@@ -612,158 +601,86 @@ async def resend_verification(request: Request, body: ResendVerificationRequest)
         )
 
 # ============================================================================
-# OIDC AUTHENTICATION ENDPOINTS
+# OIDC AUTHENTICATION (native token verification — Google, Apple)
 # ============================================================================
 
-@app.get("/api/auth/oidc/login")
-async def oidc_login(request: Request, mobile_state: Optional[str] = None):
+class OidcAuthRequest(BaseModel):
+    provider: str  # "google" | "apple"
+    id_token: Optional[str] = None       # preferred — a signed JWT from the provider
+    access_token: Optional[str] = None   # fallback — Google's native flow commonly yields this instead
+    full_name: Optional[str] = None      # Apple only returns this on first sign-in
+
+
+@app.post("/api/auth/oidc")
+@limiter.limit("10/minute")
+async def oidc_login(request: Request, body: OidcAuthRequest, response: Response):
     """
-    Initiate OIDC login flow
-    Redirects user to OIDC provider for authentication
+    Sign in or register using a token obtained natively on-device
+    (expo-auth-session for Google, expo-apple-authentication for Apple).
+    The client never talks to this server during the provider handshake —
+    it hands us the already-issued token, and we verify/exchange it here.
     """
-    if not is_oidc_enabled():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="OIDC authentication is not enabled"
-        )
-
-    # Store mobile_state in session so it can be echoed back after callback
-    if mobile_state:
-        request.session['mobile_state'] = mobile_state
-
-    # Build redirect URI
-    redirect_uri = request.url_for('oidc_callback')
-
-    # Initiate OAuth flow
-    return await oauth.oidc.authorize_redirect(request, redirect_uri)
-
-
-@app.get("/api/auth/oidc/callback")
-async def oidc_callback(request: Request, response: Response):
-    """
-    OIDC callback endpoint
-    Handles the redirect from OIDC provider after authentication
-    """
-    if not is_oidc_enabled():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="OIDC authentication is not enabled"
-        )
-
     try:
-        # Exchange authorization code for tokens
-        token = await oauth.oidc.authorize_access_token(request)
-
-        # Get user info from ID token or userinfo endpoint
-        user_info = token.get('userinfo')
-        if not user_info:
-            # Fetch from userinfo endpoint
-            user_info = await oauth.oidc.userinfo(token=token)
-
-        # Extract standardized user information
-        oidc_user = extract_user_info(user_info)
-
-        # Check if OIDC connection already exists
-        oidc_connection = pg_auth.find_oidc_connection('oidc', oidc_user['oidc_id'])
-
-        if oidc_connection:
-            # Existing OIDC user - log them in
-            user_id = oidc_connection['user_id']
-
-            # Check if user is active
-            if not oidc_connection['is_active']:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="User account is disabled"
-                )
-
-            # Update last login
-            pg_auth.update_oidc_last_login('oidc', oidc_user['oidc_id'])
-
+        if body.id_token:
+            claims = await verify_id_token(body.provider, body.id_token)
+        elif body.access_token:
+            claims = await fetch_userinfo(body.provider, body.access_token)
         else:
-            # New OIDC user
-            from .oidc import OIDC_AUTO_LINK, OIDC_AUTO_CREATE
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide id_token or access_token")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
-            # Try to link by email if auto-link is enabled
-            # Only link if the OIDC provider has verified the email to prevent account takeover
-            if OIDC_AUTO_LINK and oidc_user['email'] and oidc_user.get('email_verified', False):
-                existing_user = pg_auth.find_user_by_email(oidc_user['email'])
+    provider_user_id = claims.get("sub")
+    email = claims.get("email")
+    email_verified = claims.get("email_verified", False)
+    if not provider_user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="ID token did not include a subject claim")
 
-                if existing_user:
-                    # Link OIDC to existing user
-                    user_id = existing_user['id']
-                    pg_auth.create_oidc_connection(user_id, 'oidc', oidc_user['oidc_id'], oidc_user['email'])
-                elif OIDC_AUTO_CREATE:
-                    # Create new user
-                    new_user = pg_auth.create_user_from_oidc(
-                        username=oidc_user['username'],
-                        email=oidc_user['email'],
-                        full_name=oidc_user['name']
-                    )
-                    user_id = new_user['id']
+    connection = pg_auth.find_oidc_connection(body.provider, provider_user_id)
 
-                    # Create OIDC connection
-                    pg_auth.create_oidc_connection(user_id, 'oidc', oidc_user['oidc_id'], oidc_user['email'])
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="No account found. Please contact an administrator."
-                    )
-            elif OIDC_AUTO_CREATE:
-                # Create new user without email linking
-                new_user = pg_auth.create_user_from_oidc(
-                    username=oidc_user['username'],
-                    email=oidc_user['email'],
-                    full_name=oidc_user['name']
-                )
-                user_id = new_user['id']
+    if connection:
+        if not connection["is_active"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
+        user_id = connection["user_id"]
+        pg_auth.update_oidc_last_login(body.provider, provider_user_id)
+    else:
+        # Only link to an existing account if the provider has verified the
+        # email — prevents account takeover via an unverified email claim.
+        existing_user = pg_auth.find_user_by_email(email) if (email and email_verified) else None
+        if existing_user:
+            user_id = existing_user["id"]
+            pg_auth.create_oidc_connection(user_id, body.provider, provider_user_id, email)
+        else:
+            username = email.split("@")[0] if email else f"{body.provider}_{provider_user_id[:8]}"
+            new_user = pg_auth.create_user_from_oidc(
+                username=username,
+                email=email,
+                full_name=body.full_name or claims.get("name"),
+            )
+            user_id = new_user["id"]
+            pg_auth.create_oidc_connection(user_id, body.provider, provider_user_id, email)
 
-                # Create OIDC connection
-                pg_auth.create_oidc_connection(user_id, 'oidc', oidc_user['oidc_id'], oidc_user['email'])
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="No account found. Please contact an administrator."
-                )
+    session_token = pg_auth.create_session(
+        user_id=user_id,
+        ip_address=get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+        expires_in_days=7,
+    )
 
-        # Create session for the user
-        session_token = pg_auth.create_session(
-            user_id=user_id,
-            ip_address=get_client_ip(request),
-            user_agent=request.headers.get("user-agent")
-        )
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        max_age=7 * 24 * 60 * 60,
+        samesite="lax",
+        secure=COOKIE_SECURE
+    )
 
-        # Check if this is a mobile flow
-        mobile_state = request.session.pop('mobile_state', None)
-
-        # Set session cookie
-        response.set_cookie(
-            key="session_token",
-            value=session_token,
-            httponly=True,
-            max_age=30 * 24 * 60 * 60,
-            samesite="lax",
-            secure=COOKIE_SECURE
-        )
-
-        if mobile_state:
-            # Redirect back to the mobile app deep link with the token + echoed state
-            import urllib.parse
-            params = urllib.parse.urlencode({
-                "token": session_token,
-                "state": mobile_state,
-            })
-            return RedirectResponse(url=f"pantrypal://auth?{params}")
-
-        # Web flow: return JSON
-        return {"status": "success", "message": "Successfully logged in via OIDC"}
-
-    except Exception as e:
-        logger.error("OIDC callback error: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="OIDC authentication failed"
-        )
+    return {
+        "message": "Login successful",
+        "user": pg_auth.get_user_by_id(user_id),
+        "session_token": session_token,
+    }
 
 # ============================================================================
 # API KEY MANAGEMENT ENDPOINTS

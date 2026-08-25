@@ -12,6 +12,28 @@ env:
   IMAGE_PREFIX: ghcr.io/palstack-io
 
 jobs:
+  backend-tests:
+    name: Backend Tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Pure-helper test suite — no live Postgres needed; tests/conftest.py
+      # stubs the DB. `-p no:asyncio` per convention.
+      - name: api-gateway tests
+        working-directory: services/api-gateway
+        env:
+          DATABASE_URL: "postgresql://test:test@localhost:5432/test"
+        run: |
+          pip install -r requirements.txt pytest
+          pytest tests/ -q -p no:asyncio
+
   build-api-gateway:
     name: Build API Gateway
     runs-on: ubuntu-latest
