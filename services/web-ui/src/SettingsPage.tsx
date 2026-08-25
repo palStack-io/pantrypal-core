@@ -192,13 +192,6 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
   const [stats, setStats] = useState(null);
   const [adminLoading, setAdminLoading] = useState(false);
 
-  // Releases state
-  const [releases, setReleases] = useState<any[]>([]);
-  const [releasesLoading, setReleasesLoading] = useState(false);
-  const [releaseForm, setReleaseForm] = useState({ version: '', title: '', items: [{ emoji: '', text: '' }] });
-  const [releasePublishing, setReleasePublishing] = useState(false);
-  const [releaseMsg, setReleaseMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
   // Invite user state
   const [inviteData, setInviteData] = useState({
     username: '',
@@ -312,7 +305,6 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
       if (isAdmin) {
         loadUsers();
         loadStats();
-        loadReleases();
       }
     }
   }, [currentUser, isAdmin]);
@@ -551,42 +543,6 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
     }
   };
 
-  const loadReleases = async () => {
-    setReleasesLoading(true);
-    try {
-      const res = await fetch('/api/releases', { credentials: 'include' });
-      if (res.ok) { const data = await res.json(); setReleases(data.releases || []); }
-    } catch { /* ignore */ }
-    finally { setReleasesLoading(false); }
-  };
-
-  const handlePublishRelease = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const validItems = releaseForm.items.filter(i => i.text.trim());
-    if (!releaseForm.version.trim() || validItems.length === 0) {
-      setReleaseMsg({ type: 'error', text: 'Version and at least one item are required.' });
-      return;
-    }
-    setReleasePublishing(true);
-    setReleaseMsg(null);
-    try {
-      const res = await fetch('/api/admin/releases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ version: releaseForm.version.trim(), title: releaseForm.title.trim() || undefined, items: validItems }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.detail?.error || data?.detail || 'Failed to publish');
-      setReleaseMsg({ type: 'success', text: `Release v${releaseForm.version.trim()} published!` });
-      setReleaseForm({ version: '', title: '', items: [{ emoji: '', text: '' }] });
-      loadReleases();
-    } catch (err: any) {
-      setReleaseMsg({ type: 'error', text: err.message });
-    } finally {
-      setReleasePublishing(false);
-    }
-  };
 
   const handleToggleUserStatus = async (userId, currentStatus) => {
     try {
@@ -1157,7 +1113,6 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
     ...(isAdmin ? [
       { id: 'users', label: '👥 User Management' },
       { id: 'stats', label: '📊 Server Stats' },
-      { id: 'releases', label: '🚀 Releases' },
     ] : []),
     { id: 'importexport', label: '📥 Import/Export' },
     { id: 'about', label: 'ℹ️ About' },
@@ -2144,7 +2099,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                   <span style={{ color: colors.textPrimary }}>
-                    Download and store recipe images locally (uses MinIO storage)
+                    Download and store recipe images on this server
                   </span>
                 </label>
               </div>
@@ -2868,83 +2823,6 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                 >
                   {adminLoading ? 'Loading...' : 'Load Statistics'}
                 </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* RELEASES TAB */}
-        {activeTab === 'releases' && isAdmin && (
-          <div>
-            <h2 style={{ marginTop: 0, marginBottom: spacing.lg, color: colors.textPrimary }}>🚀 Publish Release</h2>
-
-            {releaseMsg && (
-              <div style={{ padding: spacing.md, borderRadius: borderRadius.md, marginBottom: spacing.lg, backgroundColor: releaseMsg.type === 'success' ? '#10b98120' : colors.danger + '20', color: releaseMsg.type === 'success' ? '#10b981' : colors.danger, border: `1px solid ${releaseMsg.type === 'success' ? '#10b98140' : colors.danger + '40'}` }}>
-                {releaseMsg.text}
-              </div>
-            )}
-
-            <div style={{ background: colors.card, padding: spacing.xl, borderRadius: borderRadius.lg, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: spacing.xl }}>
-              <form onSubmit={handlePublishRelease}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: spacing.md, marginBottom: spacing.md }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', color: colors.textSecondary, marginBottom: spacing.xs }}>Version *</label>
-                    <input value={releaseForm.version} onChange={e => setReleaseForm(f => ({ ...f, version: e.target.value }))} placeholder="e.g. 2.4.0" required style={{ width: '100%', padding: spacing.sm, borderRadius: borderRadius.sm, border: `1px solid ${colors.border}`, backgroundColor: colors.background, color: colors.textPrimary, fontFamily: 'monospace', fontSize: '14px', boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', color: colors.textSecondary, marginBottom: spacing.xs }}>Title (optional)</label>
-                    <input value={releaseForm.title} onChange={e => setReleaseForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Summer Update" style={{ width: '100%', padding: spacing.sm, borderRadius: borderRadius.sm, border: `1px solid ${colors.border}`, backgroundColor: colors.background, color: colors.textPrimary, fontSize: '14px', boxSizing: 'border-box' }} />
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: spacing.md }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                    <label style={{ fontSize: '13px', color: colors.textSecondary }}>Release Items</label>
-                    <button type="button" onClick={() => setReleaseForm(f => ({ ...f, items: [...f.items, { emoji: '', text: '' }] }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.primary, fontSize: '13px', fontWeight: '600' }}>+ Add Item</button>
-                  </div>
-                  {releaseForm.items.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: spacing.sm, marginBottom: spacing.sm, alignItems: 'center' }}>
-                      <input value={item.emoji} onChange={e => setReleaseForm(f => ({ ...f, items: f.items.map((it, i) => i === idx ? { ...it, emoji: e.target.value } : it) }))} placeholder="🎉" maxLength={4} style={{ width: '52px', padding: spacing.sm, borderRadius: borderRadius.sm, border: `1px solid ${colors.border}`, backgroundColor: colors.background, color: colors.textPrimary, textAlign: 'center', fontSize: '16px' }} />
-                      <input value={item.text} onChange={e => setReleaseForm(f => ({ ...f, items: f.items.map((it, i) => i === idx ? { ...it, text: e.target.value } : it) }))} placeholder="What's new…" style={{ flex: 1, padding: spacing.sm, borderRadius: borderRadius.sm, border: `1px solid ${colors.border}`, backgroundColor: colors.background, color: colors.textPrimary, fontSize: '14px' }} />
-                      {releaseForm.items.length > 1 && <button type="button" onClick={() => setReleaseForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.danger, fontSize: '20px', lineHeight: 1 }}>×</button>}
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button type="submit" disabled={releasePublishing || !releaseForm.version.trim()} style={{ padding: `${spacing.sm} ${spacing.xl}`, borderRadius: borderRadius.md, border: 'none', background: colors.primary, color: '#fff', fontWeight: 'bold', cursor: releasePublishing ? 'not-allowed' : 'pointer', opacity: releasePublishing ? 0.6 : 1 }}>
-                    {releasePublishing ? 'Publishing…' : 'Publish Release'}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <h2 style={{ marginTop: 0, marginBottom: spacing.md, color: colors.textPrimary }}>📋 Past Releases</h2>
-            {releasesLoading ? (
-              <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.textSecondary }}>Loading…</div>
-            ) : releases.length === 0 ? (
-              <div style={{ background: colors.card, padding: spacing.xl, borderRadius: borderRadius.lg, textAlign: 'center', color: colors.textSecondary, border: `1px solid ${colors.border}` }}>No releases published yet.</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-                {releases.map((r, idx) => (
-                  <div key={r.id} style={{ background: colors.card, padding: spacing.lg, borderRadius: borderRadius.lg, border: `1px solid ${colors.border}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: colors.textPrimary }}>v{r.version}</span>
-                        {r.title && <span style={{ color: colors.textSecondary, fontSize: '14px' }}>{r.title}</span>}
-                        {idx === 0 && <span style={{ padding: '2px 8px', fontSize: '11px', background: colors.primary + '20', color: colors.primary, borderRadius: borderRadius.sm, fontWeight: '600' }}>latest</span>}
-                      </div>
-                      <span style={{ fontSize: '12px', color: colors.textTertiary }}>{new Date(r.published_at || r.created_at).toLocaleString()}</span>
-                    </div>
-                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                      {(r.items || []).map((item: any, i: number) => (
-                        <li key={i} style={{ fontSize: '14px', color: colors.textSecondary, marginBottom: '4px' }}>
-                          {item.emoji && <span style={{ marginRight: '6px' }}>{item.emoji}</span>}{item.text}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
               </div>
             )}
           </div>

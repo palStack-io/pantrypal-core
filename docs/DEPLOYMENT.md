@@ -216,10 +216,8 @@ environment:
   # Database
   - DATABASE_URL=postgresql://pantrypal:password@postgres:5432/pantrypal
 
-  # MinIO (image storage)
-  - MINIO_ENDPOINT=minio:9000
-  - MINIO_ACCESS_KEY=minioadmin
-  - MINIO_SECRET_KEY=minioadmin123
+  # Local image storage
+  - LOCAL_STORAGE_PATH=/app/data/storage
 
   # Security (CHANGE THIS!)
   - SECRET_KEY=change-this-to-a-random-secret-key-in-production
@@ -272,7 +270,6 @@ Before deploying to production, ensure:
 - [ ] Changed default admin password
 - [ ] Set a strong, random `SECRET_KEY`
 - [ ] Using HTTPS (reverse proxy with SSL)
-- [ ] Updated MinIO credentials from defaults
 - [ ] Updated PostgreSQL password from defaults
 
 ### Configuration
@@ -285,7 +282,7 @@ Before deploying to production, ensure:
 ### Backup
 
 - [ ] PostgreSQL data volume is backed up
-- [ ] MinIO data volume is backed up
+- [ ] Local storage files (`./data`) are backed up
 - [ ] Backup schedule configured
 
 ### Monitoring
@@ -329,7 +326,6 @@ Create a `.env` file with secrets:
 # .env (not committed to git!)
 DB_PASSWORD=super-secure-database-password-here
 SECRET_KEY=generate-64-random-characters-here
-MINIO_ROOT_PASSWORD=minio-secure-password
 ```
 
 Generate a random secret key:

@@ -128,7 +128,7 @@ class OIDCConnection(Base):
 
 
 # ============================================
-# IMAGE STORAGE (MinIO References)
+# IMAGE STORAGE (local filesystem)
 # ============================================
 
 class ProductImage(Base):
@@ -138,8 +138,8 @@ class ProductImage(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     barcode = Column(String(100), unique=True, nullable=False, index=True)
 
-    # MinIO storage
-    bucket_name = Column(String(100), default="pantrypal-products", nullable=False)
+    # Local file storage
+    bucket_name = Column(String(100), default="products", nullable=False)
     object_name = Column(String(500), nullable=False)
 
     # Metadata
@@ -166,8 +166,8 @@ class UserImage(Base):
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     item_id = Column(String(36))  # Reference to inventory item (external system)
 
-    # MinIO storage
-    bucket_name = Column(String(100), default="pantrypal-users", nullable=False)
+    # Local file storage
+    bucket_name = Column(String(100), default="users", nullable=False)
     object_name = Column(String(500), nullable=False)
 
     # Metadata
@@ -189,14 +189,14 @@ class UserImage(Base):
 
 
 class RecipeImage(Base):
-    """Recipe images stored in MinIO (shared with recipes)"""
+    """Recipe images stored on local disk (shared with recipes)"""
     __tablename__ = "recipe_images"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     recipe_id = Column(String(36), ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False)
 
-    # MinIO storage
-    bucket_name = Column(String(100), default="pantrypal-recipes", nullable=False)
+    # Local file storage
+    bucket_name = Column(String(100), default="recipes", nullable=False)
     object_name = Column(String(500), nullable=False)
 
     # Metadata
@@ -278,7 +278,7 @@ class Recipe(Base):
     tags = Column(JSON)  # List of tags
     category = Column(JSON)  # List of categories
 
-    # Images (stored in MinIO)
+    # Images (stored on local disk)
     image_url = Column(String(500))  # API URL: /api/images/recipe/{recipe_id}
     image_bucket = Column(String(100))
     image_object_name = Column(String(500))
@@ -426,15 +426,3 @@ class CategoryOverride(Base):
         UniqueConstraint('user_id', 'key', name='uq_user_category_override'),
         Index('idx_category_overrides_user', 'user_id'),
     )
-
-
-class Release(Base):
-    """App release notes published by admin"""
-    __tablename__ = "releases"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    version = Column(String(50), unique=True, nullable=False, index=True)
-    title = Column(String(255), nullable=True)
-    items = Column(JSON, nullable=False, default=list)
-    published_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

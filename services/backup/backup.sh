@@ -5,6 +5,7 @@ TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
 DATE=$(date +%Y-%m-%d)
 BACKUP_PATH=${BACKUP_PATH:-/backups}
 RETENTION_DAYS=${DB_BACKUP_RETENTION_DAYS:-7}
+LOCAL_STORAGE_PATH=${LOCAL_STORAGE_PATH:-/app/data/storage}
 
 echo "[backup] ===== Starting backup: $TIMESTAMP ====="
 
@@ -23,29 +24,19 @@ PGPASSWORD="${DB_PASSWORD}" pg_dump \
 
 echo "[backup] PostgreSQL done: pantrypal_${TIMESTAMP}.sql.gz"
 
-# ============================================================
-# 2. MinIO buckets
-# ============================================================
-MINIO_DIR="$BACKUP_PATH/minio/$DATE"
-mkdir -p "$MINIO_DIR"
+STORAGE_DIR="$BACKUP_PATH/storage/$DATE"
+mkdir -p "$STORAGE_DIR"
 
-echo "[backup] Mirroring MinIO buckets..."
-for BUCKET in pantrypal-products pantrypal-users pantrypal-receipts pantrypal-recipes; do
-    echo "[backup] Mirroring: $BUCKET"
-    mc mirror --overwrite "pantrypal/$BUCKET" "$MINIO_DIR/$BUCKET" \
-        && echo "[backup] $BUCKET done." \
-        || echo "[backup] WARNING: $BUCKET mirror failed, continuing..."
-done
+if [ -d "$LOCAL_STORAGE_PATH" ]; then
+    echo "[backup] Copying local storage files..."
+    cp -a "$LOCAL_STORAGE_PATH/." "$STORAGE_DIR/"
+else
+    echo "[backup] Local storage path does not exist yet; skipping files."
+fi
 
-echo "[backup] MinIO done."
-
-# ============================================================
-# 4. Retention cleanup
-# ============================================================
 echo "[backup] Cleaning up backups older than $RETENTION_DAYS days..."
-
 find "$BACKUP_PATH/postgres" -name "*.sql.gz" -mtime +"$RETENTION_DAYS" -delete 2>/dev/null || true
-find "$BACKUP_PATH/minio" -maxdepth 1 -mindepth 1 -type d -mtime +"$RETENTION_DAYS" \
+find "$BACKUP_PATH/storage" -maxdepth 1 -mindepth 1 -type d -mtime +"$RETENTION_DAYS" \
     -exec rm -rf {} + 2>/dev/null || true
 
 echo "[backup] ===== Backup complete: $(date +%Y-%m-%d_%H%M%S) ====="

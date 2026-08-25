@@ -26,34 +26,6 @@ services:
       retries: 5
 
   # ===================================
-  # MinIO Object Storage
-  # ===================================
-  minio:
-    image: minio/minio:latest
-    container_name: pantrypal-minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
-    volumes:
-      - minio_data:/data
-    networks:
-      - pantrypal-network
-    # Ports now proxied through nginx:
-    #   - S3 API: http://localhost:8888/minio/
-    #   - Console: http://localhost:8888/minio-console/
-    # Uncomment for direct access during development:
-    # ports:
-    #   - "9000:9000"  # S3 API
-    #   - "9001:9001"  # Web Console
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  # ===================================
   # nginx Reverse Proxy
   # ===================================
   nginx:
@@ -66,7 +38,6 @@ services:
     depends_on:
       - api-gateway
       - web-ui
-      - minio
     networks:
       - pantrypal-network
     restart: unless-stopped
@@ -86,7 +57,6 @@ services:
     container_name: pantrypal-api-gateway
     depends_on:
       - postgres
-      - minio
       - inventory-service
       - lookup-service
     environment:
@@ -98,17 +68,8 @@ services:
       # Database (PostgreSQL)
       - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:?DB_PASSWORD must be set in .env}@postgres:5432/pantrypal
 
-      # MinIO Configuration
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in .env}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
-      - MINIO_SECURE=false
-
-      # Bucket Names
-      - MINIO_BUCKET_PRODUCTS=pantrypal-products
-      - MINIO_BUCKET_USERS=pantrypal-users
-      - MINIO_BUCKET_RECEIPTS=pantrypal-receipts
-      - MINIO_BUCKET_RECIPES=pantrypal-recipes
+      # Local file storage (recipe/product/user images)
+      - LOCAL_STORAGE_PATH=/app/data/storage
 
       # Recipe Integration
       - ENABLE_RECIPE_INTEGRATION=true
@@ -203,8 +164,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      minio:
-        condition: service_healthy
     environment:
       # Set to true to enable automated backups
       - DB_BACKUP_ENABLED=${DB_BACKUP_ENABLED:-false}
@@ -219,14 +178,12 @@ services:
       - POSTGRES_HOST=postgres
       - POSTGRES_USER=pantrypal
       - POSTGRES_DB=pantrypal
-      # MinIO credentials
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in .env}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env}
       # Backup output path (inside container)
       - BACKUP_PATH=/backups
+      - LOCAL_STORAGE_PATH=/app/data/storage
     volumes:
       - ./backups:/backups
+      - ./data:/app/data:ro
     networks:
       - pantrypal-network
     restart: unless-stopped
@@ -251,4 +208,3 @@ networks:
 
 volumes:
   postgres_data:
-  minio_data:

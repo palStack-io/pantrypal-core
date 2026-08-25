@@ -6,7 +6,6 @@
 # BEFORE DEPLOYING:
 #   1. Replace every  CHANGEME  value with your own secret.
 #      - DB_PASSWORD     → any strong password
-#      - MINIO_PASSWORD  → any strong password (≥ 8 chars)
 #      - SECRET_KEY      → run: openssl rand -hex 32
 #   2. Optional env vars (SMTP, APP_URL) can be left blank —
 #      features that need them will simply be disabled at runtime.
@@ -45,31 +44,6 @@ services:
       retries: 5
 
   # ===========================================================================
-  # MinIO — object storage (product images, receipts, recipe photos)
-  # Console UI available on host port 9001
-  # ===========================================================================
-  minio:
-    image: minio/minio:latest
-    container_name: pantrypal-minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: pantrypal
-      MINIO_ROOT_PASSWORD: CHANGEME_MINIO_PASSWORD    # ← required (≥ 8 chars)
-    volumes:
-      - minio_data:/data
-    ports:
-      - "9001:9001"    # MinIO console — restrict in firewall in production
-    networks:
-      - pantrypal-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-      start_period: 10s
-
-  # ===========================================================================
   # API Gateway — auth, pantry management, recipe integration, user sessions
   # ===========================================================================
   api-gateway:
@@ -77,8 +51,6 @@ services:
     container_name: pantrypal-api-gateway
     depends_on:
       postgres:
-        condition: service_healthy
-      minio:
         condition: service_healthy
       inventory-service:
         condition: service_started
@@ -92,15 +64,8 @@ services:
       # ── Database ──────────────────────────────────────────────────────────
       DATABASE_URL: postgresql://pantrypal:CHANGEME_DB_PASSWORD@postgres:5432/pantrypal
 
-      # ── MinIO ─────────────────────────────────────────────────────────────
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: pantrypal
-      MINIO_SECRET_KEY: CHANGEME_MINIO_PASSWORD    # ← must match minio above
-      MINIO_SECURE: "false"
-      MINIO_BUCKET_PRODUCTS: pantrypal-products
-      MINIO_BUCKET_USERS: pantrypal-users
-      MINIO_BUCKET_RECEIPTS: pantrypal-receipts
-      MINIO_BUCKET_RECIPES: pantrypal-recipes
+      # ── Local file storage (recipe/product/user images) ──────────────────
+      LOCAL_STORAGE_PATH: /app/data/storage
 
       # ── Security ──────────────────────────────────────────────────────────
       SECRET_KEY: CHANGEME_run_openssl_rand_hex_32          # ← required
@@ -181,15 +146,13 @@ services:
     restart: unless-stopped
 
   # ===========================================================================
-  # Backup Service — PostgreSQL, SQLite, and MinIO on a cron schedule
+  # Backup Service — PostgreSQL and local storage files on a cron schedule
   # ===========================================================================
   backup:
     image: ghcr.io/palstack-io/pantrypal-backup:latest
     container_name: pantrypal-backup
     depends_on:
       postgres:
-        condition: service_healthy
-      minio:
         condition: service_healthy
     environment:
       # Set to "true" to enable automated backups
@@ -205,13 +168,11 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_USER: pantrypal
       POSTGRES_DB: pantrypal
-      # MinIO — must match minio service above
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: pantrypal
-      MINIO_SECRET_KEY: CHANGEME_MINIO_PASSWORD
       BACKUP_PATH: /backups
+      LOCAL_STORAGE_PATH: /app/data/storage
     volumes:
       - backup_data:/backups
+      - gateway_data:/app/data:ro
     networks:
       - pantrypal-network
     restart: unless-stopped
@@ -255,6 +216,5 @@ networks:
 
 volumes:
   postgres_data:
-  minio_data:
   gateway_data:
   backup_data:

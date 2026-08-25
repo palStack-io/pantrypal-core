@@ -22,7 +22,7 @@ from app.pg_auth import create_user, mark_email_verified, find_user_by_email
 from app.database import SessionLocal, init_db
 from app.models import RecipeIntegration
 from app.security import get_security_service
-from app.minio_service import get_minio_service
+from app.local_storage_service import get_local_storage_service
 from app.recipe_import_service import RecipeImportService
 
 print("🔐 Initializing PantryPal...")
@@ -176,8 +176,8 @@ async def setup_demo_recipes(admin_user_id: str):
             print("✅ Mealie recipe integration configured (household-level)")
 
         # Import recipes (shared across all users)
-        minio = get_minio_service()
-        import_service = RecipeImportService(db, minio)
+        storage = get_local_storage_service()
+        import_service = RecipeImportService(db, storage)
 
         print("📥 Importing shared recipes...")
         stats = await import_service.import_recipes(

@@ -5,7 +5,6 @@ pantrypal/
 ├── archive/                    # Old scripts (archived)
 ├── backups/                    # Database backups
 ├── postgres_data/              # PostgreSQL data (Docker volume, gitignored)
-├── minio_data/                 # MinIO object storage (Docker volume, gitignored)
 ├── mobile/                     # React Native mobile app
 │   ├── assets/                # App icons, splash screens
 │   ├── src/
@@ -78,13 +77,12 @@ pantrypal/
 | lookup-service | 8002 | - | Barcode lookup |
 | web-ui | 5173 | - | React dev server (via nginx) |
 | postgres | 5432 | - | PostgreSQL database |
-| minio | 9000 | - | Object storage (recipe images) |
 
 ## Data Persistence
 
 All persistent data is stored in Docker volumes:
 - `postgres_data/` - PostgreSQL database (users, inventory, recipes)
-- `minio_data/` - MinIO object storage (recipe images)
+- Local image storage lives under `./data/storage` on the api-gateway host mount (not a separate Docker volume)
 
 **Important:** These volumes are gitignored and should be backed up separately.
 

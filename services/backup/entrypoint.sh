@@ -9,14 +9,6 @@ if [ "$DB_BACKUP_ENABLED" != "true" ]; then
     exec sleep infinity
 fi
 
-# Configure MinIO client alias
-mc alias set pantrypal \
-    "http://${MINIO_ENDPOINT:-minio:9000}" \
-    "${MINIO_ACCESS_KEY}" \
-    "${MINIO_SECRET_KEY}" \
-    --api S3v4 > /dev/null
-
-echo "[backup] MinIO client configured."
 echo "[backup] Schedule: ${DB_BACKUP_SCHEDULE}"
 echo "[backup] Retention: ${DB_BACKUP_RETENTION_DAYS:-7} days"
 

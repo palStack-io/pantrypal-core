@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends, Response, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -16,30 +18,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from .network_utils import get_client_ip, is_trusted_network
 
-_SENTRY_DSN = os.getenv("SENTRY_DSN")
-if _SENTRY_DSN:
-    import sentry_sdk
-    from sentry_sdk.integrations.fastapi import FastApiIntegration
-    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-    sentry_sdk.init(
-        dsn=_SENTRY_DSN,
-        environment=os.getenv("ENV", "production"),
-        traces_sample_rate=0.1,
-        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
-        send_default_pii=False,
-    )
-    logger.info("Sentry error tracking enabled")
-
-
 # Import auth modules
 from .auth import get_current_auth, require_admin, require_write_scope
 from . import pg_api_keys, pg_auth
 from .email_service import send_password_reset_email, send_welcome_email, send_verification_email, is_email_configured
-from .oidc import oidc_public_config, verify_id_token, fetch_userinfo
+from .oidc import (
+    oidc_public_config, verify_id_token, fetch_userinfo,
+    is_oidc_enabled, get_oauth_client, extract_user_info,
+    OIDC_AUTO_LINK, OIDC_AUTO_CREATE,
+)
 
 # Import database and services
 from .database import init_db
-from .minio_service import get_minio_service
+from .local_storage_service import get_local_storage_service
 
 # Import routers
 from .routes import images, recipes
@@ -63,11 +54,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
+# Only needed to carry OAuth state/nonce (and mobile_state) across the
+# generic OIDC redirect round-trip — the native Google/Apple flow and
+# regular session-token auth don't touch this.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SECRET_KEY", os.getenv("ENCRYPTION_SALT", "change-me-in-production")),
+    https_only=False,
+    same_site="lax",
+)
 
-# Startup event: Initialize database and MinIO
+# Startup event: Initialize database and local storage
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database tables and MinIO buckets"""
+    """Initialize database tables and local storage directories"""
     print("🚀 Starting PantryPal API Gateway...")
 
     # Initialize PostgreSQL database
@@ -77,12 +77,12 @@ async def startup_event():
     except Exception as e:
         print(f"⚠️  Database initialization warning: {e}")
 
-    # Initialize MinIO buckets
+    # Initialize local storage directories
     try:
-        minio = get_minio_service()
-        print("✓ MinIO service initialized")
+        get_local_storage_service()
+        print("✓ Local storage initialized")
     except Exception as e:
-        print(f"⚠️  MinIO initialization warning: {e}")
+        print(f"⚠️  Local storage initialization warning: {e}")
 
     print("✓ PantryPal API Gateway ready")
 
@@ -681,6 +681,103 @@ async def oidc_login(request: Request, body: OidcAuthRequest, response: Response
         "user": pg_auth.get_user_by_id(user_id),
         "session_token": session_token,
     }
+
+
+# ============================================================================
+# GENERIC OIDC (redirect flow — self-hosted IdPs: Authentik, Keycloak, etc.)
+# ============================================================================
+
+@app.get("/api/auth/oidc/login")
+async def oidc_redirect_login(request: Request, mobile_state: Optional[str] = None):
+    """Start the authorization-code redirect flow against the configured IdP."""
+    if not is_oidc_enabled():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="OIDC authentication is not enabled")
+
+    # Stash mobile_state in the session so it can be echoed back after the
+    # provider redirects to our callback.
+    if mobile_state:
+        request.session['mobile_state'] = mobile_state
+
+    redirect_uri = request.url_for('oidc_redirect_callback')
+    client = get_oauth_client()
+    return await client.authorize_redirect(request, redirect_uri)
+
+
+@app.get("/api/auth/oidc/callback")
+async def oidc_redirect_callback(request: Request, response: Response):
+    """Handle the IdP's redirect back after the user authenticates."""
+    if not is_oidc_enabled():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="OIDC authentication is not enabled")
+
+    try:
+        client = get_oauth_client()
+        token = await client.authorize_access_token(request)
+
+        userinfo = token.get('userinfo')
+        if not userinfo:
+            userinfo = await client.userinfo(token=token)
+
+        oidc_user = extract_user_info(userinfo)
+    except Exception as e:
+        logger.error("OIDC callback error: %s", e)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="OIDC authentication failed")
+
+    provider_user_id = oidc_user['oidc_id']
+    if not provider_user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Provider did not return a subject claim")
+
+    connection = pg_auth.find_oidc_connection('oidc', provider_user_id)
+
+    if connection:
+        if not connection['is_active']:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
+        user_id = connection['user_id']
+        pg_auth.update_oidc_last_login('oidc', provider_user_id)
+    else:
+        # Only auto-link to an existing account if the IdP has verified the
+        # email — prevents account takeover via an unverified email claim.
+        existing_user = None
+        if OIDC_AUTO_LINK and oidc_user['email'] and oidc_user['email_verified']:
+            existing_user = pg_auth.find_user_by_email(oidc_user['email'])
+
+        if existing_user:
+            user_id = existing_user['id']
+            pg_auth.create_oidc_connection(user_id, 'oidc', provider_user_id, oidc_user['email'])
+        elif OIDC_AUTO_CREATE:
+            new_user = pg_auth.create_user_from_oidc(
+                username=oidc_user['username'],
+                email=oidc_user['email'],
+                full_name=oidc_user['name'],
+            )
+            user_id = new_user['id']
+            pg_auth.create_oidc_connection(user_id, 'oidc', provider_user_id, oidc_user['email'])
+        else:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No account found. Please contact an administrator.")
+
+    session_token = pg_auth.create_session(
+        user_id=user_id,
+        ip_address=get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    mobile_state = request.session.pop('mobile_state', None)
+
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        max_age=30 * 24 * 60 * 60,
+        samesite="lax",
+        secure=COOKIE_SECURE
+    )
+
+    if mobile_state:
+        import urllib.parse
+        params = urllib.parse.urlencode({"token": session_token, "state": mobile_state})
+        return RedirectResponse(url=f"pantrypal://auth?{params}")
+
+    return {"status": "success", "message": "Successfully logged in via OIDC"}
+
 
 # ============================================================================
 # API KEY MANAGEMENT ENDPOINTS
@@ -1879,74 +1976,3 @@ async def get_admin_stats(auth = Depends(require_admin)):
         "inactive_users": inactive_users,
         "admin_users": admin_users
     }
-
-
-
-# =============================================================================
-# RELEASES
-# =============================================================================
-
-class ReleaseItemSchema(BaseModel):
-    emoji: Optional[str] = None
-    text: str
-
-
-class ReleaseCreate(BaseModel):
-    version: str
-    title: Optional[str] = None
-    items: Optional[list] = None
-
-
-@app.get("/api/releases")
-async def list_releases():
-    """Public endpoint — returns all releases newest-first."""
-    from .database import SessionLocal
-    from .models import Release
-    db = SessionLocal()
-    try:
-        releases = db.query(Release).order_by(Release.published_at.desc()).all()
-        return {
-            "releases": [
-                {
-                    "id": r.id,
-                    "version": r.version,
-                    "title": r.title,
-                    "items": r.items or [],
-                    "published_at": r.published_at.isoformat() if r.published_at else None,
-                    "created_at": r.created_at.isoformat() if r.created_at else None,
-                }
-                for r in releases
-            ]
-        }
-    finally:
-        db.close()
-
-
-@app.post("/api/admin/releases", status_code=201)
-async def publish_release(body: ReleaseCreate, auth=Depends(require_admin)):
-    """Publish a new release (admin only)."""
-    from .database import SessionLocal
-    from .models import Release
-    db = SessionLocal()
-    try:
-        if db.query(Release).filter(Release.version == body.version.strip()).first():
-            raise HTTPException(status_code=409, detail={"error": f"Version {body.version} already exists"})
-        release = Release(
-            version=body.version.strip(),
-            title=body.title.strip() if body.title else None,
-            items=[i for i in (body.items or []) if i.get("text", "").strip()],
-        )
-        db.add(release)
-        db.commit()
-        db.refresh(release)
-        return {
-            "release": {
-                "id": release.id,
-                "version": release.version,
-                "title": release.title,
-                "items": release.items,
-                "published_at": release.published_at.isoformat(),
-            }
-        }
-    finally:
-        db.close()

@@ -49,7 +49,7 @@ Part of the **PalStack ecosystem** - a suite of privacy-focused, self-hosted app
 | **Expiring Recipes** | Find recipes that use expiring items |
 | **Missing Ingredients** | Add missing ingredients to shopping list |
 | **Favorites** | Mark and filter favorite recipes |
-| **Image Caching** | Store recipe images locally in MinIO |
+| **Image Caching** | Store recipe images locally on disk |
 
 ### Barcode Lookup
 | Feature | Description |
@@ -93,7 +93,7 @@ Part of the **PalStack ecosystem** - a suite of privacy-focused, self-hosted app
   - Match recipes to pantry inventory
   - Track which recipes use expiring items
   - Add missing ingredients to shopping list
-  - Image download to local MinIO storage
+  - Image download to local file storage
 - **Shared Household Model:**
   - Integration configuration is **admin-only**
   - Imported recipes are **shared** across all users
@@ -145,7 +145,7 @@ Part of the **PalStack ecosystem** - a suite of privacy-focused, self-hosted app
 | Email | aiosmtplib 3.0 (async SMTP) |
 | Scheduler | APScheduler 3.10 |
 | HTTP Client | httpx 0.25 (async) |
-| Object Storage | MinIO (for recipe images) |
+| Object Storage | Local filesystem (for recipe images) |
 | WSGI Server | Uvicorn |
 
 ### Web Frontend
@@ -176,7 +176,7 @@ Part of the **PalStack ecosystem** - a suite of privacy-focused, self-hosted app
 | Containerization | Docker |
 | Orchestration | Docker Compose |
 | Reverse Proxy | Nginx |
-| Object Storage | MinIO |
+| Object Storage | Local filesystem (no external dependency) |
 | Multi-arch | AMD64 + ARM64 images |
 
 ---
@@ -197,7 +197,7 @@ pantrypal/
 │   │   │   │   ├── recipe_matcher.py # Recipe-pantry matching
 │   │   │   │   ├── mealie_integration.py
 │   │   │   │   ├── tandoor_integration.py
-│   │   │   │   └── minio_service.py  # Image storage
+│   │   │   │   └── local_storage_service.py  # Image storage
 │   │   │   ├── requirements.txt
 │   │   │   └── Dockerfile
 │   │   │
@@ -307,7 +307,7 @@ Dashboard (overview)
 ```
 Recipes Tab
     ├── Setup Integration → Connect Mealie/Tandoor → Test Connection
-    ├── Import Recipes → Download to local DB → Cache images in MinIO
+    ├── Import Recipes → Download to local DB → Cache images on disk
     ├── Match Pantry → Calculate ingredient matches → Identify expiring items
     ├── View Recipe → See ingredients (available/missing/expiring) → Instructions
     └── Add Missing → Extract clean ingredient names → Add to shopping list
@@ -477,7 +477,7 @@ docker-compose up -d
 | `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | OIDC credentials |
 | `OIDC_DISCOVERY_URL` | OIDC provider URL |
 | `CORS_ORIGINS` | Allowed CORS origins |
-| `MINIO_*` | MinIO object storage config |
+| `LOCAL_STORAGE_PATH` | Local filesystem path for images |
 
 ---
 

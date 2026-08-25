@@ -1,9 +1,4 @@
-FROM minio/mc:latest AS mc-source
-
 FROM alpine:3.19
-
-# Copy MinIO client from official image (ensures correct architecture)
-COPY --from=mc-source /usr/bin/mc /usr/local/bin/mc
 
 RUN apk add --no-cache \
     postgresql15-client \

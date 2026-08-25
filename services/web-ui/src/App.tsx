@@ -16,14 +16,12 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ToastProvider } from './components/Toast';
 import { DialogProvider } from './components/DialogProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import WhatsNewModal, { useWhatsNew } from './components/WhatsNewModal';
 import TourOverlay from './components/onboarding/TourOverlay';
 import { useTour } from './components/onboarding/useTour';
 import type { User } from './types';
 import './App.css';
 
 function AppContent() {
-  const { pendingRelease, dismiss: dismissWhatsNew } = useWhatsNew();
   const [showLanding, setShowLanding] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -112,7 +110,6 @@ function AppContent() {
 
   return (
     <div className="app">
-      {pendingRelease && <WhatsNewModal release={pendingRelease} onClose={dismissWhatsNew} />}
       {tourActive && (
         <TourOverlay
           step={tourStep}

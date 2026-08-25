@@ -1,6 +1,6 @@
 """
 Image API Routes
-Handles serving images from MinIO storage
+Handles serving images from local file storage
 
 Shared Household Model:
 - Recipe images are shared (anyone can view/upload for shared recipes)
@@ -30,16 +30,35 @@ def _validate_image(data: bytes) -> None:
 
 from ..database import get_db
 from ..models import ProductImage, UserImage, RecipeImage, Recipe, User
-from ..minio_service import get_minio_service, MinIOService
+from ..local_storage_service import get_local_storage_service, LocalStorageService
 from ..auth import get_current_user
 
 router = APIRouter(prefix="/api/images", tags=["images"])
 
 
+@router.get("/file/{bucket_name}/{object_path:path}")
+async def get_local_file_image(
+    bucket_name: str,
+    object_path: str,
+    storage: LocalStorageService = Depends(get_local_storage_service)
+):
+    """Serve an image from local file storage."""
+    try:
+        data = storage.get_object_bytes(bucket_name=bucket_name, object_name=object_path)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return Response(
+        content=data,
+        media_type='image/webp',
+        headers={'Cache-Control': 'public, max-age=3600'},
+    )
+
+
 @router.get("/product/{barcode}")
 async def get_product_image(
     barcode: str,
-    minio: MinIOService = Depends(get_minio_service),
+    storage: LocalStorageService = Depends(get_local_storage_service),
     db: Session = Depends(get_db)
 ):
     """
@@ -54,8 +73,8 @@ async def get_product_image(
     if not product_image:
         raise HTTPException(status_code=404, detail="Product image not found")
 
-    # Get presigned URL from MinIO
-    url = minio.get_presigned_url(
+    # Get local image URL
+    url = storage.get_presigned_url(
         bucket_name=product_image.bucket_name,
         object_name=product_image.object_name,
         expires_seconds=3600  # 1 hour
@@ -76,7 +95,7 @@ async def get_product_image(
 async def get_custom_image(
     item_id: str,
     current_user: User = Depends(get_current_user),
-    minio: MinIOService = Depends(get_minio_service),
+    storage: LocalStorageService = Depends(get_local_storage_service),
     db: Session = Depends(get_db)
 ):
     """
@@ -92,8 +111,8 @@ async def get_custom_image(
     if not user_image:
         raise HTTPException(status_code=404, detail="Custom image not found")
 
-    # Get presigned URL from MinIO
-    url = minio.get_presigned_url(
+    # Get local image URL
+    url = storage.get_presigned_url(
         bucket_name=user_image.bucket_name,
         object_name=user_image.object_name,
         expires_seconds=3600
@@ -108,13 +127,13 @@ async def get_custom_image(
 @router.get("/recipe/{recipe_id}/view")
 async def view_recipe_image(
     recipe_id: str,
-    minio: MinIOService = Depends(get_minio_service),
+    storage: LocalStorageService = Depends(get_local_storage_service),
     db: Session = Depends(get_db)
 ):
     """
     Serve recipe image bytes proxied through the API gateway.
     Public endpoint — recipe images are household-shared data, and the mobile
-    Image component cannot attach auth headers.  Keeps minio:9000 internal.
+    Image component cannot attach auth headers, so bytes are proxied here.
     """
     recipe_image = db.query(RecipeImage).filter(
         RecipeImage.recipe_id == recipe_id
@@ -124,7 +143,7 @@ async def view_recipe_image(
         raise HTTPException(status_code=404, detail="Recipe image not found")
 
     try:
-        data = minio.get_object_bytes(
+        data = storage.get_object_bytes(
             bucket_name=recipe_image.bucket_name,
             object_name=recipe_image.object_name,
         )
@@ -162,7 +181,7 @@ async def upload_custom_image(
     item_id: str,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
-    minio: MinIOService = Depends(get_minio_service),
+    storage: LocalStorageService = Depends(get_local_storage_service),
     db: Session = Depends(get_db)
 ):
     """
@@ -181,9 +200,9 @@ async def upload_custom_image(
     # Validate actual file bytes (magic number check)
     _validate_image(image_data)
 
-    # Upload to MinIO
+    # Upload to local storage
     try:
-        object_name = minio.upload_custom_image(
+        object_name = storage.upload_custom_image(
             user_id=current_user.id,
             item_id=item_id,
             image_data=image_data
@@ -206,7 +225,7 @@ async def upload_custom_image(
         user_image = UserImage(
             user_id=current_user.id,
             item_id=item_id,
-            bucket_name=minio.bucket_users,
+            bucket_name=storage.bucket_users,
             object_name=object_name,
             mime_type='image/webp'
         )
@@ -226,7 +245,7 @@ async def upload_recipe_image(
     recipe_id: str,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
-    minio: MinIOService = Depends(get_minio_service),
+    storage: LocalStorageService = Depends(get_local_storage_service),
     db: Session = Depends(get_db)
 ):
     """
@@ -250,9 +269,9 @@ async def upload_recipe_image(
     # Validate actual file bytes (magic number check)
     _validate_image(image_data)
 
-    # Upload to MinIO (use "shared" as user_id for shared recipes)
+    # Upload to local storage (use "shared" as user_id for shared recipes)
     try:
-        object_name = minio.upload_recipe_image(
+        object_name = storage.upload_recipe_image(
             user_id="shared",
             recipe_id=recipe_id,
             image_data=image_data
@@ -274,7 +293,7 @@ async def upload_recipe_image(
         # Create new record (no user_id - shared with recipe)
         recipe_image = RecipeImage(
             recipe_id=recipe_id,
-            bucket_name=minio.bucket_recipes,
+            bucket_name=storage.bucket_recipes,
             object_name=object_name,
             source='upload',
             mime_type='image/webp'
@@ -296,7 +315,7 @@ async def upload_recipe_image(
 async def delete_custom_image(
     item_id: str,
     current_user: User = Depends(get_current_user),
-    minio: MinIOService = Depends(get_minio_service),
+    storage: LocalStorageService = Depends(get_local_storage_service),
     db: Session = Depends(get_db)
 ):
     """
@@ -312,8 +331,8 @@ async def delete_custom_image(
     if not user_image:
         raise HTTPException(status_code=404, detail="Custom image not found")
 
-    # Delete from MinIO
-    deleted = minio.delete_object(
+    # Delete from local storage
+    deleted = storage.delete_object(
         bucket_name=user_image.bucket_name,
         object_name=user_image.object_name
     )
@@ -332,7 +351,7 @@ async def delete_custom_image(
 async def delete_recipe_image(
     recipe_id: str,
     current_user: User = Depends(get_current_user),
-    minio: MinIOService = Depends(get_minio_service),
+    storage: LocalStorageService = Depends(get_local_storage_service),
     db: Session = Depends(get_db)
 ):
     """
@@ -347,8 +366,8 @@ async def delete_recipe_image(
     if not recipe_image:
         raise HTTPException(status_code=404, detail="Recipe image not found")
 
-    # Delete from MinIO
-    deleted = minio.delete_object(
+    # Delete from local storage
+    deleted = storage.delete_object(
         bucket_name=recipe_image.bucket_name,
         object_name=recipe_image.object_name
     )

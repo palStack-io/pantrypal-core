@@ -57,6 +57,31 @@ function GoogleSignInBlock({ googleClientId, onCredential, onError }: GoogleSign
   );
 }
 
+interface GenericOidcConfig {
+  enabled: boolean;
+  provider_name: string;
+  login_url: string;
+}
+
+function GenericOidcButton({ config }: { config: GenericOidcConfig | null }) {
+  if (!config?.enabled) return null;
+  return (
+    <>
+      <button
+        onClick={() => { window.location.href = config.login_url; }}
+        style={{ width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: `2px solid ${colors.border}`, background: 'white', color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', marginBottom: spacing.md }}
+      >
+        Sign in with {config.provider_name}
+      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+        <div style={{ flex: 1, height: '1px', background: colors.border }} />
+        <span style={{ color: colors.textSecondary, fontSize: '14px' }}>or</span>
+        <div style={{ flex: 1, height: '1px', background: colors.border }} />
+      </div>
+    </>
+  );
+}
+
 function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'forgot'>('login');
   const [loading, setLoading] = useState(false);
@@ -74,6 +99,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [googleClientId, setGoogleClientId] = useState('');
+  const [genericOidc, setGenericOidc] = useState<GenericOidcConfig | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([]);
   const [demoSessionMinutes, setDemoSessionMinutes] = useState(10);
@@ -102,6 +128,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
       if (response.ok) {
         const data = await response.json();
         if (data.oidc?.google_client_id) setGoogleClientId(data.oidc.google_client_id);
+        if (data.oidc?.enabled) setGenericOidc({ enabled: true, provider_name: data.oidc.provider_name, login_url: data.oidc.login_url });
         if (data.demo_mode) { setDemoMode(true); setDemoAccounts(data.demo_accounts || []); setDemoSessionMinutes(data.demo_session_minutes || 10); }
       }
     } catch { /* OIDC is optional */ }
@@ -244,6 +271,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
                   onCredential={handleGoogleCredential}
                   onError={() => showError('Google sign-in failed. Please try again.')}
                 />
+                <GenericOidcButton config={genericOidc} />
                 <div style={{ display: 'flex', gap: spacing.md }}>
                   <button onClick={() => setView('login')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign In</button>
                   <button onClick={() => setView('signup')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: `2px solid ${colors.primary}`, background: 'white', color: colors.primary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign Up</button>
@@ -295,6 +323,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
             onCredential={handleGoogleCredential}
             onError={() => showError('Google sign-in failed. Please try again.')}
           />
+          <GenericOidcButton config={genericOidc} />
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Username or Email</label>

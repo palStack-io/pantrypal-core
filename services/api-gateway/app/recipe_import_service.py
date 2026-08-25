@@ -14,7 +14,7 @@ import asyncio
 
 from .models import Recipe, RecipeImage, RecipeIntegration, User
 from .database import SessionLocal
-from .minio_service import MinIOService
+from .local_storage_service import LocalStorageService
 from .mealie_integration import MealieIntegration
 from .tandoor_integration import TandoorIntegration
 
@@ -22,9 +22,9 @@ from .tandoor_integration import TandoorIntegration
 class RecipeImportService:
     """Service for importing recipes from external sources"""
 
-    def __init__(self, db: Session, minio_service: MinIOService):
+    def __init__(self, db: Session, storage_service: LocalStorageService):
         self.db = db
-        self.minio = minio_service
+        self.storage = storage_service
 
     async def import_recipes(
         self,
@@ -257,14 +257,14 @@ class RecipeImportService:
         auth_headers: Optional[dict] = None
     ) -> bool:
         """
-        Download recipe image from Mealie/Tandoor and store in MinIO
+        Download recipe image from Mealie/Tandoor and store in local storage
 
         Returns:
             True if successful, False otherwise
         """
         try:
-            # Download and upload to MinIO (no user_id needed - shared images)
-            object_name = await self.minio.download_recipe_image_from_url(
+            # Download and upload to local storage (no user_id needed - shared images)
+            object_name = await self.storage.download_recipe_image_from_url(
                 user_id="shared",  # Use a fixed identifier for shared recipes
                 recipe_id=recipe_id,
                 source_url=source_url,
@@ -289,7 +289,7 @@ class RecipeImportService:
                 # Create new image record (no user_id - shared with recipe)
                 recipe_image = RecipeImage(
                     recipe_id=recipe_id,
-                    bucket_name=self.minio.bucket_recipes,
+                    bucket_name=self.storage.bucket_recipes,
                     object_name=object_name,
                     source=provider,
                     original_url=source_url,
@@ -336,13 +336,13 @@ class RecipeImportService:
         if not recipe:
             return False
 
-        # Delete image from MinIO
+        # Delete image from local storage
         recipe_image = self.db.query(RecipeImage).filter(
             RecipeImage.recipe_id == recipe_id
         ).first()
 
         if recipe_image:
-            self.minio.delete_object(
+            self.storage.delete_object(
                 bucket_name=recipe_image.bucket_name,
                 object_name=recipe_image.object_name
             )
@@ -354,6 +354,6 @@ class RecipeImportService:
         return True
 
 
-def get_recipe_import_service(db: Session, minio_service: MinIOService) -> RecipeImportService:
+def get_recipe_import_service(db: Session, storage_service: LocalStorageService) -> RecipeImportService:
     """Factory function for RecipeImportService"""
-    return RecipeImportService(db=db, minio_service=minio_service)
+    return RecipeImportService(db=db, storage_service=storage_service)

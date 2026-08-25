@@ -8,7 +8,7 @@ PantryPal runs a dedicated `backup` service that automatically backs up all pers
 |---|---|---|
 | PostgreSQL | `pg_dump` + gzip | Users, sessions, recipes, OIDC, API keys, password reset tokens |
 | SQLite | `sqlite3 .backup` | `users.db`, `api_keys.db`, `inventory.db` |
-| MinIO | `mc mirror` | All 4 buckets: products, users, receipts, recipes |
+| Local storage | `cp -a` | Recipe, product, and user images under `LOCAL_STORAGE_PATH` |
 
 > **Not backed up:** `lookup_cache.db` — this is a 30-day TTL barcode cache that repopulates automatically from Open Food Facts. There is no value in restoring it.
 
@@ -29,12 +29,11 @@ Backups land in the `./backups/` directory on the host:
 │       ├── users.db
 │       ├── api_keys.db
 │       └── inventory.db
-├── minio/
+├── storage/
 │   └── 2026-04-02/
-│       ├── pantrypal-products/
-│       ├── pantrypal-users/
-│       ├── pantrypal-receipts/
-│       └── pantrypal-recipes/
+│       ├── products/
+│       ├── users/
+│       └── recipes/
 └── csv/
     └── pantrypal_backup_2026-04-02_020000.csv   ← inventory CSV (legacy)
 ```
@@ -176,38 +175,17 @@ docker run --rm \
 
 ---
 
-### Restore MinIO
+### Restore Local Storage Files
 
 ```bash
 # 1. Stop the api-gateway (prevents new uploads during restore)
 docker compose stop api-gateway
 
-# 2. Configure mc to point at your running MinIO instance
-#    (skip if mc is already configured)
-docker exec pantrypal-backup mc alias set pantrypal \
-  http://minio:9000 \
-  YOUR_MINIO_USER \
-  YOUR_MINIO_PASSWORD
-
-# 3. Mirror the backup back into MinIO for each bucket
+# 2. Copy the backup files back into the live storage path
 #    (adjust the date folder to your chosen backup)
-docker exec pantrypal-backup mc mirror --overwrite \
-  /backups/minio/2026-04-02/pantrypal-users \
-  pantrypal/pantrypal-users
+cp -a ./backups/storage/2026-04-02/. ./data/storage/
 
-docker exec pantrypal-backup mc mirror --overwrite \
-  /backups/minio/2026-04-02/pantrypal-receipts \
-  pantrypal/pantrypal-receipts
-
-docker exec pantrypal-backup mc mirror --overwrite \
-  /backups/minio/2026-04-02/pantrypal-products \
-  pantrypal/pantrypal-products
-
-docker exec pantrypal-backup mc mirror --overwrite \
-  /backups/minio/2026-04-02/pantrypal-recipes \
-  pantrypal/pantrypal-recipes
-
-# 4. Restart the api-gateway
+# 3. Restart the api-gateway
 docker compose start api-gateway
 ```
 
@@ -218,10 +196,10 @@ docker compose start api-gateway
 Use this when restoring to a fresh host or after complete data loss.
 
 ```bash
-# 1. Bring up just the infrastructure (postgres + minio) — not the app
-docker compose up -d postgres minio
+# 1. Bring up just the infrastructure (postgres) — not the app
+docker compose up -d postgres
 
-# 2. Wait for both to be healthy
+# 2. Wait for it to be healthy
 docker compose ps
 
 # 3. Restore PostgreSQL
@@ -233,12 +211,8 @@ cp ./backups/sqlite/YYYY-MM-DD/users.db      ./data/users.db
 cp ./backups/sqlite/YYYY-MM-DD/api_keys.db   ./data/api_keys.db
 cp ./backups/sqlite/YYYY-MM-DD/inventory.db  ./data/inventory/inventory.db
 
-# 5. Restore MinIO buckets (start the backup container temporarily)
-docker compose up -d backup
-docker exec pantrypal-backup mc mirror --overwrite /backups/minio/YYYY-MM-DD/pantrypal-users     pantrypal/pantrypal-users
-docker exec pantrypal-backup mc mirror --overwrite /backups/minio/YYYY-MM-DD/pantrypal-receipts  pantrypal/pantrypal-receipts
-docker exec pantrypal-backup mc mirror --overwrite /backups/minio/YYYY-MM-DD/pantrypal-products  pantrypal/pantrypal-products
-docker exec pantrypal-backup mc mirror --overwrite /backups/minio/YYYY-MM-DD/pantrypal-recipes   pantrypal/pantrypal-recipes
+# 5. Restore local storage files
+cp -a ./backups/storage/YYYY-MM-DD/. ./data/storage/
 
 # 6. Bring up the rest of the stack
 docker compose up -d

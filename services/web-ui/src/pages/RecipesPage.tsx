@@ -316,7 +316,7 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
               <div style={{ fontSize: '18px', fontWeight: '800', color: colors.textPrimary, marginBottom: '20px' }}>Import Options</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {[
-                  { checked: importImages, onChange: setImportImages, title: 'Download images to MinIO', desc: 'Enables offline access to recipe images (recommended)' },
+                  { checked: importImages, onChange: setImportImages, title: 'Download images locally', desc: 'Stores recipe images on this server (recommended)' },
                   { checked: autoSync, onChange: setAutoSync, title: 'Auto-sync recipes', desc: 'Automatically check for new recipes every 24 hours' },
                   { checked: syncDeletions, onChange: setSyncDeletions, title: 'Sync deletions', desc: `Remove recipes from pantryPal if deleted in ${provider === 'mealie' ? 'Mealie' : 'Tandoor'}` },
                 ].map(({ checked, onChange, title, desc }) => (
@@ -351,7 +351,7 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
                 <strong>💡 How it works:</strong><br /><br />
                 pantryPal will import all recipes from your {provider === 'mealie' ? 'Mealie' : 'Tandoor'} instance and store them permanently in your database.
                 <br /><br />
-                <strong>Offline Support:</strong> Enable "Download images to MinIO" to store recipe images locally.
+                <strong>Offline Support:</strong> Enable "Download images locally" to store recipe images on this server.
               </div>
             </div>
           </>

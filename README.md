@@ -143,7 +143,7 @@ Don't want to manage servers? We're launching a managed hosting service where we
 - **Beautiful Web Dashboard**: Minimal, clean interface with dark mode and virtual-scrolled inventory table
 - **Progressive Web App (PWA)**: Install on desktop/mobile, works offline — mutations queue in the background and sync when connectivity returns
 - **Native Mobile App**: iOS & Android (React Native) with biometric authentication (Face ID/Touch ID)
-- **Image Caching**: Recipe images stored locally in MinIO for fast loading
+- **Image Caching**: Recipe images stored on local disk for fast loading
 
 ### For Home Assistant Fans
 - **REST API Integration**: Pull pantry data and expiring items into Home Assistant
@@ -162,7 +162,7 @@ Don't want to manage servers? We're launching a managed hosting service where we
 - **OIDC Support**: Single Sign-On with Google, Microsoft, Keycloak, Authentik
 
 ### Advanced Features
-- **MinIO Object Storage**: Scalable image storage for recipe photos
+- **Local Image Storage**: Recipe, product, and user photos stored on disk — no external object storage required
 - **Multi-architecture Support**: AMD64 and ARM64 Docker images
 - **Microservices Architecture**: Separate services for inventory, lookup, and gateway
 - **30-day Barcode Cache**: Reduce API calls with intelligent caching
@@ -252,10 +252,9 @@ Built with a microservices architecture for easy maintenance and future expansio
 
 ```
 nginx (reverse proxy)
-├── api-gateway (FastAPI)          # Authentication, routing, email, OIDC, recipes
+├── api-gateway (FastAPI)          # Authentication, routing, email, OIDC, recipes, local image storage
 ├── inventory-service              # Item CRUD, shopping lists, locations
 ├── lookup-service                 # Barcode to product info (cached)
-├── minio                          # Object storage for recipe images
 └── web-ui (React + TypeScript)    # PWA dashboard interface
 ```
 
@@ -264,7 +263,7 @@ nginx (reverse proxy)
 - **Frontend**: React 19.1 + Vite + TypeScript — PWA with offline support (Workbox)
 - **Mobile**: React Native 0.81 / Expo SDK 54 — TypeScript, iOS & Android
 - **Database**: PostgreSQL 15
-- **Object Storage**: MinIO
+- **Object Storage**: Local filesystem (no external dependency)
 - **Reverse Proxy**: nginx
 - **Barcode Data**: Open Food Facts API + UPCitemDB fallback
 - **Authentication**: bcrypt, session tokens, OIDC (Authlib 1.3)
@@ -328,22 +327,29 @@ pantryPal can be configured via environment variables in your `.env` file or `do
 | `SMTP_FROM_NAME` | `pantryPal` | Sender display name |
 | `SMTP_USE_TLS` | `true` | Enable TLS encryption |
 
-#### OIDC/OAuth2 (Optional)
+#### Google Sign-In (Optional)
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OIDC_ENABLED` | `false` | Enable OIDC authentication |
+| `GOOGLE_CLIENT_ID` | - | Native ID-token sign-in — no redirect flow, no client secret |
+
+#### Generic OIDC / SSO (Optional)
+Redirect-flow OIDC for self-hosted IdPs — Authentik, Keycloak, Authelia, Okta, Azure AD, or any OIDC-compliant provider. Independent of Google Sign-In above; both can be enabled at once.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OIDC_ENABLED` | `false` | Enable generic OIDC authentication |
 | `OIDC_CLIENT_ID` | - | OAuth2 client ID |
 | `OIDC_CLIENT_SECRET` | - | OAuth2 client secret |
 | `OIDC_DISCOVERY_URL` | - | OIDC discovery endpoint |
-| `OIDC_PROVIDER_NAME` | `OIDC` | Display name for provider |
+| `OIDC_PROVIDER_NAME` | `SSO` | Display name for provider (shown on login button) |
+| `OIDC_SCOPES` | `openid profile email` | OAuth scopes to request |
+| `OIDC_AUTO_LINK` | `true` | Link to an existing account by verified email |
+| `OIDC_AUTO_CREATE` | `true` | Create a new account on first login if no match |
 
-#### MinIO Object Storage
+#### Local Image Storage
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MINIO_ENDPOINT` | `minio:9000` | MinIO server endpoint |
-| `MINIO_ACCESS_KEY` | `minioadmin` | MinIO access key |
-| `MINIO_SECRET_KEY` | `minioadmin` | MinIO secret key |
-| `MINIO_BUCKET` | `pantrypal` | Bucket name for images |
+| `LOCAL_STORAGE_PATH` | `/app/data/storage` | Where recipe/product/user images are stored on disk |
 
 #### Advanced
 | Variable | Default | Description |

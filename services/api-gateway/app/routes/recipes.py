@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 from ..database import get_db
 from ..models import User, Recipe, RecipeIntegration, UserRecipePreference
 from ..auth import get_current_user, require_admin
-from ..minio_service import get_minio_service, MinIOService
+from ..local_storage_service import get_local_storage_service, LocalStorageService
 from ..recipe_import_service import get_recipe_import_service, RecipeImportService
 from ..recipe_matcher import get_recipe_matcher, RecipeMatcher
 from ..mealie_integration import MealieIntegration
@@ -250,7 +250,7 @@ async def import_recipes(
     provider: Optional[str] = Query(None, description="Provider to import from (mealie/tandoor)"),
     current_user: User = Depends(get_current_user),  # Any user can import
     db: Session = Depends(get_db),
-    minio: MinIOService = Depends(get_minio_service)
+    storage: LocalStorageService = Depends(get_local_storage_service)
 ):
     """
     Import recipes from configured integration
@@ -270,7 +270,7 @@ async def import_recipes(
     api_token = security.decrypt_api_token(integration.api_token_encrypted)
 
     # Import recipes
-    import_service = get_recipe_import_service(db, minio)
+    import_service = get_recipe_import_service(db, storage)
 
     stats = await import_service.import_recipes(
         imported_by_user_id=current_user.id,  # Track who imported for audit
@@ -591,13 +591,13 @@ async def delete_recipe(
     recipe_id: str,
     current_user: User = Depends(get_current_user),  # Any user can delete shared recipes
     db: Session = Depends(get_db),
-    minio: MinIOService = Depends(get_minio_service)
+    storage: LocalStorageService = Depends(get_local_storage_service)
 ):
     """
     Delete a shared recipe and its image
     Any authenticated user can delete (collaborative household model)
     """
-    import_service = get_recipe_import_service(db, minio)
+    import_service = get_recipe_import_service(db, storage)
     deleted = await import_service.delete_recipe(recipe_id=recipe_id)
 
     if not deleted:
