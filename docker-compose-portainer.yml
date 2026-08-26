@@ -89,6 +89,20 @@ services:
       DEMO_MEALIE_URL: ""
       DEMO_MEALIE_TOKEN: ""
 
+      # ── Google Sign-In (optional) ────────────────────────────────────────
+      GOOGLE_CLIENT_ID: ""
+
+      # ── Generic OIDC / SSO (optional) ────────────────────────────────────
+      # Self-hosted IdPs — Authentik, Keycloak, Authelia, Okta, Azure AD, etc.
+      OIDC_ENABLED: "false"
+      OIDC_PROVIDER_NAME: SSO
+      OIDC_CLIENT_ID: ""
+      OIDC_CLIENT_SECRET: ""
+      OIDC_DISCOVERY_URL: ""
+      OIDC_SCOPES: "openid profile email"
+      OIDC_AUTO_LINK: "true"
+      OIDC_AUTO_CREATE: "true"
+
       # ── Email / SMTP (leave blank to disable email features) ──────────────
       SMTP_HOST: ""
       SMTP_PORT: "587"

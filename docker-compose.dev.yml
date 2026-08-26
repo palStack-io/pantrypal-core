@@ -1,4 +1,15 @@
-version: '3.8'
+# =============================================================================
+# pantryPal — Build From Source
+# =============================================================================
+# Builds every service's image locally from this checkout instead of pulling
+# prebuilt images. Use this if you're developing pantryPal itself, testing
+# unreleased changes, or want images built for your exact platform.
+#
+# Just want to run pantryPal? Use docker-compose.yml instead — it pulls
+# prebuilt images from ghcr.io and doesn't require cloning the source.
+#
+#   docker compose -f docker-compose.dev.yml up -d --build
+# =============================================================================
 
 services:
   # ===================================
@@ -15,8 +26,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - pantrypal-network
-    ports:
-      - "5432:5432"
+    # Port exposed only for development/debugging (comment out for production)
+    # ports:
+    #   - "5432:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pantrypal"]
@@ -28,7 +40,9 @@ services:
   # nginx Reverse Proxy
   # ===================================
   nginx:
-    image: ghcr.io/palstack-io/pantrypal-nginx:latest
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: pantrypal-nginx
     ports:
       - "8888:80"
@@ -39,7 +53,7 @@ services:
       - pantrypal-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/health"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -48,7 +62,9 @@ services:
   # API Gateway
   # ===================================
   api-gateway:
-    image: ghcr.io/palstack-io/pantrypal-api-gateway:latest
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
     container_name: pantrypal-api-gateway
     depends_on:
       - postgres
@@ -58,7 +74,7 @@ services:
       # Service URLs
       - INVENTORY_SERVICE_URL=http://inventory-service:8001
       - LOOKUP_SERVICE_URL=http://lookup-service:8002
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN must be set in .env (run: openssl rand -hex 32)}
+      - "INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN must be set in .env}"
 
       # Database (PostgreSQL)
       - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:?DB_PASSWORD must be set in .env}@postgres:5432/pantrypal
@@ -70,28 +86,38 @@ services:
       - ENABLE_RECIPE_INTEGRATION=true
 
       # Security
-      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env (run: openssl rand -hex 32)}
-      - ENCRYPTION_SALT=${ENCRYPTION_SALT:?ENCRYPTION_SALT must be set in .env (run: openssl rand -base64 32)}
+      - "SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}"
+      - "ENCRYPTION_SALT=${ENCRYPTION_SALT:?ENCRYPTION_SALT must be set in .env}"
 
       # Authentication
-      - AUTH_MODE=${AUTH_MODE:-full}  # Options: none, api_key_only, full, smart
-      #
-      # Shared Household Model:
-      # - Default admin account: admin/admin (change password on first login!)
-      # - Registration disabled by default (admin creates users)
-      # - Recipes and pantry shared across all users
-      - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-false}  # Default: false (admin creates users)
+      # Options: none, api_key_only, full, smart
+      - AUTH_MODE=${AUTH_MODE:-full}
+      - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-false}
 
-      # Demo Mode
+      # Demo Mode (creates demo accounts on startup)
       - DEMO_MODE=${DEMO_MODE:-false}
-      - DEMO_ACCOUNT_PASSWORD=${DEMO_ACCOUNT_PASSWORD:-demo123}
+      - DEMO_ACCOUNT_PASSWORD=${DEMO_ACCOUNT_PASSWORD:-demo12345}
+      - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:-admin12345}
       - DEMO_MEALIE_URL=${DEMO_MEALIE_URL:-}
       - DEMO_MEALIE_TOKEN=${DEMO_MEALIE_TOKEN:-}
 
-      # CORS Configuration
-      - CORS_ORIGINS=*
+      # Google Sign-In (optional)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
 
-      # Email settings
+      # Generic OIDC / SSO (optional)
+      - OIDC_ENABLED=${OIDC_ENABLED:-false}
+      - OIDC_PROVIDER_NAME=${OIDC_PROVIDER_NAME:-SSO}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_DISCOVERY_URL=${OIDC_DISCOVERY_URL:-}
+      - OIDC_SCOPES=${OIDC_SCOPES:-openid profile email}
+      - OIDC_AUTO_LINK=${OIDC_AUTO_LINK:-true}
+      - OIDC_AUTO_CREATE=${OIDC_AUTO_CREATE:-true}
+      # CORS Configuration
+      # Use "*" for development (no credentials) or specify origins like:
+      # "http://localhost:8080,http://192.168.1.100:8080,http://your-ip:8080"
+      - CORS_ORIGINS=*
+      # Email settings (for password reset and notifications)
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USERNAME=${SMTP_USERNAME}
@@ -99,8 +125,9 @@ services:
       - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
       - SMTP_FROM_NAME=${SMTP_FROM_NAME}
       - SMTP_USE_TLS=${SMTP_USE_TLS}
-
-      # Application URL
+      # Application URL (for email links)
+      # Set this to your public-facing domain (e.g., https://pantrypal.palstack.io)
+      # If not set, will use the incoming request URL
       - APP_URL=${APP_URL}
     volumes:
       - ./data:/app/data
@@ -117,7 +144,9 @@ services:
   # Inventory Service
   # ===================================
   inventory-service:
-    image: ghcr.io/palstack-io/pantrypal-inventory:latest
+    build:
+      context: ./services/inventory-service
+      dockerfile: Dockerfile
     container_name: pantrypal-inventory-service
     environment:
       - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:?DB_PASSWORD must be set in .env}@postgres:5432/pantrypal
@@ -136,7 +165,9 @@ services:
   # Lookup Service
   # ===================================
   lookup-service:
-    image: ghcr.io/palstack-io/pantrypal-lookup:latest
+    build:
+      context: ./services/lookup-service
+      dockerfile: Dockerfile
     container_name: pantrypal-lookup-service
     environment:
       - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD:?DB_PASSWORD must be set in .env}@postgres:5432/pantrypal
@@ -150,20 +181,28 @@ services:
   # Backup Service
   # ===================================
   backup:
-    image: ghcr.io/palstack-io/pantrypal-backup:latest
+    build:
+      context: ./services/backup
+      dockerfile: Dockerfile
     container_name: pantrypal-backup
     depends_on:
       postgres:
         condition: service_healthy
     environment:
+      # Set to true to enable automated backups
       - DB_BACKUP_ENABLED=${DB_BACKUP_ENABLED:-false}
+      # Cron schedule (default: daily at 2 AM)
       - DB_BACKUP_SCHEDULE=${DB_BACKUP_SCHEDULE:-0 2 * * *}
+      # Days to retain backups before cleanup
       - DB_BACKUP_RETENTION_DAYS=${DB_BACKUP_RETENTION_DAYS:-7}
+      # Set to true to run a backup immediately on container start
       - BACKUP_ON_START=${BACKUP_ON_START:-false}
+      # PostgreSQL credentials
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set in .env}
       - POSTGRES_HOST=postgres
       - POSTGRES_USER=pantrypal
       - POSTGRES_DB=pantrypal
+      # Backup output path (inside container)
       - BACKUP_PATH=/backups
       - LOCAL_STORAGE_PATH=/app/data/storage
     volumes:
@@ -177,7 +216,9 @@ services:
   # Web UI (React Dashboard)
   # ===================================
   web-ui:
-    image: ghcr.io/palstack-io/pantrypal-web:latest
+    build:
+      context: ./services/web-ui
+      dockerfile: Dockerfile
     container_name: pantrypal-web-ui
     environment:
       - NODE_ENV=production
@@ -191,5 +232,3 @@ networks:
 
 volumes:
   postgres_data:
-  inventory_data:
-  lookup_cache_data:

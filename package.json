@@ -5,10 +5,10 @@
   "private": true,
   "scripts": {
     "bump-version": "node scripts/bump-version.js",
-    "docker:build": "docker-compose build",
+    "docker:build": "docker-compose -f docker-compose.dev.yml build",
     "docker:build:multiarch": "./scripts/docker-build-multiarch.sh",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
+    "docker:up": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:down": "docker-compose -f docker-compose.dev.yml down",
     "docker:push": "./scripts/docker-push.sh",
     "docker:rebuild": "npm run docker:down && npm run docker:build && npm run docker:up",
     "docker:deploy": "npm run docker:build && npm run docker:push",

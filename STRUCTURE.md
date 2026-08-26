@@ -41,7 +41,9 @@ pantrypal/
 │       │   └── App.jsx        # Main app component
 │       ├── Dockerfile
 │       └── package.json
-├── docker-compose.yml          # Docker orchestration
+├── docker-compose.yml          # Quick start — pulls prebuilt images
+├── docker-compose.dev.yml      # Build from source (development/contributing)
+├── docker-compose-portainer.yml # Plug-and-play template for Portainer's web editor
 ├── package.json               # Root scripts & automation
 ├── README.md                  # Project documentation
 ├── RELEASE.md                 # Release checklist
@@ -52,7 +54,9 @@ pantrypal/
 ## Key Files
 
 ### Configuration Files
-- `docker-compose.yml` - Docker service orchestration
+- `docker-compose.yml` - Quick start: pulls prebuilt images from ghcr.io, needs only this file + `.env`
+- `docker-compose.dev.yml` - Builds every image from this checkout — for development or unreleased changes
+- `docker-compose-portainer.yml` - Same as docker-compose.yml, formatted for pasting into Portainer's web stack editor (inline CHANGEME values, no `.env` file)
 - `package.json` - NPM scripts for automation
 - `mobile/app.json` - Mobile app configuration
 - `nginx/nginx.conf` - Reverse proxy configuration

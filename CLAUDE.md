@@ -12,7 +12,10 @@ Run before declaring any task complete or committing:
 - Any change that touches more than 3 backend files
 
 ```bash
-# Stack must be running (docker compose up -d from pantrypal_core/)
+# Stack must be running against YOUR LOCAL CHANGES — docker-compose.yml pulls
+# prebuilt images from ghcr.io, which won't reflect uncommitted edits. Use the
+# dev compose file instead, from pantrypal_core/:
+#   docker compose -f docker-compose.dev.yml up -d --build
 ./scripts/smoke_test.sh                      # default: http://localhost:8888
 ./scripts/smoke_test.sh http://localhost:8888
 

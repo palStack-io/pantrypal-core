@@ -107,7 +107,7 @@ function main() {
   console.log(`   1. Review changes: git diff`);
   console.log(`   2. Commit changes: git add . && git commit -m "chore: bump version to ${newVersion}"`);
   console.log(`   3. Build mobile: cd mobile && eas build --platform all --auto-submit`);
-  console.log(`   4. Build Docker: docker-compose build && docker-compose up -d`);
+  console.log(`   4. Build Docker: docker-compose -f docker-compose.dev.yml up -d --build`);
   console.log(`   5. Push to Docker Hub: npm run docker:push\n`);
 }
 

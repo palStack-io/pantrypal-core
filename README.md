@@ -170,7 +170,6 @@ Don't want to manage servers? We're launching a managed hosting service where we
 - **Session Management**: 30-day sessions with device tracking
 - **Batch Operations**: Bulk edit, delete, and filter inventory items
 - **TypeScript Throughout**: Full TypeScript codebase on web and mobile for type safety
-- **Optional Error Tracking**: Sentry integration (web, mobile, backend) gated on `SENTRY_DSN` env var — no-op when unset
 
 ---
 
@@ -356,12 +355,6 @@ Redirect-flow OIDC for self-hosted IdPs — Authentik, Keycloak, Authelia, Okta,
 |----------|---------|-------------|
 | `CORS_ORIGINS` | `*` | Allowed CORS origins (comma-separated) |
 | `DATABASE_URL` | - | PostgreSQL connection string (auto-configured) |
-| `SENTRY_DSN` | - | Sentry DSN for backend error tracking (optional — no-op when unset) |
-
-#### Web UI (set in `docker-compose.yml` under `web-ui` environment)
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITE_SENTRY_DSN` | - | Sentry DSN for web UI error tracking (optional) |
 
 ### Example Configuration
 
