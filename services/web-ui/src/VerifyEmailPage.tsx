@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { colors, spacing, borderRadius, getBrandWash } from './colors';
+import { getColors, spacing, borderRadius, getBrandWash } from './colors';
+import { useTheme } from './context/ThemeContext';
 
 interface VerifyEmailPageProps {
   token: string | null;
@@ -7,6 +8,8 @@ interface VerifyEmailPageProps {
 }
 
 function VerifyEmailPage({ token, onSuccess }: VerifyEmailPageProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +36,7 @@ function VerifyEmailPage({ token, onSuccess }: VerifyEmailPageProps) {
   }, [token, onSuccess]);
 
   const cardStyle = { background: 'white', borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxWidth: '450px', width: '100%', textAlign: 'center' as const };
-  const outerStyle = { minHeight: '100vh', background: getBrandWash(false), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
+  const outerStyle = { minHeight: '100vh', background: getBrandWash(isDark), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
   const btnStyle = { width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold' as const, cursor: 'pointer' };
 
   if (loading) {

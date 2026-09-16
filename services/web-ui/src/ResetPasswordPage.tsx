@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { colors, spacing, borderRadius, getBrandWash } from './colors';
+import { getColors, spacing, borderRadius, getBrandWash } from './colors';
+import { useTheme } from './context/ThemeContext';
 import { useToast } from './components/Toast';
 
 interface ResetPasswordPageProps {
@@ -8,6 +9,8 @@ interface ResetPasswordPageProps {
 }
 
 function ResetPasswordPage({ token, onSuccess }: ResetPasswordPageProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const toast = useToast();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -36,7 +39,7 @@ function ResetPasswordPage({ token, onSuccess }: ResetPasswordPageProps) {
     } finally { setLoading(false); }
   };
 
-  const outerStyle = { minHeight: '100vh', background: getBrandWash(false), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
+  const outerStyle = { minHeight: '100vh', background: getBrandWash(isDark), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
   const cardStyle = { background: 'white', borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxWidth: '450px', width: '100%', textAlign: 'center' as const };
   const inputBase = { width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '16px', backgroundColor: '#ffffff', color: '#1f2937' };
 

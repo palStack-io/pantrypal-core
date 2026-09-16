@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
-import { colors, spacing, borderRadius, getBrandWash } from './colors';
+import { getColors, spacing, borderRadius, getBrandWash } from './colors';
+import { useTheme } from './context/ThemeContext';
 import Toast from './components/Toast';
 import { useToast } from './hooks/useToast';
 import { setSessionToken } from './api';
@@ -36,6 +37,8 @@ interface GoogleSignInBlockProps {
 }
 
 function GoogleSignInBlock({ googleClientId, onCredential, onError }: GoogleSignInBlockProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   if (!googleClientId) return null;
   return (
     <>
@@ -64,6 +67,8 @@ interface GenericOidcConfig {
 }
 
 function GenericOidcButton({ config }: { config: GenericOidcConfig | null }) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   if (!config?.enabled) return null;
   return (
     <>
@@ -83,6 +88,8 @@ function GenericOidcButton({ config }: { config: GenericOidcConfig | null }) {
 }
 
 function LandingPage({ onLoginSuccess }: LandingPageProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'forgot'>('login');
   const [loading, setLoading] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
@@ -217,7 +224,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
     finally { setLoading(false); }
   };
 
-  const outerStyle = { minHeight: '100vh', background: getBrandWash(false), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
+  const outerStyle = { minHeight: '100vh', background: getBrandWash(isDark), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
   const cardStyle = { background: colors.card, borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 10px 34px rgba(60, 38, 12, 0.10)', border: `1px solid ${colors.border}`, maxWidth: '440px', width: '100%' };
   const primaryBtnStyle = { width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold' as const, cursor: loading ? 'not-allowed' : 'pointer' as const, opacity: loading ? 0.6 : 1 };
   const inputStyle = { width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '16px', backgroundColor: '#ffffff', color: '#000000' };
