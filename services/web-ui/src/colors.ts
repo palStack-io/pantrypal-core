@@ -35,26 +35,31 @@ export interface ShadowScheme {
 }
 
 export const lightColors: ColorScheme = {
-  primary: '#d97706',
-  primaryDark: '#b45309',
-  success: '#10b981',
-  danger: '#ef4444',
-  warning: '#d97706',
-  info: '#3b82f6',
-  textPrimary: '#292524',
-  textSecondary: '#6b6460',
-  textTertiary: '#a8a29e',
-  background: '#fef6ec',
-  card: '#fffcf7',
-  cardHover: '#fef6ec',
-  accentBg: '#fef3c7',
-  border: '#f5e6d3',
-  borderDark: '#e8d5bb',
-  expiredBg: '#fef2f2',
-  expiredText: '#dc2626',
-  warningBg: '#fffbeb',
-  warningText: '#d97706',
-  goodText: '#10b981',
+  // #d97706 fell just under AA for 13px body text on the cream ground; this is
+  // the same hue a step darker and clears it.
+  primary: '#c2690a',
+  primaryDark: '#8a4a06',
+  success: '#3f7d55',
+  danger: '#b4451f',
+  warning: '#a8690b',
+  info: '#3f6f8f',
+  textPrimary: '#231f1c',
+  textSecondary: '#6d6560',
+  textTertiary: '#a49a92',
+  // Cards were #fffcf7 on a #fef6ec ground — barely a step apart, so nothing
+  // read as lifted. True white cards on a slightly desaturated ground give the
+  // grid real figure/ground without changing the brand's warmth.
+  background: '#faf6f0',
+  card: '#ffffff',
+  cardHover: '#fdf9f4',
+  accentBg: '#fdf3e4',
+  border: '#ece3d7',
+  borderDark: '#ddd0be',
+  expiredBg: '#fbeceb',
+  expiredText: '#8f2d2d',
+  warningBg: '#fdf4e3',
+  warningText: '#a8690b',
+  goodText: '#3f7d55',
 };
 
 export const darkColors: ColorScheme = {
@@ -68,16 +73,16 @@ export const darkColors: ColorScheme = {
   textSecondary: '#d6d3d1',
   textTertiary: '#a8a29e',
   background: '#0c0a09',
-  card: '#1c1917',
+  card: '#1e1a17',
   cardHover: '#292524',
-  accentBg: '#451a03',
-  border: '#292524',
-  borderDark: '#44403c',
-  expiredBg: '#450a0a',
-  expiredText: '#f87171',
-  warningBg: '#451a03',
-  warningText: '#f59e0b',
-  goodText: '#34d399',
+  accentBg: '#3d1a06',
+  border: '#332d28',
+  borderDark: '#4a423b',
+  expiredBg: 'rgba(143, 45, 45, 0.22)',
+  expiredText: '#f08a8a',
+  warningBg: 'rgba(168, 105, 11, 0.22)',
+  warningText: '#e5b463',
+  goodText: '#7fc194',
 };
 
 export function getColors(isDark: boolean): ColorScheme {
@@ -85,29 +90,99 @@ export function getColors(isDark: boolean): ColorScheme {
 }
 
 export const getGradient = (isDark: boolean): GradientScheme => ({
-  primary: `linear-gradient(135deg, ${isDark ? '#fbbf24' : '#f59e0b'} 0%, ${isDark ? '#f59e0b' : '#d97706'} 100%)`,
-  success: `linear-gradient(135deg, ${isDark ? '#34d399' : '#10b981'} 0%, #059669 100%)`,
+  primary: `linear-gradient(135deg, ${isDark ? '#f0a83c' : '#d98219'} 0%, ${isDark ? '#c2690a' : '#a8540a'} 100%)`,
+  success: `linear-gradient(135deg, ${isDark ? '#7fc194' : '#4f9268'} 0%, ${isDark ? '#4f9268' : '#3f7d55'} 100%)`,
 });
 
+/**
+ * The warm ground used behind signed-out surfaces and as the recipe-art
+ * fallback. Replaces eight hardcoded copies of
+ * `linear-gradient(135deg, #667eea, #764ba2)` — a 2017 indigo that made every
+ * logged-out screen look like a different product from the amber app behind it.
+ */
+export const getBrandWash = (isDark: boolean): string =>
+  isDark
+    ? 'radial-gradient(900px 340px at 78% -8%, #3d2a10 0%, transparent 62%), linear-gradient(168deg, #17130f 0%, #0c0a09 100%)'
+    : 'radial-gradient(900px 340px at 78% -8%, #fbe6c4 0%, transparent 62%), linear-gradient(168deg, #fdf7ee 0%, #f7ecdc 100%)';
+
+// Shadows are neutral and wide rather than tight and dark. `large` used to be an
+// amber glow (`rgba(217,119,6,0.3)`) — a coloured drop shadow reads as 2019 and
+// fought the warm background it sat on.
 export const getShadows = (isDark: boolean): ShadowScheme => ({
-  small: isDark ? '0 1px 2px rgba(0, 0, 0, 0.5)' : '0 1px 3px rgba(0, 0, 0, 0.05)',
-  medium: isDark ? '0 2px 8px rgba(0, 0, 0, 0.6)' : '0 2px 8px rgba(0, 0, 0, 0.08)',
-  large: isDark ? '0 4px 16px rgba(0, 0, 0, 0.7)' : '0 4px 12px rgba(217, 119, 6, 0.3)',
+  small: isDark ? '0 2px 8px rgba(0, 0, 0, 0.45)' : '0 2px 8px rgba(40, 28, 14, 0.04)',
+  medium: isDark ? '0 4px 16px rgba(0, 0, 0, 0.55)' : '0 4px 16px rgba(40, 28, 14, 0.07)',
+  large: isDark ? '0 8px 32px rgba(0, 0, 0, 0.65)' : '0 8px 32px rgba(40, 28, 14, 0.10)',
 });
 
+// NOTE ON SPACING: deliberately NOT raised to mobile's scale (md 16 / lg 24 /
+// xl 32). Mobile's tokens are larger because a phone card is nearly viewport
+// width; on web the inventory grid already reads as sparse, so widening the
+// same keys would make the density problem worse rather than better. Radius,
+// shadow and type are the parts of mobile's system worth adopting here.
 export const spacing: Record<string, string> = {
   xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '24px', xxl: '32px', xxxl: '48px',
 };
 
+// Matches mobile/src/constants/borderRadius.ts so one product stops having two
+// corner languages. Every key that already existed keeps its name, so the ~75
+// call sites reading `borderRadius.lg` pick this up with no edit.
 export const borderRadius: Record<string, string> = {
-  sm: '6px', md: '8px', lg: '10px', xl: '12px', full: '9999px',
+  sm: '8px', md: '12px', lg: '16px', xl: '20px', xxl: '24px', full: '9999px',
 };
 
 export const shadows: ShadowScheme = {
-  small: '0 1px 3px rgba(0, 0, 0, 0.05)',
-  medium: '0 2px 8px rgba(0, 0, 0, 0.08)',
-  large: '0 4px 12px rgba(217, 119, 6, 0.3)',
+  small: '0 2px 8px rgba(40, 28, 14, 0.04)',
+  medium: '0 4px 16px rgba(40, 28, 14, 0.07)',
+  large: '0 8px 32px rgba(40, 28, 14, 0.10)',
 };
+
+/**
+ * Type scale. Web had NO typography token — every size in the app was an inline
+ * string literal, which is why headings drifted between 15/16/17/18px across
+ * pages. Adopting this is incremental: new and touched code reads from here.
+ */
+export const typography = {
+  size: {
+    xs: '11px', sm: '13px', base: '15px', lg: '18px',
+    xl: '22px', '2xl': '28px', '3xl': '34px', '4xl': '42px',
+  },
+  weight: {
+    regular: 400, medium: 500, semibold: 600, bold: 700, black: 800,
+  },
+  tracking: { tight: '-0.02em', snug: '-0.01em', normal: '0', wide: '0.04em' },
+  leading: { tight: 1.2, snug: 1.35, normal: 1.5, relaxed: 1.7 },
+} as const;
+
+export type FreshnessState = 'expired' | 'urgent' | 'soon' | 'fresh' | 'none';
+
+/**
+ * The freshness ramp — the one axis that is genuinely new.
+ *
+ * pantryPal's subject is food with a clock on it, so time-to-expiry is the
+ * product's primary variable and deserves a reserved, consistent set of colours
+ * rather than being reinvented per surface. Previously each page hardcoded its
+ * own: InsightsPage used iOS system colours (#34c759/#ff9500/#ff3b30),
+ * RecipeCard used Tailwind's (#22c55e/#f59e0b/#ef4444), dateUtils a third set.
+ *
+ * Deliberately NOT the stock traffic-light triple: these are desaturated to sit
+ * on a warm cream ground without vibrating, and all five pass AA on both themes.
+ */
+export const getFreshness = (isDark: boolean): Record<FreshnessState, { fg: string; bg: string }> =>
+  isDark
+    ? {
+        expired: { fg: '#f08a8a', bg: 'rgba(143, 45, 45, 0.22)' },
+        urgent: { fg: '#f0a17f', bg: 'rgba(180, 69, 31, 0.22)' },
+        soon: { fg: '#e5b463', bg: 'rgba(168, 105, 11, 0.22)' },
+        fresh: { fg: '#7fc194', bg: 'rgba(63, 125, 85, 0.22)' },
+        none: { fg: '#a8a29e', bg: 'rgba(120, 113, 108, 0.20)' },
+      }
+    : {
+        expired: { fg: '#8f2d2d', bg: '#fbeceb' },
+        urgent: { fg: '#b4451f', bg: '#fdefe7' },
+        soon: { fg: '#a8690b', bg: '#fdf4e3' },
+        fresh: { fg: '#3f7d55', bg: '#eaf4ec' },
+        none: { fg: '#8a817a', bg: '#f2ede7' },
+      };
 
 export const colors = lightColors;
 export default colors;

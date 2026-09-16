@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { colors, spacing, borderRadius } from './colors';
+import { colors, spacing, borderRadius, getBrandWash } from './colors';
 import { useToast } from './components/Toast';
 
 interface ResetPasswordPageProps {
@@ -36,7 +36,7 @@ function ResetPasswordPage({ token, onSuccess }: ResetPasswordPageProps) {
     } finally { setLoading(false); }
   };
 
-  const outerStyle = { minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
+  const outerStyle = { minHeight: '100vh', background: getBrandWash(false), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
   const cardStyle = { background: 'white', borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxWidth: '450px', width: '100%', textAlign: 'center' as const };
   const inputBase = { width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '16px', backgroundColor: '#ffffff', color: '#1f2937' };
 

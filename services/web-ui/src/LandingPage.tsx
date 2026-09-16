@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
-import { colors, spacing, borderRadius } from './colors';
+import { colors, spacing, borderRadius, getBrandWash } from './colors';
 import Toast from './components/Toast';
 import { useToast } from './hooks/useToast';
 import { setSessionToken } from './api';
@@ -217,8 +217,8 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
     finally { setLoading(false); }
   };
 
-  const outerStyle = { minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
-  const cardStyle = { background: 'white', borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxWidth: '450px', width: '100%' };
+  const outerStyle = { minHeight: '100vh', background: getBrandWash(false), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
+  const cardStyle = { background: colors.card, borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 10px 34px rgba(60, 38, 12, 0.10)', border: `1px solid ${colors.border}`, maxWidth: '440px', width: '100%' };
   const primaryBtnStyle = { width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold' as const, cursor: loading ? 'not-allowed' : 'pointer' as const, opacity: loading ? 0.6 : 1 };
   const inputStyle = { width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '16px', backgroundColor: '#ffffff', color: '#000000' };
 
@@ -226,7 +226,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
     return (
       <div style={{ ...outerStyle, alignItems: 'flex-start', overflow: 'auto' }}>
         <div style={{ maxWidth: '1400px', width: '100%', display: 'flex', flexWrap: 'wrap', gap: spacing.xl, alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: 'white', flex: '1 1 500px', minWidth: '320px', maxWidth: '600px' }}>
+          <div style={{ color: colors.textPrimary, flex: '1 1 500px', minWidth: '320px', maxWidth: '600px' }}>
             <img src="/pantryPal.png" alt="pantryPal" style={{ width: '64px', height: '64px', marginBottom: spacing.md }} />
             <h1 style={{ fontSize: '48px', margin: 0, marginBottom: spacing.sm, fontWeight: 'bold' }}>pantryPal</h1>
             <p style={{ fontSize: '20px', opacity: 0.9, marginBottom: spacing.xl }}>Part of palStack - Self-hosted solutions for modern homes</p>
@@ -245,8 +245,8 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
               </p>
             </div>
             <div style={{ marginTop: spacing.xl, display: 'flex', gap: spacing.lg, flexWrap: 'wrap' }}>
-              <a href="https://github.com/palStack-io/pantrypal-core" target="_blank" rel="noopener noreferrer" style={{ color: 'white', textDecoration: 'none', fontSize: '16px', opacity: 0.8 }}>⭐ Star on GitHub →</a>
-              <a href="https://pantrypal.palstack.io" target="_blank" rel="noopener noreferrer" style={{ color: 'white', textDecoration: 'none', fontSize: '16px', opacity: 0.8 }}>🌐 Learn More →</a>
+              <a href="https://github.com/palStack-io/pantrypal-core" target="_blank" rel="noopener noreferrer" style={{ color: colors.primaryDark, textDecoration: 'none', fontSize: '16px', fontWeight: 600 }}>Star on GitHub</a>
+              <a href="https://pantrypal.palstack.io" target="_blank" rel="noopener noreferrer" style={{ color: colors.primaryDark, textDecoration: 'none', fontSize: '16px', fontWeight: 600 }}>Learn more</a>
             </div>
           </div>
           <div style={{ background: 'white', borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', flex: '0 1 450px', minWidth: '320px', maxWidth: '500px' }}>
@@ -305,14 +305,14 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
             <h2 style={{ margin: 0, color: colors.textPrimary, fontSize: '28px' }}>Sign In to pantryPal</h2>
           </div>
           {demoMode && demoAccounts.length > 0 && (
-            <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: spacing.lg, borderRadius: borderRadius.lg, marginBottom: spacing.lg }}>
+            <div style={{ background: colors.accentBg, color: colors.textPrimary, border: `1px solid ${colors.border}`, padding: spacing.lg, borderRadius: borderRadius.lg, marginBottom: spacing.lg }}>
               <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: spacing.sm }}>Try pantryPal with a Demo Account</div>
-              <p style={{ fontSize: '14px', margin: 0, marginBottom: spacing.md, opacity: 0.9 }}>Sessions auto-expire after {demoSessionMinutes} minutes.</p>
-              <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: borderRadius.md, padding: spacing.md }}>
+              <p style={{ fontSize: '14px', margin: 0, marginBottom: spacing.md, color: colors.textSecondary }}>Sessions auto-expire after {demoSessionMinutes} minutes.</p>
+              <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: borderRadius.md, padding: spacing.md }}>
                 {demoAccounts.map((account, index) => (
-                  <div key={account.username} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${spacing.xs} 0`, borderBottom: index < demoAccounts.length - 1 ? '1px solid rgba(255,255,255,0.2)' : 'none' }}>
+                  <div key={account.username} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${spacing.xs} 0`, borderBottom: index < demoAccounts.length - 1 ? `1px solid ${colors.border}` : 'none' }}>
                     <span style={{ fontFamily: 'monospace', fontSize: '14px' }}>{account.username}</span>
-                    <span style={{ fontFamily: 'monospace', fontSize: '14px', opacity: 0.8 }}>{account.password}</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: '14px', color: colors.textSecondary }}>{account.password}</span>
                   </div>
                 ))}
               </div>
