@@ -6,6 +6,7 @@ import { useItems } from '../hooks/useItems';
 import { formatDate, getExpiryBadgeText, getExpiryStatus } from '../utils/dateUtils';
 import { getEmojiForCategory, getEmojiForLocation } from '../defaults';
 import { useTheme } from '../context/ThemeContext';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import type { Item } from '../types';
 
 interface TableFilters {
@@ -30,6 +31,8 @@ export function InventoryTable({ filters = {}, searchQuery = '' }: InventoryTabl
   const { items, loading, removeItem } = useItems();
   const [sortBy, setSortBy] = useState('expiry');
   const [deleteModal, setDeleteModal] = useState<Item | null>(null);
+  const closeDelete = useCallback(() => setDeleteModal(null), []);
+  const deleteDialog = useModalBehavior(closeDelete, !!deleteModal);
 
   const filteredItems = items.filter(item => {
     if (searchQuery) {
@@ -141,7 +144,7 @@ export function InventoryTable({ filters = {}, searchQuery = '' }: InventoryTabl
         <h1 style={{ fontSize: '24px', fontWeight: '700', color: colors.textPrimary }}>{title}</h1>
         <div style={{ display: 'flex', gap: spacing.sm, color: colors.textSecondary, fontSize: '14px', alignItems: 'center' }}>
           <span>Sort by:</span>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: '8px 12px', border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '14px', background: colors.card, color: colors.textPrimary, cursor: 'pointer' }}>
+          <select aria-label="Sort by" value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: '8px 12px', border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '14px', background: colors.card, color: colors.textPrimary, cursor: 'pointer' }}>
             <option value="expiry">Expiry (Soonest)</option>
             <option value="name-asc">Name (A-Z)</option>
             <option value="name-desc">Name (Z-A)</option>
@@ -176,10 +179,10 @@ export function InventoryTable({ filters = {}, searchQuery = '' }: InventoryTabl
 
       {deleteModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setDeleteModal(null)}>
-          <div style={{ background: colors.card, borderRadius: borderRadius.xl, padding: spacing.xxl, maxWidth: '400px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
+          <div {...deleteDialog.panelProps} style={{ background: colors.card, borderRadius: borderRadius.xl, padding: spacing.xxl, maxWidth: '400px', width: '90%' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '700', color: colors.textPrimary }}>Delete Item?</h2>
-              <button onClick={() => setDeleteModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textSecondary }}><X size={24} /></button>
+              <h2 id={deleteDialog.titleId} style={{ fontSize: '20px', fontWeight: '700', color: colors.textPrimary }}>Delete Item?</h2>
+              <button onClick={closeDelete} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textSecondary }}><X size={24} /></button>
             </div>
             <p style={{ marginBottom: spacing.xl, color: colors.textSecondary }}>
               Are you sure you want to delete <strong style={{ color: colors.textPrimary }}>"{deleteModal.name}"</strong>? This action cannot be undone.

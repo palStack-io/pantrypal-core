@@ -10,7 +10,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+# `ci`, not `install`: install ignores the lock when package.json allows a
+# newer match, which is how the react/react-dom skew got in.
+RUN npm ci
 
 # Copy source code
 COPY . .

@@ -42,7 +42,7 @@ export function TopBar({ currentUser, onLogout, onSettingsClick, onToggleDark }:
 
   return (
     <div style={{ position: 'fixed', top: spacing.lg, right: spacing.lg, display: 'flex', gap: spacing.sm, alignItems: 'center', zIndex: 200 }}>
-      <button onClick={onToggleDark} style={btnStyle} title={isDark ? 'Light mode' : 'Dark mode'} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>
+      <button onClick={onToggleDark} style={btnStyle} aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'} title={isDark ? 'Light mode' : 'Dark mode'} onMouseEnter={hoverIn} onMouseLeave={hoverOut}>
         {isDark ? <Sun size={16} /> : <Moon size={16} />}
       </button>
 

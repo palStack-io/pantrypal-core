@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
-import { colors, spacing, borderRadius } from './colors';
+import { getColors, spacing, borderRadius, getBrandWash } from './colors';
+import { useTheme } from './context/ThemeContext';
 import Toast from './components/Toast';
 import { useToast } from './hooks/useToast';
 import { setSessionToken } from './api';
@@ -36,6 +37,8 @@ interface GoogleSignInBlockProps {
 }
 
 function GoogleSignInBlock({ googleClientId, onCredential, onError }: GoogleSignInBlockProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   if (!googleClientId) return null;
   return (
     <>
@@ -64,6 +67,8 @@ interface GenericOidcConfig {
 }
 
 function GenericOidcButton({ config }: { config: GenericOidcConfig | null }) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   if (!config?.enabled) return null;
   return (
     <>
@@ -83,6 +88,8 @@ function GenericOidcButton({ config }: { config: GenericOidcConfig | null }) {
 }
 
 function LandingPage({ onLoginSuccess }: LandingPageProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'forgot'>('login');
   const [loading, setLoading] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
@@ -217,16 +224,16 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
     finally { setLoading(false); }
   };
 
-  const outerStyle = { minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
-  const cardStyle = { background: 'white', borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxWidth: '450px', width: '100%' };
-  const primaryBtnStyle = { width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold' as const, cursor: loading ? 'not-allowed' : 'pointer' as const, opacity: loading ? 0.6 : 1 };
+  const outerStyle = { minHeight: '100vh', background: getBrandWash(isDark), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
+  const cardStyle = { background: colors.card, borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 10px 34px rgba(60, 38, 12, 0.10)', border: `1px solid ${colors.border}`, maxWidth: '440px', width: '100%' };
+  const primaryBtnStyle = { width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.onPrimary, fontSize: '18px', fontWeight: 'bold' as const, cursor: loading ? 'not-allowed' : 'pointer' as const, opacity: loading ? 0.6 : 1 };
   const inputStyle = { width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '16px', backgroundColor: '#ffffff', color: '#000000' };
 
   if (view === 'landing') {
     return (
       <div style={{ ...outerStyle, alignItems: 'flex-start', overflow: 'auto' }}>
         <div style={{ maxWidth: '1400px', width: '100%', display: 'flex', flexWrap: 'wrap', gap: spacing.xl, alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: 'white', flex: '1 1 500px', minWidth: '320px', maxWidth: '600px' }}>
+          <div style={{ color: colors.textPrimary, flex: '1 1 500px', minWidth: '320px', maxWidth: '600px' }}>
             <img src="/pantryPal.png" alt="pantryPal" style={{ width: '64px', height: '64px', marginBottom: spacing.md }} />
             <h1 style={{ fontSize: '48px', margin: 0, marginBottom: spacing.sm, fontWeight: 'bold' }}>pantryPal</h1>
             <p style={{ fontSize: '20px', opacity: 0.9, marginBottom: spacing.xl }}>Part of palStack - Self-hosted solutions for modern homes</p>
@@ -245,8 +252,8 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
               </p>
             </div>
             <div style={{ marginTop: spacing.xl, display: 'flex', gap: spacing.lg, flexWrap: 'wrap' }}>
-              <a href="https://github.com/palStack-io/pantrypal-core" target="_blank" rel="noopener noreferrer" style={{ color: 'white', textDecoration: 'none', fontSize: '16px', opacity: 0.8 }}>⭐ Star on GitHub →</a>
-              <a href="https://pantrypal.palstack.io" target="_blank" rel="noopener noreferrer" style={{ color: 'white', textDecoration: 'none', fontSize: '16px', opacity: 0.8 }}>🌐 Learn More →</a>
+              <a href="https://github.com/palStack-io/pantrypal-core" target="_blank" rel="noopener noreferrer" style={{ color: colors.primaryDark, textDecoration: 'none', fontSize: '16px', fontWeight: 600 }}>Star on GitHub</a>
+              <a href="https://pantrypal.palstack.io" target="_blank" rel="noopener noreferrer" style={{ color: colors.primaryDark, textDecoration: 'none', fontSize: '16px', fontWeight: 600 }}>Learn more</a>
             </div>
           </div>
           <div style={{ background: 'white', borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', flex: '0 1 450px', minWidth: '320px', maxWidth: '500px' }}>
@@ -255,7 +262,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
                 <div style={{ textAlign: 'center', marginBottom: spacing.xl }}><h2 style={{ margin: 0, color: colors.textPrimary, fontSize: '28px' }}>Connect to pantryPal</h2><p style={{ color: colors.textSecondary, marginTop: spacing.sm }}>Enter your pantryPal server URL</p></div>
                 <div style={{ marginBottom: spacing.lg }}>
                   <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Server URL</label>
-                  <input type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://192.168.1.100 or https://pantrypal.yourdomain.com" style={inputStyle} />
+                  <input aria-label="Server URL" type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://192.168.1.100 or https://pantrypal.yourdomain.com" style={inputStyle} />
                 </div>
                 <button onClick={handleConfigureServer} style={{ ...primaryBtnStyle, opacity: 1 }}>Continue</button>
               </>
@@ -273,7 +280,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
                 />
                 <GenericOidcButton config={genericOidc} />
                 <div style={{ display: 'flex', gap: spacing.md }}>
-                  <button onClick={() => setView('login')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign In</button>
+                  <button onClick={() => setView('login')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.onPrimary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign In</button>
                   <button onClick={() => setView('signup')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: `2px solid ${colors.primary}`, background: 'white', color: colors.primary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign Up</button>
                 </div>
               </>
@@ -295,8 +302,8 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
             </button>
             {showChangeServer && (
               <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.sm }}>
-                <input type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://192.168.1.100 or https://yourserver.com" style={{ flex: 1, padding: spacing.sm, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '13px', color: '#000000' }} />
-                <button onClick={() => { handleConfigureServer(); setShowChangeServer(false); }} style={{ padding: `${spacing.sm} ${spacing.md}`, borderRadius: borderRadius.md, border: 'none', background: colors.primary, color: colors.textPrimary, fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>Save</button>
+                <input aria-label="Server URL" type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://192.168.1.100 or https://yourserver.com" style={{ flex: 1, padding: spacing.sm, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '13px', color: '#000000' }} />
+                <button onClick={() => { handleConfigureServer(); setShowChangeServer(false); }} style={{ padding: `${spacing.sm} ${spacing.md}`, borderRadius: borderRadius.md, border: 'none', background: colors.primary, color: colors.onPrimary, fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>Save</button>
               </div>
             )}
           </div>
@@ -305,14 +312,14 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
             <h2 style={{ margin: 0, color: colors.textPrimary, fontSize: '28px' }}>Sign In to pantryPal</h2>
           </div>
           {demoMode && demoAccounts.length > 0 && (
-            <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: spacing.lg, borderRadius: borderRadius.lg, marginBottom: spacing.lg }}>
+            <div style={{ background: colors.accentBg, color: colors.textPrimary, border: `1px solid ${colors.border}`, padding: spacing.lg, borderRadius: borderRadius.lg, marginBottom: spacing.lg }}>
               <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: spacing.sm }}>Try pantryPal with a Demo Account</div>
-              <p style={{ fontSize: '14px', margin: 0, marginBottom: spacing.md, opacity: 0.9 }}>Sessions auto-expire after {demoSessionMinutes} minutes.</p>
-              <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: borderRadius.md, padding: spacing.md }}>
+              <p style={{ fontSize: '14px', margin: 0, marginBottom: spacing.md, color: colors.textSecondary }}>Sessions auto-expire after {demoSessionMinutes} minutes.</p>
+              <div style={{ background: colors.card, border: `1px solid ${colors.border}`, borderRadius: borderRadius.md, padding: spacing.md }}>
                 {demoAccounts.map((account, index) => (
-                  <div key={account.username} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${spacing.xs} 0`, borderBottom: index < demoAccounts.length - 1 ? '1px solid rgba(255,255,255,0.2)' : 'none' }}>
+                  <div key={account.username} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${spacing.xs} 0`, borderBottom: index < demoAccounts.length - 1 ? `1px solid ${colors.border}` : 'none' }}>
                     <span style={{ fontFamily: 'monospace', fontSize: '14px' }}>{account.username}</span>
-                    <span style={{ fontFamily: 'monospace', fontSize: '14px', opacity: 0.8 }}>{account.password}</span>
+                    <span style={{ fontFamily: 'monospace', fontSize: '14px', color: colors.textSecondary }}>{account.password}</span>
                   </div>
                 ))}
               </div>
@@ -327,12 +334,12 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Username or Email</label>
-              <input type="text" value={loginUsername} onChange={(e) => { setLoginUsername(e.target.value); setLoginError(null); }} required autoFocus autoComplete="username" style={inputStyle} />
+              <input aria-label="Username or Email" type="text" value={loginUsername} onChange={(e) => { setLoginUsername(e.target.value); setLoginError(null); }} required autoFocus autoComplete="username" style={inputStyle} />
             </div>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input type={showLoginPassword ? 'text' : 'password'} value={loginPassword} onChange={(e) => { setLoginPassword(e.target.value); setLoginError(null); }} autoComplete="current-password" required style={{ ...inputStyle, paddingRight: '48px', boxSizing: 'border-box' }} />
+                <input aria-label="Password" type={showLoginPassword ? 'text' : 'password'} value={loginPassword} onChange={(e) => { setLoginPassword(e.target.value); setLoginError(null); }} autoComplete="current-password" required style={{ ...inputStyle, paddingRight: '48px', boxSizing: 'border-box' }} />
                 <button type="button" onClick={() => setShowLoginPassword(!showLoginPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: colors.textSecondary, padding: 0 }}>{showLoginPassword ? '🙈' : '👁'}</button>
               </div>
             </div>
@@ -375,7 +382,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
             ].map(({ label, value, onChange, type, required, autoFocus }) => (
               <div key={label} style={{ marginBottom: spacing.md }}>
                 <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>{label}</label>
-                <input type={type} value={value} onChange={(e) => onChange(e.target.value)} required={required} autoFocus={autoFocus} style={inputStyle} />
+                <input aria-label={label.replace(' *', '')} type={type} value={value} onChange={(e) => onChange(e.target.value)} required={required} autoFocus={autoFocus} style={inputStyle} />
               </div>
             ))}
             <button type="submit" disabled={loading} style={{ ...primaryBtnStyle, marginTop: spacing.sm }}>{loading ? '⏳ Creating account...' : 'Create Account'}</button>
@@ -416,7 +423,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <form onSubmit={handleForgotPassword}>
             <div style={{ marginBottom: spacing.lg }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Email Address</label>
-              <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required autoFocus placeholder="your.email@example.com" style={inputStyle} />
+              <input aria-label="Email Address" type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required autoFocus placeholder="your.email@example.com" style={inputStyle} />
             </div>
             <button type="submit" disabled={loading} style={primaryBtnStyle}>{loading ? '⏳ Sending...' : 'Send Reset Link'}</button>
           </form>

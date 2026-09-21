@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { getItems, createItem, updateItem, deleteItem } from '../api';
+import { emitInventoryChanged } from '../utils/inventoryEvents';
 import type { Item } from '../types';
 
 const PAGE_SIZE = 50;
@@ -72,6 +73,7 @@ export function useItems(initialFilters: ItemFilters = {}): UseItemsReturn {
     try {
       const newItem = await createItem(itemData);
       setItems(prev => prev.map(item => item.id === tempId ? newItem : item));
+      emitInventoryChanged();
       return newItem;
     } catch (err) {
       setItems(prev => prev.filter(item => item.id !== tempId));
@@ -88,6 +90,7 @@ export function useItems(initialFilters: ItemFilters = {}): UseItemsReturn {
     try {
       const updatedItem = await updateItem(id, itemData);
       setItems(prev => prev.map(item => item.id === id ? updatedItem : item));
+      emitInventoryChanged();
       return updatedItem;
     } catch (err) {
       if (snapshot) setItems(prev => prev.map(item => item.id === id ? snapshot : item));
@@ -118,6 +121,7 @@ export function useItems(initialFilters: ItemFilters = {}): UseItemsReturn {
       if (cancelled) return;
       try {
         await Promise.all(ids.map(id => deleteItem(id)));
+        emitInventoryChanged();
       } catch (err) {
         restore();
         const msg = err instanceof Error ? err.message : 'Failed to delete items';

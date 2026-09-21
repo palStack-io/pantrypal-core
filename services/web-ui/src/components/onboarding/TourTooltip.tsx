@@ -104,20 +104,39 @@ export default function TourTooltip({ step, total, spotRect, onNext, onPrev, onG
       {/* Footer */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {/* Pip dots */}
-        <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
           {Array.from({ length: total }).map((_, i) => (
-            <div
+            <button
               key={i}
+              type="button"
               onClick={() => onGoTo(i)}
+              aria-label={`Go to step ${i + 1} of ${total}`}
+              aria-current={i === step ? 'step' : undefined}
               style={{
-                width: i === step ? '14px' : '5px',
-                height: '5px',
-                borderRadius: '50px',
-                background: i === step ? colors.primary : colors.border,
+                // The pip is 5px tall; the button around it is 24px so it can
+                // actually be hit (WCAG 2.5.8) without changing how it looks.
+                width: '24px',
+                height: '24px',
+                padding: 0,
+                border: 'none',
+                background: 'transparent',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
-            />
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  width: i === step ? '14px' : '5px',
+                  height: '5px',
+                  borderRadius: '50px',
+                  background: i === step ? colors.primary : colors.border,
+                  transition: 'all 0.2s',
+                }}
+              />
+            </button>
           ))}
         </div>
 
@@ -131,7 +150,7 @@ export default function TourTooltip({ step, total, spotRect, onNext, onPrev, onG
               ←
             </button>
           )}
-          <button onClick={onNext} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: colors.primary, color: '#fff', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
+          <button onClick={onNext} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: colors.primary, color: colors.onPrimary, fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
             {isLast ? "Let's go! 🎉" : 'Next →'}
           </button>
         </div>

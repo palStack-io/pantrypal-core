@@ -1,8 +1,22 @@
 import type { ExpiryStatus } from '../types';
+import type { FreshnessState } from '../colors';
+
+/**
+ * Parse a YYYY-MM-DD date string from the server as LOCAL midnight.
+ * `new Date("2026-06-23")` parses as UTC midnight, which shifts to the
+ * previous calendar day in any negative-UTC-offset timezone — causing
+ * off-by-one expiry countdowns, displayed dates, and edit-form drift.
+ * Splitting the components and passing them to the Date constructor
+ * keeps the date in the user's local timezone.
+ */
+export function parseLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.slice(0, 10).split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
 
 export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return 'No expiry';
-  const date = new Date(dateString);
+  const date = parseLocalDate(dateString);
   const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
   return date.toLocaleDateString('en-US', options);
 }
@@ -11,7 +25,7 @@ export function getDaysUntilExpiry(expiryDate: string | null | undefined): numbe
   if (!expiryDate) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const expiry = new Date(expiryDate);
+  const expiry = parseLocalDate(expiryDate);
   expiry.setHours(0, 0, 0, 0);
   const diffTime = expiry.getTime() - today.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -38,21 +52,47 @@ export function getExpiryBadgeText(expiryDate: string | null | undefined): strin
   return `${Math.floor(days / 30)} months+`;
 }
 
+/**
+ * Bridge the long-standing `ExpiryStatus` vocabulary onto the `FreshnessState`
+ * ramp in colors.ts. Two names for the same five buckets is one more than
+ * ideal, but `ExpiryStatus` is load-bearing across filters and the API, so this
+ * maps rather than renames.
+ */
+const FRESHNESS_BY_STATUS: Record<ExpiryStatus, FreshnessState> = {
+  expired: 'expired',
+  critical: 'urgent',
+  warning: 'soon',
+  good: 'fresh',
+  none: 'none',
+};
+
+export function getFreshnessState(expiryDate: string | null | undefined): FreshnessState {
+  return FRESHNESS_BY_STATUS[getExpiryStatus(expiryDate)];
+}
+
+/**
+ * Kept for callers that want a bare colour. Prefer `getFreshnessState` plus
+ * `getFreshness(isDark)` — this variant cannot know the theme, so it returns the
+ * light-mode ink.
+ */
 export function getExpiryColor(expiryDate: string | null | undefined): string {
-  const status = getExpiryStatus(expiryDate);
+  // *** MUST TRACK THE LIGHT RAMP IN `getFreshness` (colors.ts). ***
+  // These drifted once already: this table kept #a8690b (4.48:1) and #8a817a
+  // after colors.ts moved to the AA-clearing values, so the same state was one
+  // colour on a card and a different one in a table.
   const colorMap: Record<ExpiryStatus, string> = {
-    none: '#6b7280',
-    good: '#10b981',
-    warning: '#f59e0b',
-    critical: '#ef4444',
-    expired: '#7f1d1d',
+    none: '#756c66',
+    good: '#336845',
+    warning: '#9c6109',
+    critical: '#b4451f',
+    expired: '#8f2d2d',
   };
-  return colorMap[status];
+  return colorMap[getExpiryStatus(expiryDate)];
 }
 
 export function formatDateForInput(dateString: string | null | undefined): string {
   if (!dateString) return '';
-  const date = new Date(dateString);
+  const date = parseLocalDate(dateString);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -90,8 +130,8 @@ export function sortByExpiry<T extends WithExpiryDate>(items: T[], ascending = t
     if (!a.expiry_date && !b.expiry_date) return 0;
     if (!a.expiry_date) return 1;
     if (!b.expiry_date) return -1;
-    const dateA = new Date(a.expiry_date).getTime();
-    const dateB = new Date(b.expiry_date).getTime();
+    const dateA = parseLocalDate(a.expiry_date).getTime();
+    const dateB = parseLocalDate(b.expiry_date).getTime();
     return ascending ? dateA - dateB : dateB - dateA;
   });
 }

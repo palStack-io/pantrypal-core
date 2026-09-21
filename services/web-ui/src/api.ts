@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance } from 'axios';
-import type { Item, ShoppingItem, AuthStatus, User, Location, Category, Recipe, RecipeIntegration, ApiKey } from './types';
+import type { Item, ShoppingItem, AuthStatus, User, Location, Category, Recipe, RecipeIntegration, ApiKey, InventoryStats } from './types';
 
 const DEFAULT_API_URL = '';
 
@@ -127,9 +127,9 @@ export const deleteItem = async (itemId: string | number): Promise<unknown> => {
   return response.data;
 };
 
-export const getStats = async (): Promise<Record<string, unknown>> => {
+export const getStats = async (signal?: AbortSignal): Promise<InventoryStats> => {
   const api = createApiInstance();
-  const response = await api.get('/api/stats');
+  const response = await api.get<InventoryStats>('/api/stats', { signal });
   return response.data;
 };
 

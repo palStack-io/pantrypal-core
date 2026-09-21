@@ -34,7 +34,7 @@ export function BulkActions({ selectedCount, onDelete, onExport, onClear, onAddT
         <button onClick={onDelete} style={{ background: colors.danger, border: 'none', cursor: 'pointer', padding: `${spacing.sm} ${spacing.md}`, borderRadius: borderRadius.md, display: 'flex', alignItems: 'center', gap: spacing.xs, color: 'white', fontSize: '14px', fontWeight: '500' }}>
           <Trash2 size={16} /> Delete
         </button>
-        <button onClick={onClear} style={{ background: 'none', border: `1px solid rgba(255,255,255,0.3)`, cursor: 'pointer', padding: spacing.sm, borderRadius: borderRadius.md, display: 'flex', alignItems: 'center', color: 'white' }}>
+        <button onClick={onClear} aria-label="Clear selection" style={{ background: 'none', border: `1px solid rgba(255,255,255,0.3)`, cursor: 'pointer', padding: spacing.sm, borderRadius: borderRadius.md, display: 'flex', alignItems: 'center', color: 'white' }}>
           <X size={18} />
         </button>
       </div>

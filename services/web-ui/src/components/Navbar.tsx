@@ -17,7 +17,7 @@ export function Navbar({ onMenuClick, currentUser, onLogout, onSettingsClick }: 
   return (
     <nav style={{ backgroundColor: colors.card, boxShadow: shadows.medium, padding: `${spacing.lg} ${spacing.xl}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
-        <button onClick={onMenuClick} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: spacing.sm, display: 'flex', alignItems: 'center', color: colors.textPrimary }}>
+        <button onClick={onMenuClick} aria-label="Toggle navigation menu" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: spacing.sm, display: 'flex', alignItems: 'center', color: colors.textPrimary }}>
           <Menu size={24} />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
@@ -35,7 +35,7 @@ export function Navbar({ onMenuClick, currentUser, onLogout, onSettingsClick }: 
             <span style={{ fontSize: '14px', fontWeight: '500' }}>{currentUser.username}</span>
           </div>
         )}
-        <button onClick={onSettingsClick} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: spacing.sm, display: 'flex', alignItems: 'center', color: colors.textSecondary }}>
+        <button onClick={onSettingsClick} aria-label="Settings" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: spacing.sm, display: 'flex', alignItems: 'center', color: colors.textSecondary }}>
           <Settings size={20} />
         </button>
         {currentUser && onLogout && (

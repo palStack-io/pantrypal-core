@@ -95,15 +95,15 @@ export function ShoppingListPage() {
           <div style={{ background: colors.card, borderRadius: borderRadius.xl, padding: '32px', border: `1px solid ${colors.border}` }}>
             <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: '24px', fontWeight: '800', color: colors.textPrimary, margin: 0 }}>Items</h2>
-              <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)} style={{ padding: '10px 14px', borderRadius: borderRadius.md, border: `1px solid ${colors.border}`, background: colors.background, color: colors.textPrimary, fontSize: '14px', fontWeight: '600' }}>
+              <select aria-label="Group by" value={groupBy} onChange={(e) => setGroupBy(e.target.value)} style={{ padding: '10px 14px', borderRadius: borderRadius.md, border: `1px solid ${colors.border}`, background: colors.background, color: colors.textPrimary, fontSize: '14px', fontWeight: '600' }}>
                 <option value="none">No Grouping</option>
                 <option value="category">Group by Category</option>
               </select>
             </div>
 
             <form onSubmit={handleAddItem} style={{ display: 'flex', gap: '12px', marginBottom: '32px' }}>
-              <input type="text" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Add new item..." style={{ flex: 1, padding: '14px 16px', background: colors.background, border: `2px solid ${colors.border}`, borderRadius: borderRadius.lg, fontSize: '15px', color: colors.textPrimary }} />
-              <input type="number" value={newItemQuantity} onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)} min="1" style={{ width: '80px', padding: '14px', background: colors.background, border: `2px solid ${colors.border}`, borderRadius: borderRadius.lg, fontSize: '15px', color: colors.textPrimary }} />
+              <input aria-label="New item name" type="text" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Add new item..." style={{ flex: 1, padding: '14px 16px', background: colors.background, border: `2px solid ${colors.border}`, borderRadius: borderRadius.lg, fontSize: '15px', color: colors.textPrimary }} />
+              <input aria-label="Quantity" type="number" value={newItemQuantity} onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)} min="1" style={{ width: '80px', padding: '14px', background: colors.background, border: `2px solid ${colors.border}`, borderRadius: borderRadius.lg, fontSize: '15px', color: colors.textPrimary }} />
               <button type="submit" disabled={!newItemName.trim()} style={{ padding: '14px 24px', borderRadius: borderRadius.lg, fontSize: '15px', fontWeight: '700', border: 'none', cursor: newItemName.trim() ? 'pointer' : 'not-allowed', background: newItemName.trim() ? 'linear-gradient(135deg, #f59e0b, #fbbf24)' : colors.border, color: 'white', boxShadow: newItemName.trim() ? '0 4px 12px rgba(245, 158, 11, 0.3)' : 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Plus size={18} /> Add
               </button>
@@ -119,9 +119,16 @@ export function ShoppingListPage() {
                   )}
                   {categoryItems.map(item => (
                     <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: colors.background, borderRadius: borderRadius.lg, marginBottom: '12px', opacity: item.checked ? 0.5 : 1, transition: 'all 0.2s' }}>
-                      <div onClick={() => toggleChecked(item.id)} style={{ width: '24px', height: '24px', borderRadius: '6px', border: `2px solid ${item.checked ? '#10b981' : colors.border}`, background: item.checked ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
-                        {item.checked && <span style={{ color: 'white', fontWeight: '800' }}>✓</span>}
-                      </div>
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={item.checked}
+                        aria-label={`Mark ${item.name} as ${item.checked ? 'not bought' : 'bought'}`}
+                        onClick={() => toggleChecked(item.id)}
+                        style={{ width: '24px', height: '24px', padding: 0, borderRadius: '6px', border: `2px solid ${item.checked ? '#10b981' : colors.border}`, background: item.checked ? '#10b981' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
+                      >
+                        {item.checked && <span aria-hidden="true" style={{ color: 'white', fontWeight: '800' }}>✓</span>}
+                      </button>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '16px', fontWeight: '600', color: colors.textPrimary, textDecoration: item.checked ? 'line-through' : 'none' }}>
                           {item.name}{item.brand && <span style={{ color: colors.textSecondary, fontWeight: '400' }}> • {item.brand}</span>}

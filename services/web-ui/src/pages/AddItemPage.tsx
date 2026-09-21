@@ -192,6 +192,7 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
               <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Item Name *</label>
               <div style={{ position: 'relative' }}>
                 <input
+                  aria-label="Item Name"
                   type="text"
                   value={formData.name}
                   onChange={(e) => {
@@ -247,24 +248,24 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
 
             <div>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Barcode</label>
-              <input type="text" value={formData.barcode} onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('barcode'), borderRadius: borderRadius.md, fontSize: '15px' }} />
+              <input aria-label="Barcode" type="text" value={formData.barcode} onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('barcode'), borderRadius: borderRadius.md, fontSize: '15px' }} />
               {fieldErrors.barcode && <p style={errorStyle}>{fieldErrors.barcode}</p>}
             </div>
 
             <div>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Brand</label>
-              <input type="text" value={formData.brand} onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '15px' }} />
+              <input aria-label="Brand" type="text" value={formData.brand} onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '15px' }} />
             </div>
 
             <div>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Quantity *</label>
-              <input type="number" value={formData.quantity} onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))} min="1" style={{ width: '100%', padding: spacing.md, border: borderFor('quantity'), borderRadius: borderRadius.md, fontSize: '15px' }} />
+              <input aria-label="Quantity" type="number" value={formData.quantity} onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))} min="1" style={{ width: '100%', padding: spacing.md, border: borderFor('quantity'), borderRadius: borderRadius.md, fontSize: '15px' }} />
               {fieldErrors.quantity && <p style={errorStyle}>{fieldErrors.quantity}</p>}
             </div>
 
             <div>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Location *</label>
-              <select value={formData.location} onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('location'), borderRadius: borderRadius.md, fontSize: '15px' }}>
+              <select aria-label="Location" value={formData.location} onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('location'), borderRadius: borderRadius.md, fontSize: '15px' }}>
                 <option value="">Select location</option>
                 {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
               </select>
@@ -273,7 +274,7 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
 
             <div>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Category *</label>
-              <select value={formData.category} onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('category'), borderRadius: borderRadius.md, fontSize: '15px' }}>
+              <select aria-label="Category" value={formData.category} onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('category'), borderRadius: borderRadius.md, fontSize: '15px' }}>
                 <option value="">Select category</option>
                 {categoryObjects.map(cat => <option key={cat.name} value={cat.name}>{cat.emoji} {cat.name}</option>)}
               </select>
@@ -282,13 +283,13 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
 
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Expiry Date</label>
-              <input type="date" value={formData.expiry_date} onChange={(e) => setFormData(prev => ({ ...prev, expiry_date: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('expiry_date'), borderRadius: borderRadius.md, fontSize: '15px' }} />
+              <input aria-label="Expiry Date" type="date" value={formData.expiry_date} onChange={(e) => setFormData(prev => ({ ...prev, expiry_date: e.target.value }))} style={{ width: '100%', padding: spacing.md, border: borderFor('expiry_date'), borderRadius: borderRadius.md, fontSize: '15px' }} />
               {fieldErrors.expiry_date && <p style={errorStyle}>{fieldErrors.expiry_date}</p>}
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
               <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.sm, color: colors.textPrimary }}>Notes</label>
-              <textarea value={formData.notes} onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))} rows={3} style={{ width: '100%', padding: spacing.md, border: borderFor('notes'), borderRadius: borderRadius.md, fontSize: '15px', fontFamily: 'inherit' }} />
+              <textarea aria-label="Notes" value={formData.notes} onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))} rows={3} style={{ width: '100%', padding: spacing.md, border: borderFor('notes'), borderRadius: borderRadius.md, fontSize: '15px', fontFamily: 'inherit' }} />
               {fieldErrors.notes && <p style={errorStyle}>{fieldErrors.notes}</p>}
             </div>
           </div>
@@ -311,7 +312,7 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
             </label>
           )}
 
-          <button type="submit" disabled={saving} style={{ marginTop: spacing.xl, width: '100%', padding: spacing.lg, background: colors.primary, border: 'none', borderRadius: borderRadius.md, color: 'white', fontSize: '16px', fontWeight: '600', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, opacity: saving ? 0.6 : 1 }}>
+          <button type="submit" disabled={saving} style={{ marginTop: spacing.xl, width: '100%', padding: spacing.lg, background: colors.primary, border: 'none', borderRadius: borderRadius.md, color: colors.onPrimary, fontSize: '16px', fontWeight: '600', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, opacity: saving ? 0.6 : 1 }}>
             <Save size={20} />
             {saving ? 'Saving...' : isEditing ? 'Update Item' : 'Add Item'}
           </button>

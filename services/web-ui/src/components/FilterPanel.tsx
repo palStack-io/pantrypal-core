@@ -63,13 +63,13 @@ export function FilterPanel({ filters, onFilterChange, locations, categories }: 
           <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: spacing.sm, color: colors.textPrimary }}>
             <Search size={16} style={{ verticalAlign: 'middle', marginRight: spacing.xs }} /> Search
           </label>
-          <input type="text" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search items..." style={inputStyle} />
+          <input aria-label="Search items" type="text" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search items..." style={inputStyle} />
         </div>
         <div>
           <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: spacing.sm, color: colors.textPrimary }}>
             <MapPin size={16} style={{ verticalAlign: 'middle', marginRight: spacing.xs }} /> Location
           </label>
-          <select value={filters.location || ''} onChange={(e) => onFilterChange({ location: e.target.value })} style={inputStyle}>
+          <select aria-label="Filter by location" value={filters.location || ''} onChange={(e) => onFilterChange({ location: e.target.value })} style={inputStyle}>
             <option value="">All Locations</option>
             {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
           </select>
@@ -78,7 +78,7 @@ export function FilterPanel({ filters, onFilterChange, locations, categories }: 
           <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: spacing.sm, color: colors.textPrimary }}>
             <Tag size={16} style={{ verticalAlign: 'middle', marginRight: spacing.xs }} /> Category
           </label>
-          <select value={filters.category || ''} onChange={(e) => onFilterChange({ category: e.target.value })} style={inputStyle}>
+          <select aria-label="Filter by category" value={filters.category || ''} onChange={(e) => onFilterChange({ category: e.target.value })} style={inputStyle}>
             <option value="">All Categories</option>
             {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
@@ -87,7 +87,7 @@ export function FilterPanel({ filters, onFilterChange, locations, categories }: 
           <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', marginBottom: spacing.sm, color: colors.textPrimary }}>
             <Calendar size={16} style={{ verticalAlign: 'middle', marginRight: spacing.xs }} /> Expiry Status
           </label>
-          <select value={filters.expiryStatus || 'all'} onChange={(e) => onFilterChange({ expiryStatus: e.target.value })} style={inputStyle}>
+          <select aria-label="Filter by expiry status" value={filters.expiryStatus || 'all'} onChange={(e) => onFilterChange({ expiryStatus: e.target.value })} style={inputStyle}>
             {expiryOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
         </div>

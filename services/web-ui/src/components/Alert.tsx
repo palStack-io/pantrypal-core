@@ -32,6 +32,7 @@ export function Alert({ type = 'info', message, onClose, className = '' }: Alert
       <div style={{ flex: 1, fontSize: '14px' }}>{message}</div>
       {onClose && (
         <button
+          aria-label="Dismiss"
           onClick={onClose}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
