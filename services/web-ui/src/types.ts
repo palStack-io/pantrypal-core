@@ -119,6 +119,33 @@ export interface ItemValidationResult {
   warnings: Record<string, string>;
 }
 
+/** One row of the sidebar's Locations / Categories lists. */
+export interface StatFacet {
+  name: string;
+  count: number;
+}
+
+/**
+ * The shape of GET /api/stats. Computed server-side over EVERY item, which is
+ * the point: deriving these in the client meant deriving them from one
+ * 50-item page.
+ *
+ * `expiring_soon + expired + fresh + no_date === total_items`.
+ */
+export interface InventoryStats {
+  total_items: number;
+  total_quantity: number;
+  expiring_soon: number;
+  expired: number;
+  fresh: number;
+  no_date: number;
+  locations_count: number;
+  categories_count: number;
+  manually_added_count: number;
+  locations: StatFacet[];
+  categories: StatFacet[];
+}
+
 export interface Stats {
   totalItems: number;
   expiringSoon: number;

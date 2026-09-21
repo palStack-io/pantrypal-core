@@ -1134,30 +1134,73 @@ async def get_stats(auth = Depends(get_current_auth)):
 
             today = datetime.now().date()
             expiring_soon = 0
+            expired = 0
+            no_date = 0
             total_quantity = 0
             manually_added = 0
+            # Facet counts, so the sidebar can render "Fridge 12" without
+            # holding every item. It used to derive these client-side from
+            # useItems(), which is paginated at 50 -- a 96-item pantry showed
+            # "50" and listed only the locations that happened to land on the
+            # first page. These are computed over the full set.
+            location_counts: dict[str, int] = {}
+            category_counts: dict[str, int] = {}
             for item in items:
                 total_quantity += item.get("quantity", 0)
                 if item.get("manually_added"):
                     manually_added += 1
+
+                # Only SET values. These lists drive the sidebar's filter
+                # rows, and `GET /items?location=` has no is-null option, so
+                # an "Uncategorized" row would be a control that filters to
+                # nothing. Counting them would be honest; offering them as a
+                # filter would not.
+                if item.get("location"):
+                    location_counts[item["location"]] = location_counts.get(item["location"], 0) + 1
+                if item.get("category"):
+                    category_counts[item["category"]] = category_counts.get(item["category"], 0) + 1
+
                 if item.get("expiry_date"):
                     try:
                         days_left = (datetime.fromisoformat(item["expiry_date"]).date() - today).days
-                        if 0 <= days_left <= 7:
+                        # The three buckets are exclusive and, with no_date,
+                        # exhaustive -- they have to sum to total_items or the
+                        # Insights donut misreports.
+                        if days_left < 0:
+                            expired += 1
+                        elif days_left <= 7:
                             expiring_soon += 1
                     except (ValueError, TypeError):
-                        pass
+                        no_date += 1
+                else:
+                    no_date += 1
+
+            dated = len(items) - no_date
+            fresh = dated - expiring_soon - expired
 
             locations_count = len(locations_resp.json()) if locations_resp.is_success else 0
             categories_count = len(categories_resp.json()) if categories_resp.is_success else 0
 
+            def _facet(counts: dict[str, int]) -> list[dict]:
+                return [
+                    {"name": name, "count": count}
+                    for name, count in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+                ]
+
+            # Every pre-existing key is kept as-is: the mobile server-stats
+            # screen reads this endpoint too, so the new fields are additive.
             return {
                 "total_items": len(items),
                 "total_quantity": total_quantity,
                 "expiring_soon": expiring_soon,
+                "expired": expired,
+                "fresh": fresh,
+                "no_date": no_date,
                 "locations_count": locations_count,
                 "categories_count": categories_count,
                 "manually_added_count": manually_added,
+                "locations": _facet(location_counts),
+                "categories": _facet(category_counts),
             }
     except httpx.HTTPError as e:
         logger.error("Stats service error: %s", e)
