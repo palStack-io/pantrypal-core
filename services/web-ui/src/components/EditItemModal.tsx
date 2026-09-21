@@ -66,17 +66,17 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, ca
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: spacing.md }}>
             <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Name *</label>
-            <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} style={inputStyle('name')} />
+            <input aria-label="Name" type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} style={inputStyle('name')} />
             {fieldErrors.name && <p style={errorStyle}>{fieldErrors.name}</p>}
           </div>
           <div style={{ marginBottom: spacing.md }}>
             <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Brand</label>
-            <input type="text" value={formData.brand} onChange={(e) => setFormData({ ...formData, brand: e.target.value })} style={{ width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, backgroundColor: colors.background, color: colors.textPrimary }} />
+            <input aria-label="Brand" type="text" value={formData.brand} onChange={(e) => setFormData({ ...formData, brand: e.target.value })} style={{ width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, backgroundColor: colors.background, color: colors.textPrimary }} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md, marginBottom: spacing.md }}>
             <div>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Location</label>
-              <select value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} style={inputStyle('location')}>
+              <select aria-label="Location" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} style={inputStyle('location')}>
                 <option value="">Select...</option>
                 {formData.location && !locations.includes(formData.location) && <option key={formData.location} value={formData.location}>{formData.location}</option>}
                 {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
@@ -85,7 +85,7 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, ca
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Category</label>
-              <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} style={inputStyle('category')}>
+              <select aria-label="Category" value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value })} style={inputStyle('category')}>
                 <option value="">Select...</option>
                 {formData.category && !categories.includes(formData.category) && <option key={formData.category} value={formData.category}>{formData.category}</option>}
                 {(categoryObjects ?? categories.map(c => ({ name: c, emoji: '📦' }))).map(cat => (
@@ -100,20 +100,20 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, ca
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Quantity</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <button type="button" onClick={() => setFormData(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))} style={{ padding: spacing.sm, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, background: colors.background, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.textPrimary }}><Minus size={16} /></button>
-                <input type="number" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: Math.max(1, parseInt(e.target.value) || 1) })} min="1" style={{ flex: 1, padding: spacing.md, borderRadius: borderRadius.md, border: borderFor('quantity'), backgroundColor: colors.background, color: colors.textPrimary, textAlign: 'center' }} />
+                <input aria-label="Quantity" type="number" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: Math.max(1, parseInt(e.target.value) || 1) })} min="1" style={{ flex: 1, padding: spacing.md, borderRadius: borderRadius.md, border: borderFor('quantity'), backgroundColor: colors.background, color: colors.textPrimary, textAlign: 'center' }} />
                 <button type="button" onClick={() => setFormData(prev => ({ ...prev, quantity: prev.quantity + 1 }))} style={{ padding: spacing.sm, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, background: colors.background, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.textPrimary }}><Plus size={16} /></button>
               </div>
               {fieldErrors.quantity && <p style={errorStyle}>{fieldErrors.quantity}</p>}
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Expiry Date</label>
-              <input type="date" value={formData.expiry_date} onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })} style={inputStyle('expiry_date')} />
+              <input aria-label="Expiry Date" type="date" value={formData.expiry_date} onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })} style={inputStyle('expiry_date')} />
               {fieldErrors.expiry_date && <p style={errorStyle}>{fieldErrors.expiry_date}</p>}
             </div>
           </div>
           <div style={{ marginBottom: spacing.lg }}>
             <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Notes</label>
-            <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} rows={3} style={{ width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: borderFor('notes'), backgroundColor: colors.background, color: colors.textPrimary, resize: 'vertical' }} />
+            <textarea aria-label="Notes" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} rows={3} style={{ width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: borderFor('notes'), backgroundColor: colors.background, color: colors.textPrimary, resize: 'vertical' }} />
             {fieldErrors.notes && <p style={errorStyle}>{fieldErrors.notes}</p>}
           </div>
           <div style={{ display: 'flex', gap: spacing.md }}>

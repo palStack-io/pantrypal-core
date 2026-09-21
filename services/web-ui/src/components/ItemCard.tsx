@@ -80,14 +80,20 @@ export function ItemCard({ item, onEdit, onDelete, onQRLabel, onSelect, isSelect
       <div style={{ padding: spacing.md, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.md }}>
           {onSelect && (
-            <div
+            /* Was a <div role="checkbox"> with no tabIndex, no handler and
+               no name -- it announced itself as a checkbox that could not be
+               reached or operated, which is worse than plain text. The click
+               lived on the card, so keyboard users had no way in at all. */
+            <button
+              type="button"
               role="checkbox"
               aria-checked={!!isSelected}
-              title={isSelected ? 'Deselect item' : 'Select item'}
-              style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '9px', borderRadius: borderRadius.sm, border: `1.5px solid ${isSelected ? colors.primary : colors.borderDark}`, background: isSelected ? colors.primary : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              aria-label={isSelected ? `Deselect ${item.name}` : `Select ${item.name}`}
+              onClick={(e) => { e.stopPropagation(); onSelect(item); }}
+              style={{ width: '24px', height: '24px', padding: 0, cursor: 'pointer', flexShrink: 0, marginTop: '7px', borderRadius: borderRadius.sm, border: `1.5px solid ${isSelected ? colors.primary : colors.borderDark}`, background: isSelected ? colors.primary : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              {isSelected && <Check size={13} color="#fff" strokeWidth={3} />}
-            </div>
+              {isSelected && <Check size={13} color="#fff" strokeWidth={3} aria-hidden="true" />}
+            </button>
           )}
 
           {/* Category disc. The emoji set is unchanged — swapping it for a drawn

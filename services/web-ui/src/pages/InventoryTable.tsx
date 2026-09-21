@@ -144,7 +144,7 @@ export function InventoryTable({ filters = {}, searchQuery = '' }: InventoryTabl
         <h1 style={{ fontSize: '24px', fontWeight: '700', color: colors.textPrimary }}>{title}</h1>
         <div style={{ display: 'flex', gap: spacing.sm, color: colors.textSecondary, fontSize: '14px', alignItems: 'center' }}>
           <span>Sort by:</span>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: '8px 12px', border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '14px', background: colors.card, color: colors.textPrimary, cursor: 'pointer' }}>
+          <select aria-label="Sort by" value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ padding: '8px 12px', border: `2px solid ${colors.border}`, borderRadius: borderRadius.md, fontSize: '14px', background: colors.card, color: colors.textPrimary, cursor: 'pointer' }}>
             <option value="expiry">Expiry (Soonest)</option>
             <option value="name-asc">Name (A-Z)</option>
             <option value="name-desc">Name (Z-A)</option>

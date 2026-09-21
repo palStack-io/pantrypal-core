@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Clock, Users, Settings, RefreshCw, Heart, Search, X, ArrowLeft } from 'lucide-react';
-import { getColors, spacing, borderRadius } from '../colors';
+import { getColors, getGradient, spacing, borderRadius } from '../colors';
 import {
   getRecipes, getRecipeSuggestions, getExpiringRecipes, searchRecipes, getFavoriteRecipes,
   getRecipeIntegration, createRecipeIntegration, deleteRecipeIntegration, importRecipes,
@@ -99,6 +99,7 @@ const addToShoppingList = async (items: { name: string; quantity: number; catego
 export function RecipesPage({ currentUser }: RecipesPageProps) {
   const { isDark } = useTheme();
   const colors = getColors(isDark);
+  const gradient = getGradient(isDark);
   const isAdmin = currentUser?.is_admin;
 
   const [view, setView] = useState<'list' | 'detail' | 'setup'>('list');
@@ -269,7 +270,7 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
           <div style={{ fontSize: '16px', fontWeight: '700', color: colors.textPrimary, marginBottom: '16px' }}>Recipe Provider</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
             {[{ id: 'none', label: 'None', icon: '❌' }, { id: 'mealie', label: 'Mealie', icon: '🥘' }, { id: 'tandoor', label: 'Tandoor', icon: '🍴' }].map((p) => (
-              <button key={p.id} type="button" onClick={() => setProvider(p.id)} style={{ padding: '20px', border: provider === p.id ? '3px solid #f97316' : `2px solid ${colors.border}`, borderRadius: '14px', textAlign: 'center', cursor: 'pointer', background: provider === p.id ? 'rgba(249, 115, 22, 0.08)' : colors.card, fontWeight: '700', color: provider === p.id ? '#f97316' : colors.textSecondary, transition: 'all 0.2s' }}>
+              <button key={p.id} type="button" onClick={() => setProvider(p.id)} style={{ padding: '20px', border: provider === p.id ? `3px solid ${colors.primary}` : `2px solid ${colors.border}`, borderRadius: '14px', textAlign: 'center', cursor: 'pointer', background: provider === p.id ? colors.accentBg : colors.card, fontWeight: '700', color: provider === p.id ? colors.primary : colors.textSecondary, transition: 'all 0.2s' }}>
                 <div style={{ fontSize: '32px', marginBottom: '8px' }}>{p.icon}</div>
                 <div>{p.label}</div>
               </button>
@@ -283,19 +284,19 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
               <div style={{ fontSize: '18px', fontWeight: '800', color: colors.textPrimary, marginBottom: '24px' }}>Connection Settings</div>
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: colors.textPrimary, marginBottom: '10px' }}>Server URL</label>
-                <input type="url" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder={`http://your-${provider}-server:9000`} style={{ width: '100%', padding: '14px 18px', border: `2px solid ${colors.border}`, borderRadius: '12px', fontSize: '15px', fontFamily: 'inherit', color: colors.textPrimary, background: colors.card, outline: 'none', boxSizing: 'border-box' }} />
+                <input aria-label="Server URL" type="url" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder={`http://your-${provider}-server:9000`} style={{ width: '100%', padding: '14px 18px', border: `2px solid ${colors.border}`, borderRadius: '12px', fontSize: '15px', fontFamily: 'inherit', color: colors.textPrimary, background: colors.card, outline: 'none', boxSizing: 'border-box' }} />
                 <div style={{ fontSize: '13px', color: colors.textSecondary, marginTop: '8px', fontWeight: '500' }}>Your {provider === 'mealie' ? 'Mealie' : 'Tandoor'} server address (e.g., http://192.168.1.100:9000)</div>
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: colors.textPrimary, marginBottom: '10px' }}>API Token</label>
-                <input type="password" value={apiToken} onChange={(e) => setApiToken(e.target.value)} placeholder="Enter your API token" style={{ width: '100%', padding: '14px 18px', border: `2px solid ${colors.border}`, borderRadius: '12px', fontSize: '15px', fontFamily: 'inherit', color: colors.textPrimary, background: colors.card, outline: 'none', boxSizing: 'border-box' }} />
+                <input aria-label="API Token" type="password" value={apiToken} onChange={(e) => setApiToken(e.target.value)} placeholder="Enter your API token" style={{ width: '100%', padding: '14px 18px', border: `2px solid ${colors.border}`, borderRadius: '12px', fontSize: '15px', fontFamily: 'inherit', color: colors.textPrimary, background: colors.card, outline: 'none', boxSizing: 'border-box' }} />
                 <div style={{ fontSize: '13px', color: colors.textSecondary, marginTop: '8px', fontWeight: '500' }}>Generate in {provider === 'mealie' ? 'Mealie: Profile → API Tokens' : 'Tandoor: Settings → API Keys'}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '14px' }}>
-                <button type="button" onClick={handleTestConnection} disabled={testingConnection || !serverUrl || !apiToken} style={{ padding: '14px', borderRadius: '12px', background: 'transparent', border: '2px solid #f97316', color: '#f97316', fontWeight: '700', fontSize: '15px', cursor: testingConnection || !serverUrl || !apiToken ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: testingConnection || !serverUrl || !apiToken ? 0.45 : 1 }}>
+                <button type="button" onClick={handleTestConnection} disabled={testingConnection || !serverUrl || !apiToken} style={{ padding: '14px', borderRadius: '12px', background: 'transparent', border: `2px solid ${colors.primary}`, color: colors.primary, fontWeight: '700', fontSize: '15px', cursor: testingConnection || !serverUrl || !apiToken ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: testingConnection || !serverUrl || !apiToken ? 0.45 : 1 }}>
                   {testingConnection ? '🔄 Testing...' : '🧪 Test Connection'}
                 </button>
-                <button onClick={handleSetupIntegration} disabled={setupLoading || !serverUrl || !apiToken} style={{ padding: '14px 32px', borderRadius: '12px', background: 'linear-gradient(135deg, #f97316, #fbbf24)', color: 'white', fontWeight: '700', fontSize: '15px', cursor: setupLoading || !serverUrl || !apiToken ? 'not-allowed' : 'pointer', border: 'none', boxShadow: setupLoading || !serverUrl || !apiToken ? 'none' : '0 4px 14px rgba(249, 115, 22, 0.35)', fontFamily: 'inherit', opacity: setupLoading || !serverUrl || !apiToken ? 0.45 : 1 }}>
+                <button onClick={handleSetupIntegration} disabled={setupLoading || !serverUrl || !apiToken} style={{ padding: '14px 32px', borderRadius: '12px', background: gradient.primary, color: colors.onPrimary, fontWeight: '700', fontSize: '15px', cursor: setupLoading || !serverUrl || !apiToken ? 'not-allowed' : 'pointer', border: 'none', boxShadow: setupLoading || !serverUrl || !apiToken ? 'none' : '0 4px 14px rgba(249, 115, 22, 0.35)', fontFamily: 'inherit', opacity: setupLoading || !serverUrl || !apiToken ? 0.45 : 1 }}>
                   {setupLoading ? 'Saving...' : '💾 Save Connection'}
                 </button>
               </div>
@@ -303,7 +304,7 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
 
             {connectionStatus && (
               <div style={{ background: connectionStatus.connected ? 'rgba(52, 199, 89, 0.1)' : 'rgba(255, 59, 48, 0.1)', border: `2px solid ${connectionStatus.connected ? 'rgba(52, 199, 89, 0.3)' : 'rgba(255, 59, 48, 0.3)'}`, borderRadius: '14px', padding: '20px', marginBottom: '32px' }}>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: connectionStatus.connected ? '#34c759' : '#ff3b30', marginBottom: '8px' }}>
+                <div style={{ fontSize: '16px', fontWeight: '700', color: connectionStatus.connected ? colors.goodText : colors.expiredText, marginBottom: '8px' }}>
                   {connectionStatus.connected ? `✓ Connected to ${provider === 'mealie' ? 'Mealie' : 'Tandoor'}` : '✗ Connection Failed'}
                 </div>
                 <div style={{ fontSize: '14px', color: connectionStatus.connected ? '#15803d' : '#dc2626', fontWeight: '600' }}>
@@ -340,8 +341,8 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
                   <div><div style={{ fontSize: '40px', fontWeight: '900', color: colors.textSecondary, marginBottom: '6px' }}>2h</div><div style={{ fontSize: '12px', fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Last Synced</div></div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '14px' }}>
-                  <button onClick={handleMatch} disabled={matching} style={{ padding: '14px', borderRadius: '12px', background: 'transparent', border: '2px solid #f97316', color: '#f97316', fontWeight: '700', fontSize: '15px', cursor: matching ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: matching ? 0.45 : 1 }}>{matching ? '🔄 Syncing...' : '🔄 Sync Now'}</button>
-                  <button onClick={handleImport} disabled={importing} style={{ padding: '14px 32px', borderRadius: '12px', background: 'linear-gradient(135deg, #f97316, #fbbf24)', color: 'white', fontWeight: '700', fontSize: '15px', cursor: importing ? 'not-allowed' : 'pointer', border: 'none', boxShadow: importing ? 'none' : '0 4px 14px rgba(249, 115, 22, 0.35)', fontFamily: 'inherit', opacity: importing ? 0.45 : 1 }}>{importing ? '📥 Importing...' : '📥 Re-Import All Recipes'}</button>
+                  <button onClick={handleMatch} disabled={matching} style={{ padding: '14px', borderRadius: '12px', background: 'transparent', border: `2px solid ${colors.primary}`, color: colors.primary, fontWeight: '700', fontSize: '15px', cursor: matching ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: matching ? 0.45 : 1 }}>{matching ? '🔄 Syncing...' : '🔄 Sync Now'}</button>
+                  <button onClick={handleImport} disabled={importing} style={{ padding: '14px 32px', borderRadius: '12px', background: gradient.primary, color: colors.onPrimary, fontWeight: '700', fontSize: '15px', cursor: importing ? 'not-allowed' : 'pointer', border: 'none', boxShadow: importing ? 'none' : '0 4px 14px rgba(249, 115, 22, 0.35)', fontFamily: 'inherit', opacity: importing ? 0.45 : 1 }}>{importing ? '📥 Importing...' : '📥 Re-Import All Recipes'}</button>
                 </div>
               </div>
             )}
@@ -377,7 +378,7 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg, gap: spacing.md, flexWrap: 'wrap' }}>
         <div style={{ flex: '1', maxWidth: '400px', minWidth: '200px', height: '40px', background: colors.card, border: `1px solid ${colors.border}`, borderRadius: borderRadius.md, padding: '0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Search size={16} color={colors.textSecondary} />
-          <input placeholder="Search recipes..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSearch()} style={{ flex: 1, border: 'none', background: 'none', fontSize: '14px', outline: 'none', fontFamily: 'inherit', color: colors.textPrimary }} />
+          <input aria-label="Search recipes" placeholder="Search recipes..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSearch()} style={{ flex: 1, border: 'none', background: 'none', fontSize: '14px', outline: 'none', fontFamily: 'inherit', color: colors.textPrimary }} />
         </div>
         <div style={{ display: 'flex', gap: spacing.sm }}>
           <button onClick={handleMatch} disabled={matching} style={{ padding: `${spacing.sm} ${spacing.md}`, borderRadius: borderRadius.md, background: colors.card, border: `1px solid ${colors.border}`, display: 'flex', alignItems: 'center', gap: spacing.xs, cursor: matching ? 'not-allowed' : 'pointer', color: colors.textPrimary, fontSize: '14px', fontWeight: '500' }} title="Refresh pantry matching">
@@ -437,8 +438,8 @@ function RecipeCard({ recipe, colors, onToggleFavorite, onClick, onAddMissingToS
   const imageViewUrl = recipe.image_url && !imgError ? `${recipe.image_url}/view` : null;
 
   return (
-    <div onClick={onClick}
-      style={{ background: colors.card, borderRadius: borderRadius.lg, overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s', border: `1px solid ${colors.border}` }}
+    <div
+      style={{ position: 'relative', background: colors.card, borderRadius: borderRadius.lg, overflow: 'hidden', transition: 'transform 0.2s, box-shadow 0.2s', border: `1px solid ${colors.border}` }}
       onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
 
@@ -464,13 +465,26 @@ function RecipeCard({ recipe, colors, onToggleFavorite, onClick, onAddMissingToS
 
         {/* Favorite — top right */}
         <button onClick={(e) => onToggleFavorite(recipe.id, e)}
-          style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', border: 'none', borderRadius: '50%', width: '34px', height: '34px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: recipe.favorite ? '#ef4444' : 'white' }}>
+          aria-label={recipe.favorite ? `Remove ${recipe.name} from favourites` : `Add ${recipe.name} to favourites`}
+          aria-pressed={!!recipe.favorite}
+          style={{ zIndex: 2, position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', border: 'none', borderRadius: '50%', width: '34px', height: '34px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: recipe.favorite ? '#ef4444' : 'white' }}>
           <Heart size={16} fill={recipe.favorite ? '#ef4444' : 'none'} />
         </button>
 
-        {/* Title + meta — bottom of image */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px 14px 12px' }}>
-          <div style={{ fontSize: '16px', fontWeight: '700', color: 'white', lineHeight: '1.3', marginBottom: '4px' }}>{recipe.name}</div>
+        {/* The title is white and sits straight on the hero -- either a user
+            photo of unknown brightness or the amber placeholder, where white
+            measures about 1.8:1. A scrim is the only way to make the text
+            legible without knowing what is behind it. axe never caught this:
+            it cannot evaluate contrast over an image or a gradient. */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '18px 14px 12px', background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0) 100%)', }}>
+          <button
+            type="button"
+            className="stretched-link"
+            onClick={onClick}
+            style={{ position: 'static', padding: 0, border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', fontSize: '16px', fontWeight: 700, color: 'white', lineHeight: '1.3', marginBottom: '4px', display: 'block' }}
+          >
+            {recipe.name}
+          </button>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             {(recipe.total_time || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: 'rgba(255,255,255,0.85)', fontSize: '12px' }}><Clock size={12} /> {recipe.total_time} min</span>}
             {(recipe.servings || 0) > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: '3px', color: 'rgba(255,255,255,0.85)', fontSize: '12px' }}><Users size={12} /> {recipe.servings} servings</span>}
@@ -481,7 +495,7 @@ function RecipeCard({ recipe, colors, onToggleFavorite, onClick, onAddMissingToS
       {/* Stats row */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${colors.border}` }}>
         <div style={{ flex: 1, padding: '8px', textAlign: 'center', borderRight: `1px solid ${colors.border}` }}>
-          <div style={{ fontSize: '16px', fontWeight: '700', color: expiringCount > 0 ? '#f59e0b' : colors.textSecondary }}>{expiringCount}</div>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: expiringCount > 0 ? colors.warning : colors.textSecondary }}>{expiringCount}</div>
           <div style={{ fontSize: '11px', color: colors.textSecondary }}>Expiring</div>
         </div>
         <div style={{ flex: 1, padding: '8px', textAlign: 'center' }}>
@@ -503,7 +517,7 @@ function RecipeCard({ recipe, colors, onToggleFavorite, onClick, onAddMissingToS
           {expiringIngredients.slice(0, 2).map((ing, idx) => <span key={`exp-${idx}`} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: borderRadius.sm, background: 'rgba(245, 158, 11, 0.1)', color: '#d97706' }}>{ing}</span>)}
           {missingIngredients.slice(0, 2).map((ing, idx) => <span key={`miss-${idx}`} style={{ fontSize: '11px', padding: '3px 8px', borderRadius: borderRadius.sm, background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626' }}>{ing}</span>)}
         </div>
-        {missingCount > 0 && <button onClick={(e) => onAddMissingToShoppingList(recipe, e)} style={{ width: '100%', padding: '8px', borderRadius: borderRadius.md, background: colors.background, border: `1px solid ${colors.border}`, fontSize: '13px', fontWeight: '500', color: colors.textPrimary, textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit' }}>Add {missingCount} Missing to List</button>}
+        {missingCount > 0 && <button onClick={(e) => onAddMissingToShoppingList(recipe, e)} style={{ position: 'relative', zIndex: 2, width: '100%', padding: '8px', borderRadius: borderRadius.md, background: colors.background, border: `1px solid ${colors.border}`, fontSize: '13px', fontWeight: '500', color: colors.textPrimary, textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit' }}>Add {missingCount} Missing to List</button>}
       </div>
     </div>
   );
@@ -576,8 +590,8 @@ function RecipeDetailView({ recipe, colors, onBack, onToggleFavorite, onAddMissi
           <Heart size={20} fill={recipe.favorite ? '#ef4444' : 'none'} />
         </button>
 
-        {/* Title + meta overlaid at bottom */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 24px' }}>
+        {/* Same scrim as the card: see the note there. */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '32px 24px 20px', background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0) 100%)', }}>
           <h1 style={{ fontSize: '26px', fontWeight: '800', color: 'white', margin: 0, marginBottom: '6px', textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>{recipe.name}</h1>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>From {recipe.source || 'Recipe Collection'}</span>
@@ -669,7 +683,7 @@ function RecipeDetailView({ recipe, colors, onBack, onToggleFavorite, onAddMissi
 
             <div style={{ background: colors.card, borderRadius: borderRadius.lg, padding: spacing.md, border: `1px solid ${colors.border}` }}>
               <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Your Notes</h3>
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add your notes..." style={{ width: '100%', padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md, fontSize: '13px', color: colors.textPrimary, lineHeight: '1.5', border: `1px solid ${colors.border}`, minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              <textarea aria-label="Recipe notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add your notes..." style={{ width: '100%', padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md, fontSize: '13px', color: colors.textPrimary, lineHeight: '1.5', border: `1px solid ${colors.border}`, minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
               <button onClick={handleSaveNotes} disabled={savingNotes} style={{ marginTop: spacing.sm, width: '100%', padding: spacing.sm, borderRadius: borderRadius.md, background: savingNotes ? colors.textSecondary : colors.primary, color: colors.onPrimary, fontWeight: '500', fontSize: '13px', cursor: savingNotes ? 'not-allowed' : 'pointer', border: 'none', fontFamily: 'inherit' }}>
                 {savingNotes ? 'Saving...' : 'Save Notes'}
               </button>

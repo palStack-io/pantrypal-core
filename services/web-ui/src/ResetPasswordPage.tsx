@@ -68,7 +68,7 @@ function ResetPasswordPage({ token, onSuccess }: ResetPasswordPageProps) {
           <div style={{ marginBottom: spacing.md }}>
             <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>New Password</label>
             <div style={{ position: 'relative' }}>
-              <input type={showPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} autoFocus style={{ ...inputBase, paddingRight: '50px' }} />
+              <input aria-label="New password" type={showPassword ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} autoFocus style={{ ...inputBase, paddingRight: '50px' }} />
               <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '4px' }}>
                 {showPassword ? '👁️' : '👁️‍🗨️'}
               </button>
@@ -78,7 +78,7 @@ function ResetPasswordPage({ token, onSuccess }: ResetPasswordPageProps) {
           <div style={{ marginBottom: spacing.lg }}>
             <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Confirm New Password</label>
             <div style={{ position: 'relative' }}>
-              <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required style={{ ...inputBase, paddingRight: '50px' }} />
+              <input aria-label="Confirm new password" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required style={{ ...inputBase, paddingRight: '50px' }} />
               <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '4px' }}>
                 {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
               </button>

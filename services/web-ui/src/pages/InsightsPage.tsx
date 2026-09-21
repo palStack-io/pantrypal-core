@@ -203,7 +203,7 @@ export function InsightsPage() {
                     </div>
                   </div>
                   <div style={{ ...ss.breakdownBadge, background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.25)' }}>
-                    <span style={{ fontSize: '14px', fontWeight: '900', color: '#ff3b30' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '900', color: colors.expiredText }}>
                       {data.count > 1 ? `×${data.count}` : `${data.maxDaysOverdue}d`}
                     </span>
                   </div>

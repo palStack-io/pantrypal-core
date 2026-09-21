@@ -1141,7 +1141,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
           <h1 style={{ margin: 0, color: colors.textPrimary, fontSize: '22px' }}>⚙️ Settings</h1>
           {currentUser && (
             <p style={{ margin: 0, color: colors.textSecondary, fontSize: '13px' }}>
-              {currentUser.username} {isAdmin && <span style={{ color: '#f59e0b' }}>(Admin)</span>}
+              {currentUser.username} {isAdmin && <span style={{ color: colors.primary }}>(Admin)</span>}
             </p>
           )}
         </div>
@@ -1197,7 +1197,8 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                 padding: `${spacing.md} ${spacing.lg}`,
                 border: 'none',
                 background: activeTab === tab.id ? colors.primary + '22' : 'transparent',
-                color: activeTab === tab.id ? colors.primary : colors.textPrimary,
+                // `primary` on its own +22 tint measures 4.28:1; primaryDark is 5.72.
+                color: activeTab === tab.id ? colors.primaryDark : colors.textPrimary,
                 fontWeight: activeTab === tab.id ? '700' : '500',
                 fontSize: '15px',
                 cursor: 'pointer',
@@ -1242,7 +1243,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
               }}>
                 Server URL
               </label>
-              <input
+              <input aria-label="Server URL"
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
@@ -1293,7 +1294,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                     borderRadius: borderRadius.md,
                     border: 'none',
                     backgroundColor: showApiKeyInput ? colors.primary : colors.border,
-                    color: showApiKeyInput ? colors.textPrimary : colors.textSecondary,
+                    color: showApiKeyInput ? colors.onPrimary : colors.textPrimary,
                     fontWeight: '600',
                     cursor: 'pointer',
                     fontSize: '14px',
@@ -1314,7 +1315,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                   }}>
                     API Key
                   </label>
-                  <input
+                  <input aria-label="API Key"
                     type="password"
                     value={currentApiKey}
                     onChange={(e) => setCurrentApiKey(e.target.value)}
@@ -1513,6 +1514,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                     Create New API Key
                   </h3>
                   <input
+                    aria-label="API key name"
                     type="text"
                     placeholder="Name (e.g., Home Assistant)"
                     value={newKeyName}
@@ -1529,6 +1531,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                     }}
                   />
                   <input
+                    aria-label="API key description"
                     type="text"
                     placeholder="Description (optional)"
                     value={newKeyDescription}
@@ -1686,7 +1689,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                   }}>
                     Username
                   </label>
-                  <input
+                  <input aria-label="Username"
                     type="text"
                     value={profile.username}
                     onChange={(e) => setProfile({ ...profile, username: e.target.value })}
@@ -1717,6 +1720,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                     Email Address
                   </label>
                   <input
+                    aria-label="Email Address"
                     type="email"
                     value={profile.email}
                     onChange={(e) => setProfile({ ...profile, email: e.target.value })}
@@ -1740,7 +1744,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                   }}>
                     Full Name
                   </label>
-                  <input
+                  <input aria-label="Full Name"
                     type="text"
                     value={profile.full_name}
                     onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
@@ -1812,6 +1816,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                   </label>
                   <div style={{ position: 'relative' }}>
                     <input
+                      aria-label={label}
                       type={showPasswords[key] ? 'text' : 'password'}
                       value={passwordData[field]}
                       onChange={(e) => setPasswordData({ ...passwordData, [field]: e.target.value })}
@@ -2035,7 +2040,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                 }}>
                   Server URL
                 </label>
-                <input
+                <input aria-label="Server URL"
                   type="url"
                   value={integrationServerUrl}
                   onChange={(e) => setIntegrationServerUrl(e.target.value)}
@@ -2061,7 +2066,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                 }}>
                   API Token
                 </label>
-                <input
+                <input aria-label="API Token"
                   type="password"
                   value={integrationApiToken}
                   onChange={(e) => setIntegrationApiToken(e.target.value)}
@@ -2221,15 +2226,24 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                       <div style={{ fontSize: '12px', color: colors.textSecondary, marginTop: '2px' }}>{desc}</div>
                     </div>
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: spacing.sm }}>
-                    <span style={{ fontSize: '12px', color: notifPrefs[key] ? colors.success : colors.textTertiary, fontWeight: '600' }}>
+                  {/* Was a <label> wrapping the switch. A label around a
+                      role=switch button does not forward clicks and muddles
+                      the accessible name, so the name lives on the button. */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <span aria-hidden="true" style={{ fontSize: '12px', color: notifPrefs[key] ? colors.success : colors.textTertiary, fontWeight: '600' }}>
                       {notifPrefs[key] ? 'On' : 'Off'}
                     </span>
-                    <div
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={notifPrefs[key]}
+                      aria-label={label}
                       onClick={() => setNotifPrefs(p => ({ ...p, [key]: !p[key] }))}
                       style={{
                         width: '44px',
                         height: '24px',
+                        padding: 0,
+                        border: 'none',
                         borderRadius: '12px',
                         background: notifPrefs[key] ? colors.primary : (isDark ? '#44403c' : '#d6d3d1'),
                         position: 'relative',
@@ -2249,8 +2263,8 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                         transition: 'left 0.2s',
                         boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                       }} />
-                    </div>
-                  </label>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -2262,7 +2276,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs }}>
                   Daily alert time
                 </label>
-                <input
+                <input aria-label="Daily alert time"
                   type="time"
                   value={notifPrefs.notification_time}
                   onChange={e => setNotifPrefs(p => ({ ...p, notification_time: e.target.value }))}
@@ -2281,7 +2295,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: colors.textSecondary, marginBottom: spacing.xs }}>
                   Look-ahead window (days)
                 </label>
-                <input
+                <input aria-label="Look-ahead window (days)"
                   type="number"
                   min="1"
                   max="30"
@@ -2401,7 +2415,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                       }}>
                         Username *
                       </label>
-                      <input
+                      <input aria-label="Username"
                         type="text"
                         value={inviteData.username}
                         onChange={(e) => setInviteData({ ...inviteData, username: e.target.value })}
@@ -2428,7 +2442,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                       }}>
                         Email *
                       </label>
-                      <input
+                      <input aria-label="Email"
                         type="email"
                         value={inviteData.email}
                         onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
@@ -2454,7 +2468,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                       }}>
                         Full Name
                       </label>
-                      <input
+                      <input aria-label="Full Name"
                         type="text"
                         value={inviteData.full_name}
                         onChange={(e) => setInviteData({ ...inviteData, full_name: e.target.value })}
@@ -2847,6 +2861,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
               {!importPreview ? (
                 <div>
                   <input
+                    aria-label="Choose a CSV file to import"
                     type="file"
                     accept=".csv"
                     onChange={handleImportFileSelect}
@@ -2993,7 +3008,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                 }}>
                   Export Filter
                 </label>
-                <select
+                <select aria-label="Export Filter"
                   value={exportFilter}
                   onChange={(e) => {
                     setExportFilter(e.target.value);
@@ -3016,6 +3031,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
 
                 {exportFilter === 'location' && (
                   <select
+                    aria-label="Location to export"
                     value={exportValue}
                     onChange={(e) => setExportValue(e.target.value)}
                     style={{
@@ -3037,6 +3053,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
 
                 {exportFilter === 'category' && (
                   <select
+                    aria-label="Category to export"
                     value={exportValue}
                     onChange={(e) => setExportValue(e.target.value)}
                     style={{
@@ -3109,6 +3126,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                     <>
                       <EmojiPickerPopover value={editLocationEmoji} onChange={setEditLocationEmoji} />
                       <input
+                        aria-label="Rename location"
                         type="text"
                         value={editLocationValue}
                         onChange={(e) => setEditLocationValue(e.target.value)}
@@ -3204,6 +3222,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
               <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md, alignItems: 'center' }}>
                 <EmojiPickerPopover value={newLocationEmoji} onChange={setNewLocationEmoji} />
                 <input
+                  aria-label="New location name"
                   type="text"
                   value={newLocation}
                   onChange={(e) => setNewLocation(e.target.value)}
@@ -3262,6 +3281,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                     <>
                       <EmojiPickerPopover value={editCategoryEmoji} onChange={setEditCategoryEmoji} />
                       <input
+                        aria-label="Rename category"
                         type="text"
                         value={editCategoryValue}
                         onChange={(e) => setEditCategoryValue(e.target.value)}
@@ -3359,6 +3379,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
               <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md, alignItems: 'center' }}>
                 <EmojiPickerPopover value={newCategoryEmoji} onChange={setNewCategoryEmoji} />
                 <input
+                  aria-label="New category name"
                   type="text"
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}

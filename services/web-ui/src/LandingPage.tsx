@@ -262,7 +262,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
                 <div style={{ textAlign: 'center', marginBottom: spacing.xl }}><h2 style={{ margin: 0, color: colors.textPrimary, fontSize: '28px' }}>Connect to pantryPal</h2><p style={{ color: colors.textSecondary, marginTop: spacing.sm }}>Enter your pantryPal server URL</p></div>
                 <div style={{ marginBottom: spacing.lg }}>
                   <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Server URL</label>
-                  <input type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://192.168.1.100 or https://pantrypal.yourdomain.com" style={inputStyle} />
+                  <input aria-label="Server URL" type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://192.168.1.100 or https://pantrypal.yourdomain.com" style={inputStyle} />
                 </div>
                 <button onClick={handleConfigureServer} style={{ ...primaryBtnStyle, opacity: 1 }}>Continue</button>
               </>
@@ -302,7 +302,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
             </button>
             {showChangeServer && (
               <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.sm }}>
-                <input type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://192.168.1.100 or https://yourserver.com" style={{ flex: 1, padding: spacing.sm, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '13px', color: '#000000' }} />
+                <input aria-label="Server URL" type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://192.168.1.100 or https://yourserver.com" style={{ flex: 1, padding: spacing.sm, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '13px', color: '#000000' }} />
                 <button onClick={() => { handleConfigureServer(); setShowChangeServer(false); }} style={{ padding: `${spacing.sm} ${spacing.md}`, borderRadius: borderRadius.md, border: 'none', background: colors.primary, color: colors.onPrimary, fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>Save</button>
               </div>
             )}
@@ -334,12 +334,12 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <form onSubmit={handleLogin}>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Username or Email</label>
-              <input type="text" value={loginUsername} onChange={(e) => { setLoginUsername(e.target.value); setLoginError(null); }} required autoFocus autoComplete="username" style={inputStyle} />
+              <input aria-label="Username or Email" type="text" value={loginUsername} onChange={(e) => { setLoginUsername(e.target.value); setLoginError(null); }} required autoFocus autoComplete="username" style={inputStyle} />
             </div>
             <div style={{ marginBottom: spacing.md }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input type={showLoginPassword ? 'text' : 'password'} value={loginPassword} onChange={(e) => { setLoginPassword(e.target.value); setLoginError(null); }} autoComplete="current-password" required style={{ ...inputStyle, paddingRight: '48px', boxSizing: 'border-box' }} />
+                <input aria-label="Password" type={showLoginPassword ? 'text' : 'password'} value={loginPassword} onChange={(e) => { setLoginPassword(e.target.value); setLoginError(null); }} autoComplete="current-password" required style={{ ...inputStyle, paddingRight: '48px', boxSizing: 'border-box' }} />
                 <button type="button" onClick={() => setShowLoginPassword(!showLoginPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: colors.textSecondary, padding: 0 }}>{showLoginPassword ? '🙈' : '👁'}</button>
               </div>
             </div>
@@ -382,7 +382,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
             ].map(({ label, value, onChange, type, required, autoFocus }) => (
               <div key={label} style={{ marginBottom: spacing.md }}>
                 <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>{label}</label>
-                <input type={type} value={value} onChange={(e) => onChange(e.target.value)} required={required} autoFocus={autoFocus} style={inputStyle} />
+                <input aria-label={label.replace(' *', '')} type={type} value={value} onChange={(e) => onChange(e.target.value)} required={required} autoFocus={autoFocus} style={inputStyle} />
               </div>
             ))}
             <button type="submit" disabled={loading} style={{ ...primaryBtnStyle, marginTop: spacing.sm }}>{loading ? '⏳ Creating account...' : 'Create Account'}</button>
@@ -423,7 +423,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
           <form onSubmit={handleForgotPassword}>
             <div style={{ marginBottom: spacing.lg }}>
               <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: '600', color: colors.textPrimary }}>Email Address</label>
-              <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required autoFocus placeholder="your.email@example.com" style={inputStyle} />
+              <input aria-label="Email Address" type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required autoFocus placeholder="your.email@example.com" style={inputStyle} />
             </div>
             <button type="submit" disabled={loading} style={primaryBtnStyle}>{loading ? '⏳ Sending...' : 'Send Reset Link'}</button>
           </form>

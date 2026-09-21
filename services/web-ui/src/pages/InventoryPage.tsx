@@ -170,7 +170,7 @@ export function InventoryPage({ sidebarFilters = {} }: InventoryPageProps) {
       <div style={{ display: 'flex', gap: spacing.lg, marginBottom: spacing.lg, alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center' }}>
           <label style={{ fontSize: '14px', fontWeight: '500', color: colors.textPrimary }}>Group by:</label>
-          <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)} style={{ padding: spacing.sm, borderRadius: borderRadius.sm, border: `1px solid ${colors.border}`, backgroundColor: colors.card, color: colors.textPrimary }}>
+          <select aria-label="Group by:" value={groupBy} onChange={(e) => setGroupBy(e.target.value)} style={{ padding: spacing.sm, borderRadius: borderRadius.sm, border: `1px solid ${colors.border}`, backgroundColor: colors.card, color: colors.textPrimary }}>
             <option value="none">None</option>
             <option value="location">Location</option>
             <option value="category">Category</option>
@@ -188,12 +188,12 @@ export function InventoryPage({ sidebarFilters = {} }: InventoryPageProps) {
         return (
           <div key={group} style={{ marginBottom: spacing.xxl }}>
             {groupBy !== 'none' && (
-              <div onClick={() => toggleGroup(group)} style={{ marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.sm, cursor: 'pointer', userSelect: 'none', padding: spacing.md, borderRadius: borderRadius.md, transition: 'background-color 0.2s', backgroundColor: isCollapsed ? colors.background : 'transparent' }}
+              <button type="button" onClick={() => toggleGroup(group)} aria-expanded={!isCollapsed} style={{ width: '100%', border: 'none', background: 'transparent', fontFamily: 'inherit', textAlign: 'left', marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.sm, cursor: 'pointer', userSelect: 'none', padding: spacing.md, borderRadius: borderRadius.md, transition: 'background-color 0.2s', backgroundColor: isCollapsed ? colors.background : 'transparent' }}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = colors.background}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isCollapsed ? colors.background : 'transparent'; }}>
                 <Icon size={20} color={colors.textSecondary} />
                 <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: colors.textSecondary }}>{group} ({groupItems.length})</h2>
-              </div>
+              </button>
             )}
             {!isCollapsed && (
               viewMode === 'card' ? (

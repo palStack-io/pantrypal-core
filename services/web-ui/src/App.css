@@ -69,10 +69,43 @@ tbody tr:hover { background: var(--bg-hover); }
 :root.dark tbody tr.expired { background: rgba(143, 45, 45, 0.22); }
 :root.dark tbody tr.warning { background: rgba(168, 105, 11, 0.22); }
 
-@media (max-width: 1024px) {
-  .sidebar { position: fixed; left: -280px; z-index: 1000; }
-  .sidebar.open { left: 0; }
+/* ── Mobile navigation ───────────────────────────────────────────────────────
+   The toggle and backdrop exist only under the breakpoint; above it the
+   sidebar is always in the layout and neither is rendered. */
+.sidebar-toggle {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 1100;
+  width: 44px;
+  height: 44px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
 }
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* 1024, not 768: this is where the sidebar stops being part of the flex row
+   and becomes an overlay, so it is also where the toggle has to appear.
+   `useIsMobile` reads the same number -- if they drift, one of two things
+   breaks: either the sidebar overlays the page with no way to shut it, or
+   there is no way to open it. */
+@media (max-width: 1024px) {
+  .sidebar { position: fixed; top: 0; bottom: 0; left: -280px; z-index: 1000; padding-top: 56px; }
+  .sidebar.open { left: 0; }
+  .sidebar-toggle { display: flex; }
+  .main-content { padding-top: 56px; }
 
 @media (max-width: 768px) {
   table { min-width: 560px; }
@@ -127,3 +160,15 @@ tbody tr:hover { background: var(--bg-hover); }
   text-decoration: none;
 }
 .skip-link:focus { left: 0; }
+
+/* ── Stretched link ──────────────────────────────────────────────────────────
+   Makes a whole card activate from a single real control, without wrapping
+   the card's own buttons inside it (nested buttons are invalid HTML). The
+   ::after covers the positioned ancestor; anything that must stay clickable
+   sits above it with `position: relative; z-index: 2`. */
+.stretched-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
