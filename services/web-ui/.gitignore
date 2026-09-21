@@ -10,7 +10,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-package-lock.json
+# package-lock.json was ignored here, and the Dockerfile ran `npm install`,
+# so every image build re-resolved the ranges in package.json against whatever
+# npm considered newest at that moment. On 2026-09-20 that produced
+# react 19.2.5 against react-dom 19.2.4 -- a mismatched pair React refuses to
+# run (error #527), so the built app was a blank page. `npm run build` passed
+# throughout, because a bundler does not check that the two agree at runtime.
+# The lock is tracked now and the Dockerfile uses `npm ci`.
 
 # Editor
 .vscode/*
