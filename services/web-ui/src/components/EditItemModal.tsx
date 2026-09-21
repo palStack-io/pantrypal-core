@@ -4,6 +4,7 @@ import { getColors, spacing, borderRadius } from '../colors';
 import { formatDateForInput } from '../utils/dateUtils';
 import { validateItem } from '../utils/validators';
 import { useTheme } from '../context/ThemeContext';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import type { Item, CategoryOption } from '../types';
 
 interface FormData {
@@ -28,6 +29,7 @@ interface EditItemModalProps {
 const errorStyle = { color: '#dc2626', fontSize: '12px', marginTop: '4px' };
 
 export function EditItemModal({ item, onClose, onSave, locations, categories, categoryObjects }: EditItemModalProps) {
+  const modal = useModalBehavior(onClose);
   const { isDark } = useTheme();
   const colors = getColors(isDark);
   const [formData, setFormData] = useState<FormData>({ name: '', brand: '', category: '', location: '', quantity: 1, expiry_date: '', notes: '' });
@@ -56,10 +58,10 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, ca
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onClose}>
-      <div style={{ background: colors.card, borderRadius: borderRadius.xl, padding: spacing.xl, maxWidth: '500px', width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+      <div {...modal.panelProps} style={{ background: colors.card, borderRadius: borderRadius.xl, padding: spacing.xl, maxWidth: '500px', width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: colors.textPrimary }}>Edit Item</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textSecondary, padding: spacing.xs }}><X size={24} /></button>
+          <h2 id={modal.titleId} style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: colors.textPrimary }}>Edit Item</h2>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textSecondary, padding: spacing.xs }}><X size={24} /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: spacing.md }}>
@@ -116,7 +118,7 @@ export function EditItemModal({ item, onClose, onSave, locations, categories, ca
           </div>
           <div style={{ display: 'flex', gap: spacing.md }}>
             <button type="button" onClick={onClose} style={{ flex: 1, padding: spacing.md, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, background: 'transparent', color: colors.textPrimary, fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-            <button type="submit" style={{ flex: 1, padding: spacing.md, borderRadius: borderRadius.md, border: 'none', background: colors.primary, color: colors.textPrimary, fontWeight: '600', cursor: 'pointer' }}>Save Changes</button>
+            <button type="submit" style={{ flex: 1, padding: spacing.md, borderRadius: borderRadius.md, border: 'none', background: colors.primary, color: colors.onPrimary, fontWeight: '600', cursor: 'pointer' }}>Save Changes</button>
           </div>
         </form>
       </div>

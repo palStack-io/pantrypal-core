@@ -226,7 +226,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
 
   const outerStyle = { minHeight: '100vh', background: getBrandWash(isDark), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: spacing.lg };
   const cardStyle = { background: colors.card, borderRadius: borderRadius.xl, padding: spacing.xl, boxShadow: '0 10px 34px rgba(60, 38, 12, 0.10)', border: `1px solid ${colors.border}`, maxWidth: '440px', width: '100%' };
-  const primaryBtnStyle = { width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold' as const, cursor: loading ? 'not-allowed' : 'pointer' as const, opacity: loading ? 0.6 : 1 };
+  const primaryBtnStyle = { width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.onPrimary, fontSize: '18px', fontWeight: 'bold' as const, cursor: loading ? 'not-allowed' : 'pointer' as const, opacity: loading ? 0.6 : 1 };
   const inputStyle = { width: '100%', padding: spacing.md, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '16px', backgroundColor: '#ffffff', color: '#000000' };
 
   if (view === 'landing') {
@@ -280,7 +280,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
                 />
                 <GenericOidcButton config={genericOidc} />
                 <div style={{ display: 'flex', gap: spacing.md }}>
-                  <button onClick={() => setView('login')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign In</button>
+                  <button onClick={() => setView('login')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.onPrimary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign In</button>
                   <button onClick={() => setView('signup')} style={{ flex: 1, padding: spacing.lg, borderRadius: borderRadius.lg, border: `2px solid ${colors.primary}`, background: 'white', color: colors.primary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Sign Up</button>
                 </div>
               </>
@@ -303,7 +303,7 @@ function LandingPage({ onLoginSuccess }: LandingPageProps) {
             {showChangeServer && (
               <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.sm }}>
                 <input type="text" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="http://192.168.1.100 or https://yourserver.com" style={{ flex: 1, padding: spacing.sm, borderRadius: borderRadius.md, border: `2px solid ${colors.border}`, fontSize: '13px', color: '#000000' }} />
-                <button onClick={() => { handleConfigureServer(); setShowChangeServer(false); }} style={{ padding: `${spacing.sm} ${spacing.md}`, borderRadius: borderRadius.md, border: 'none', background: colors.primary, color: colors.textPrimary, fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>Save</button>
+                <button onClick={() => { handleConfigureServer(); setShowChangeServer(false); }} style={{ padding: `${spacing.sm} ${spacing.md}`, borderRadius: borderRadius.md, border: 'none', background: colors.primary, color: colors.onPrimary, fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>Save</button>
               </div>
             )}
           </div>

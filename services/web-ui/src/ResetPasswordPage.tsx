@@ -50,7 +50,7 @@ function ResetPasswordPage({ token, onSuccess }: ResetPasswordPageProps) {
           <div style={{ fontSize: '64px', marginBottom: spacing.md }}>⚠️</div>
           <h2 style={{ color: colors.textPrimary, marginBottom: spacing.md }}>Link Expired</h2>
           <p style={{ color: colors.textSecondary, lineHeight: 1.6, marginBottom: spacing.xl }}>This password reset link has expired or has already been used.</p>
-          <button onClick={onSuccess} style={{ width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Back to Sign In</button>
+          <button onClick={onSuccess} style={{ width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.onPrimary, fontSize: '18px', fontWeight: 'bold', cursor: 'pointer' }}>Back to Sign In</button>
         </div>
       </div>
     );
@@ -84,7 +84,7 @@ function ResetPasswordPage({ token, onSuccess }: ResetPasswordPageProps) {
               </button>
             </div>
           </div>
-          <button type="submit" disabled={loading} style={{ width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.textPrimary, fontSize: '18px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+          <button type="submit" disabled={loading} style={{ width: '100%', padding: spacing.lg, borderRadius: borderRadius.lg, border: 'none', background: colors.primary, color: colors.onPrimary, fontSize: '18px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
             {loading ? '⏳ Resetting...' : 'Reset Password'}
           </button>
         </form>

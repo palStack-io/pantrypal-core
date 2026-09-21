@@ -178,7 +178,7 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
         <button
           id="tour-add-item"
           onClick={() => onNavigate('/add')}
-          style={{ width: '100%', background: gradient.primary, color: 'white', border: 'none', padding: '14px', borderRadius: borderRadius.lg, fontSize: '15px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, boxShadow: shadows.large }}
+          style={{ width: '100%', background: gradient.primary, color: colors.onPrimary, border: 'none', padding: '14px', borderRadius: borderRadius.lg, fontSize: '15px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, boxShadow: shadows.large }}
         >
           <Plus size={20} />
           <span>Add New Item</span>
@@ -224,7 +224,7 @@ function NavItem({ id, icon, label, count, active, onClick, colors, gradient }: 
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: borderRadius.md, cursor: 'pointer', fontSize: '14px', marginBottom: '4px', background: active ? gradient.primary : (hover ? colors.accentBg : 'transparent'), color: active ? 'white' : colors.textPrimary, fontWeight: active ? '600' : '500', transition: 'all 0.2s' }}
+      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: borderRadius.md, cursor: 'pointer', fontSize: '14px', marginBottom: '4px', background: active ? gradient.primary : (hover ? colors.accentBg : 'transparent'), color: active ? colors.onPrimary : colors.textPrimary, fontWeight: active ? '600' : '500', transition: 'all 0.2s' }}
     >
       {typeof icon === 'string' ? <span>{icon}</span> : icon}
       <span style={{ flex: 1 }}>{label}</span>

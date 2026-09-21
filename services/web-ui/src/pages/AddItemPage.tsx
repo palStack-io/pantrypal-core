@@ -311,7 +311,7 @@ export function AddItemPage({ onBack }: AddItemPageProps) {
             </label>
           )}
 
-          <button type="submit" disabled={saving} style={{ marginTop: spacing.xl, width: '100%', padding: spacing.lg, background: colors.primary, border: 'none', borderRadius: borderRadius.md, color: 'white', fontSize: '16px', fontWeight: '600', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, opacity: saving ? 0.6 : 1 }}>
+          <button type="submit" disabled={saving} style={{ marginTop: spacing.xl, width: '100%', padding: spacing.lg, background: colors.primary, border: 'none', borderRadius: borderRadius.md, color: colors.onPrimary, fontSize: '16px', fontWeight: '600', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, opacity: saving ? 0.6 : 1 }}>
             <Save size={20} />
             {saving ? 'Saving...' : isEditing ? 'Update Item' : 'Add Item'}
           </button>

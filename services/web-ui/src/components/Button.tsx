@@ -36,7 +36,7 @@ export default function Button({
   };
 
   const variantStyles = {
-    primary:   { background: gradient.primary, color: '#fff', border: 'none', shadow: `0 2px 8px ${isDark ? 'rgba(245,158,11,0.35)' : 'rgba(217,119,6,0.3)'}`, hoverShadow: `0 4px 16px ${isDark ? 'rgba(245,158,11,0.45)' : 'rgba(217,119,6,0.4)'}` },
+    primary:   { background: gradient.primary, color: colors.onPrimary, border: 'none', shadow: `0 2px 8px ${isDark ? 'rgba(245,158,11,0.35)' : 'rgba(217,119,6,0.3)'}`, hoverShadow: `0 4px 16px ${isDark ? 'rgba(245,158,11,0.45)' : 'rgba(217,119,6,0.4)'}` },
     secondary: { background: colors.accentBg, color: colors.primary, border: `1.5px solid ${colors.borderDark}`, shadow: 'none', hoverShadow: `0 2px 8px ${isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.07)'}` },
     ghost:     { background: 'transparent', color: colors.textSecondary, border: `1.5px solid ${colors.border}`, shadow: 'none', hoverShadow: 'none' },
     danger:    { background: 'linear-gradient(135deg, #ff3b30 0%, #d00 100%)', color: '#fff', border: 'none', shadow: '0 2px 8px rgba(255,59,48,0.3)', hoverShadow: '0 4px 16px rgba(255,59,48,0.4)' },

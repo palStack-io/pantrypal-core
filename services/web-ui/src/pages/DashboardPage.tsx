@@ -60,7 +60,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
       <div style={{ marginTop: spacing.xxl }}>
         <h2 style={{ marginBottom: spacing.lg, fontSize: '24px', fontWeight: 'bold' }}>Quick Actions</h2>
         <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap' }}>
-          <button onClick={() => onNavigate('/add')} style={{ background: colors.primary, border: 'none', padding: `${spacing.lg} ${spacing.xl}`, borderRadius: '8px', color: 'white', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>
+          <button onClick={() => onNavigate('/add')} style={{ background: colors.primary, border: 'none', padding: `${spacing.lg} ${spacing.xl}`, borderRadius: '8px', color: colors.onPrimary, fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>
             Add New Item
           </button>
           <button onClick={() => onNavigate('/inventory')} style={{ background: colors.primaryDark, border: 'none', padding: `${spacing.lg} ${spacing.xl}`, borderRadius: '8px', color: 'white', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>

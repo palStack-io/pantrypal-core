@@ -10,6 +10,15 @@ export interface ColorScheme {
   textPrimary: string;
   textSecondary: string;
   textTertiary: string;
+  /**
+   * Text/icon colour to put ON a `primary` fill.
+   *
+   * It is a token because it differs by theme and hardcoding 'white' was a
+   * measured AA failure: dark-mode `primary` is #f59e0b, and white on that is
+   * about 2.3:1 against the 4.5 required. Light mode's primary genuinely does
+   * clear AA with white, so the answer is per-theme rather than one colour.
+   */
+  onPrimary: string;
   background: string;
   card: string;
   cardHover: string;
@@ -35,17 +44,28 @@ export interface ShadowScheme {
 }
 
 export const lightColors: ColorScheme = {
-  // #d97706 fell just under AA for 13px body text on the cream ground; this is
-  // the same hue a step darker and clears it.
-  primary: '#c2690a',
+  // *** MEASURED 2026-09-20, AND THE PREVIOUS NOTE HERE WAS WRONG. ***
+  // The comment used to say #c2690a "clears AA" for body text. axe measured it
+  // at **3.95:1 on white and 3.67:1 on the page ground** -- it clears the 3:1
+  // bar for LARGE text only, and it was being used for 10-15px labels and as
+  // the fill under white text on every submit button.
+  //
+  // #a8590a is the same hue, two steps darker, and measures 5.12:1 on white,
+  // 4.76:1 on the page ground, and 5.12:1 with white on top -- so it clears AA
+  // as text AND as a fill, which is what lets one token do both jobs.
+  primary: '#a8590a',
   primaryDark: '#8a4a06',
   success: '#3f7d55',
   danger: '#b4451f',
-  warning: '#a8690b',
+  warning: '#9c6109',
   info: '#3f6f8f',
   textPrimary: '#231f1c',
   textSecondary: '#6d6560',
-  textTertiary: '#a49a92',
+  // #a49a92 measured 2.76:1 on a card -- the worst contrast in the product. It
+  // is the colour of an item's note and of several helper lines, i.e. text
+  // people are expected to read.
+  textTertiary: '#756c66',
+  onPrimary: '#ffffff',
   // Cards were #fffcf7 on a #fef6ec ground — barely a step apart, so nothing
   // read as lifted. True white cards on a slightly desaturated ground give the
   // grid real figure/ground without changing the brand's warmth.
@@ -58,7 +78,7 @@ export const lightColors: ColorScheme = {
   expiredBg: '#fbeceb',
   expiredText: '#8f2d2d',
   warningBg: '#fdf4e3',
-  warningText: '#a8690b',
+  warningText: '#9c6109',
   goodText: '#3f7d55',
 };
 
@@ -72,6 +92,8 @@ export const darkColors: ColorScheme = {
   textPrimary: '#fafaf9',
   textSecondary: '#d6d3d1',
   textTertiary: '#a8a29e',
+  // Dark brown on amber: ~8.9:1. White would be ~2.3:1.
+  onPrimary: '#231f1c',
   background: '#0c0a09',
   card: '#1e1a17',
   cardHover: '#292524',
@@ -89,8 +111,11 @@ export function getColors(isDark: boolean): ColorScheme {
   return isDark ? darkColors : lightColors;
 }
 
+// Both ends have to clear AA against onPrimary, not just the average: the text
+// sits across the whole sweep. Light ends measured with white (4.99 / 5.33),
+// dark ends with #231f1c (8.08 / 4.76). The old light end #d98219 was 2.93.
 export const getGradient = (isDark: boolean): GradientScheme => ({
-  primary: `linear-gradient(135deg, ${isDark ? '#f0a83c' : '#d98219'} 0%, ${isDark ? '#c2690a' : '#a8540a'} 100%)`,
+  primary: `linear-gradient(135deg, ${isDark ? '#f0a83c' : '#ad590a'} 0%, ${isDark ? '#cf7310' : '#a8540a'} 100%)`,
   success: `linear-gradient(135deg, ${isDark ? '#7fc194' : '#4f9268'} 0%, ${isDark ? '#4f9268' : '#3f7d55'} 100%)`,
 });
 
@@ -179,9 +204,12 @@ export const getFreshness = (isDark: boolean): Record<FreshnessState, { fg: stri
     : {
         expired: { fg: '#8f2d2d', bg: '#fbeceb' },
         urgent: { fg: '#b4451f', bg: '#fdefe7' },
-        soon: { fg: '#a8690b', bg: '#fdf4e3' },
-        fresh: { fg: '#3f7d55', bg: '#eaf4ec' },
-        none: { fg: '#8a817a', bg: '#f2ede7' },
+        // 4.48:1 -- under the bar by a hair, on the "N days left" line that is
+        // the single most-read piece of text in the product.
+        soon: { fg: '#9c6109', bg: '#fdf4e3' },
+        // 4.36:1 on its own chip -- the same near-miss `soon` had.
+        fresh: { fg: '#336845', bg: '#eaf4ec' },
+        none: { fg: '#756c66', bg: '#f2ede7' },
       };
 
 export const colors = lightColors;

@@ -76,10 +76,14 @@ export function getFreshnessState(expiryDate: string | null | undefined): Freshn
  * light-mode ink.
  */
 export function getExpiryColor(expiryDate: string | null | undefined): string {
+  // *** MUST TRACK THE LIGHT RAMP IN `getFreshness` (colors.ts). ***
+  // These drifted once already: this table kept #a8690b (4.48:1) and #8a817a
+  // after colors.ts moved to the AA-clearing values, so the same state was one
+  // colour on a card and a different one in a table.
   const colorMap: Record<ExpiryStatus, string> = {
-    none: '#8a817a',
-    good: '#3f7d55',
-    warning: '#a8690b',
+    none: '#756c66',
+    good: '#336845',
+    warning: '#9c6109',
     critical: '#b4451f',
     expired: '#8f2d2d',
   };

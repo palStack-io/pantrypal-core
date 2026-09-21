@@ -2,6 +2,7 @@ import { useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { getColors, borderRadius, spacing } from '../colors';
 import { useTheme } from '../context/ThemeContext';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { getEmojiForCategory } from '../defaults';
 import type { Item } from '../types';
 
@@ -19,6 +20,7 @@ interface QRPayload {
 }
 
 export function QRLabelModal({ item, onClose }: Props) {
+  const modal = useModalBehavior(onClose);
   const { isDark } = useTheme();
   const colors = getColors(isDark);
   const labelRef = useRef<HTMLDivElement>(null);
@@ -142,12 +144,13 @@ export function QRLabelModal({ item, onClose }: Props) {
       onClick={onClose}
     >
       <div
+        {...modal.panelProps}
         style={{ backgroundColor: colors.card, borderRadius: borderRadius.xl, padding: spacing.xl, maxWidth: 380, width: '90%', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}
         onClick={e => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: colors.textPrimary }}>QR Label</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: colors.textSecondary }}>×</button>
+          <h3 id={modal.titleId} style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: colors.textPrimary }}>QR Label</h3>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: colors.textSecondary }}>×</button>
         </div>
 
         <div
@@ -172,7 +175,7 @@ export function QRLabelModal({ item, onClose }: Props) {
         <div style={{ display: 'flex', gap: spacing.sm }}>
           <button
             onClick={handleDownload}
-            style={{ flex: 1, padding: '10px', backgroundColor: colors.primary, color: '#fff', border: 'none', borderRadius: borderRadius.md, cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}
+            style={{ flex: 1, padding: '10px', backgroundColor: colors.primary, color: colors.onPrimary, border: 'none', borderRadius: borderRadius.md, cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}
           >
             ⬇ Download PNG
           </button>

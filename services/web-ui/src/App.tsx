@@ -110,6 +110,10 @@ function AppContent() {
 
   return (
     <div className="app">
+      {/* First in the DOM on purpose: tab order follows DOM order, so a skip
+          link placed after the sidebar is only reachable by tabbing through
+          the ~30 stops it exists to skip. It is off-screen until focused. */}
+      <a className="skip-link" href="#main">Skip to content</a>
       {tourActive && (
         <TourOverlay
           step={tourStep}
@@ -123,7 +127,7 @@ function AppContent() {
       <Sidebar isOpen={sidebarOpen} currentPath={location.pathname} onNavigate={navigate} onFilterChange={handleFilterChange} currentFilters={filters} />
       <TopBar currentUser={currentUser} onLogout={() => { setCurrentUser(null); setShowLanding(true); navigate('/'); }} onSettingsClick={() => navigate('/settings')} onToggleDark={toggleDark} />
       <div className="main-content-wrapper">
-        <main className="main-content">
+        <main className="main-content" id="main" tabIndex={-1}>
           <Routes>
             <Route path="/" element={<InventoryPage sidebarFilters={filters} />} />
             <Route path="/inventory" element={<InventoryPage sidebarFilters={filters} />} />

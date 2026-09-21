@@ -368,7 +368,7 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
 
   return (
     <div style={{ padding: spacing.xl }}>
-      {successMessage && <div style={{ position: 'fixed', top: '20px', right: '20px', padding: '16px 24px', background: 'rgba(52, 199, 89, 0.95)', color: 'white', borderRadius: '12px', fontSize: '14px', fontWeight: '600', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)', zIndex: 1000 }}>{successMessage}</div>}
+      {successMessage && <div role="status" aria-live="polite" style={{ position: 'fixed', top: '20px', right: '20px', padding: '16px 24px', background: 'rgba(52, 199, 89, 0.95)', color: 'white', borderRadius: '12px', fontSize: '14px', fontWeight: '600', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)', zIndex: 1000 }}>{successMessage}</div>}
 
       <div style={{ marginBottom: spacing.xl }}>
         <h1 style={{ margin: 0, fontSize: '32px', fontWeight: 'bold', color: colors.textPrimary }}>Recipes</h1>
@@ -390,7 +390,7 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
 
       <div style={{ display: 'flex', gap: spacing.sm, marginBottom: spacing.lg, flexWrap: 'wrap' }}>
         {[{ id: 'expiring', label: 'Expiring Soon', count: filterCounts.expiring, icon: '⚠️' }, { id: 'canMake', label: 'Can Make Now', count: filterCounts.canMake, icon: '✓' }, { id: 'all', label: 'All Recipes', count: filterCounts.all, icon: '📚' }, { id: 'favorites', label: 'Favorites', count: filterCounts.favorites, icon: '⭐' }].map((tab) => (
-          <button key={tab.id} onClick={() => setFilterMode(tab.id)} style={{ padding: `${spacing.sm} ${spacing.md}`, borderRadius: borderRadius.md, background: filterMode === tab.id ? colors.primary : colors.card, border: `1px solid ${filterMode === tab.id ? colors.primary : colors.border}`, fontSize: '14px', fontWeight: '500', color: filterMode === tab.id ? 'white' : colors.textSecondary, cursor: 'pointer', transition: 'all 0.2s' }}>
+          <button key={tab.id} onClick={() => setFilterMode(tab.id)} style={{ padding: `${spacing.sm} ${spacing.md}`, borderRadius: borderRadius.md, background: filterMode === tab.id ? colors.primary : colors.card, border: `1px solid ${filterMode === tab.id ? colors.primary : colors.border}`, fontSize: '14px', fontWeight: '500', color: filterMode === tab.id ? colors.onPrimary : colors.textSecondary, cursor: 'pointer', transition: 'all 0.2s' }}>
             {tab.icon} {tab.label} ({tab.count})
           </button>
         ))}
@@ -411,7 +411,7 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
           <p style={{ fontSize: '14px', color: colors.textSecondary, marginBottom: spacing.lg }}>
             {filterMode === 'expiring' ? 'No recipes using expiring ingredients.' : filterMode === 'canMake' ? 'No recipes you can make with current ingredients.' : filterMode === 'favorites' ? 'No favorite recipes yet.' : 'Import recipes from your recipe manager to get started.'}
           </p>
-          {filterMode === 'all' && <button onClick={handleImport} disabled={importing} style={{ padding: `${spacing.sm} ${spacing.lg}`, borderRadius: borderRadius.md, background: importing ? colors.textSecondary : colors.primary, color: 'white', fontWeight: '500', fontSize: '14px', cursor: importing ? 'not-allowed' : 'pointer', border: 'none' }}>{importing ? 'Importing...' : 'Import Recipes'}</button>}
+          {filterMode === 'all' && <button onClick={handleImport} disabled={importing} style={{ padding: `${spacing.sm} ${spacing.lg}`, borderRadius: borderRadius.md, background: importing ? colors.textSecondary : colors.primary, color: colors.onPrimary, fontWeight: '500', fontSize: '14px', cursor: importing ? 'not-allowed' : 'pointer', border: 'none' }}>{importing ? 'Importing...' : 'Import Recipes'}</button>}
         </div>
       )}
 
@@ -589,7 +589,7 @@ function RecipeDetailView({ recipe, colors, onBack, onToggleFavorite, onAddMissi
 
       {/* Action buttons */}
       <div style={{ padding: `${spacing.md} ${spacing.xl}`, display: 'flex', gap: spacing.sm, borderBottom: `1px solid ${colors.border}` }}>
-        <button onClick={handleStartCooking} style={{ padding: `${spacing.sm} ${spacing.lg}`, borderRadius: borderRadius.md, background: colors.primary, color: 'white', fontWeight: '600', fontSize: '14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit' }}>🍳 Start Cooking</button>
+        <button onClick={handleStartCooking} style={{ padding: `${spacing.sm} ${spacing.lg}`, borderRadius: borderRadius.md, background: colors.primary, color: colors.onPrimary, fontWeight: '600', fontSize: '14px', cursor: 'pointer', border: 'none', fontFamily: 'inherit' }}>🍳 Start Cooking</button>
         {missingCount > 0 && <button onClick={(e) => onAddMissingToShoppingList(recipe, e)} style={{ padding: `${spacing.sm} ${spacing.lg}`, borderRadius: borderRadius.md, background: colors.card, border: `1px solid ${colors.border}`, color: colors.textPrimary, fontWeight: '500', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>Add {missingCount} Missing to List</button>}
       </div>
 
@@ -622,7 +622,7 @@ function RecipeDetailView({ recipe, colors, onBack, onToggleFavorite, onAddMissi
                   const stepText = typeof step === 'string' ? step : ((step.text || step.instruction || '') as string);
                   return (
                     <div key={idx} style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.md }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: colors.primary, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', flexShrink: 0 }}>{idx + 1}</div>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: colors.primary, color: colors.onPrimary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '12px', flexShrink: 0 }}>{idx + 1}</div>
                       <div style={{ flex: 1, fontSize: '14px', lineHeight: '1.6', color: colors.textPrimary }}>{stepText}</div>
                     </div>
                   );
@@ -670,7 +670,7 @@ function RecipeDetailView({ recipe, colors, onBack, onToggleFavorite, onAddMissi
             <div style={{ background: colors.card, borderRadius: borderRadius.lg, padding: spacing.md, border: `1px solid ${colors.border}` }}>
               <h3 style={{ fontSize: '14px', fontWeight: '600', color: colors.textPrimary, margin: 0, marginBottom: spacing.md }}>Your Notes</h3>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Add your notes..." style={{ width: '100%', padding: spacing.sm, background: colors.background, borderRadius: borderRadius.md, fontSize: '13px', color: colors.textPrimary, lineHeight: '1.5', border: `1px solid ${colors.border}`, minHeight: '80px', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-              <button onClick={handleSaveNotes} disabled={savingNotes} style={{ marginTop: spacing.sm, width: '100%', padding: spacing.sm, borderRadius: borderRadius.md, background: savingNotes ? colors.textSecondary : colors.primary, color: 'white', fontWeight: '500', fontSize: '13px', cursor: savingNotes ? 'not-allowed' : 'pointer', border: 'none', fontFamily: 'inherit' }}>
+              <button onClick={handleSaveNotes} disabled={savingNotes} style={{ marginTop: spacing.sm, width: '100%', padding: spacing.sm, borderRadius: borderRadius.md, background: savingNotes ? colors.textSecondary : colors.primary, color: colors.onPrimary, fontWeight: '500', fontSize: '13px', cursor: savingNotes ? 'not-allowed' : 'pointer', border: 'none', fontFamily: 'inherit' }}>
                 {savingNotes ? 'Saving...' : 'Save Notes'}
               </button>
             </div>

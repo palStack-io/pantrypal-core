@@ -27,7 +27,7 @@ export function StatsCard({ icon: Icon, label, value, color, trend }: StatsCardP
       onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = shadows.large; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = shadows.medium; }}
     >
-      <div style={{ background: gradient.primary, padding: spacing.md, display: 'flex', alignItems: 'center', gap: spacing.sm, color: 'white' }}>
+      <div style={{ background: gradient.primary, padding: spacing.md, display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.onPrimary }}>
         {Icon && <Icon size={24} />}
         <span style={{ fontWeight: '600', fontSize: '14px' }}>{label}</span>
       </div>
