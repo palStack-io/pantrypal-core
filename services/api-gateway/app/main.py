@@ -827,7 +827,7 @@ async def list_api_keys(auth = Depends(get_current_auth)):
         raise HTTPException(status_code=500, detail="Failed to list API keys")
 
 @app.delete("/api/auth/keys/{key_id}")
-async def delete_api_key(key_id: int, auth = Depends(get_current_auth)):
+async def delete_api_key(key_id: str, auth = Depends(get_current_auth)):
     """Permanently delete an API key"""
     try:
         success = pg_api_keys.delete_api_key(key_id)
@@ -841,7 +841,7 @@ async def delete_api_key(key_id: int, auth = Depends(get_current_auth)):
         raise HTTPException(status_code=500, detail="Failed to delete API key")
 
 @app.post("/api/auth/keys/{key_id}/revoke")
-async def revoke_api_key(key_id: int, auth = Depends(get_current_auth)):
+async def revoke_api_key(key_id: str, auth = Depends(get_current_auth)):
     """Revoke (deactivate) an API key without deleting it"""
     try:
         success = pg_api_keys.revoke_api_key(key_id)
