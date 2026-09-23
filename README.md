@@ -82,17 +82,30 @@ Once you solve one household problem with code, you start seeing opportunities e
 
 ---
 
-## 🚀 Hosting Options
+## 🚀 Core vs Premium
 
-**Self-Host (Available Now)**  
-Deploy pantryPal on your own infrastructure with our one-command setup. Full features, complete control, free forever.
+pantryPal comes in two editions:
 
-**Managed Hosting (Coming Soon!)**  
-Don't want to manage servers? We're launching a managed hosting service where we handle everything:
-- ✅ Automatic updates and backups
-- ✅ 99.9% uptime guarantee  
-- ✅ Professional support
-- ✅ Same features as self-hosted
+- **Core (self-hosted)**: this repository. Free, runs on your own server with Docker, and your data never leaves your network. Everything in this README describes Core.
+- **Premium (hosted)**: the managed service at [pantrypal.palstack.io](https://pantrypal.palstack.io), run by palStack. It adds AI and multi-pantry features on top of Core. There's a Free plan, and Personal, Family and Professional plans are coming soon ([pricing](https://palstack.io/pantrypal#pricing)). Premium's code is proprietary and can't be self-hosted.
+
+| Feature | Core (self-hosted) | Premium (hosted) |
+|---|---|---|
+| Inventory, barcode scanning, expiry alerts, locations, categories, QR labels | ✅ | ✅ |
+| Shared shopping list | ✅ | ✅ |
+| Web app (PWA) and iOS / Android app | ✅ | ✅ |
+| Home Assistant integration and API keys | ✅ | ✅ |
+| Household members | ✅ One shared pantry per server | ✅ Member limit depends on plan |
+| Multiple pantries | — | ✅ Family and Professional |
+| Sign-in | ✅ Password, Google, Apple, any OIDC provider | ✅ Password, Google, Apple |
+| Mealie / Tandoor recipe import and pantry matching | ✅ Bring your own server | ✅ Personal and up |
+| AI-assisted recipe finding | — | ✅ Personal and up (monthly quota) |
+| Receipt scanning (photo → pantry items) | — | ✅ Personal and up (monthly quota) |
+| Nutrition info and portion scaling | — | ✅ Personal and up |
+| Backups | ✅ Built-in backup container you manage | ✅ Managed daily backups |
+| Where your data lives | Your own server | palStack's servers |
+
+The mobile app works with both. It detects which edition it's connected to, and on a Core server premium-only features are hidden or shown as locked (**PRO**).
 - ✅ Subscription-based pricing
 
 **Stay updated:** [palstack.io](https://palstack.io) | Email: support@palstack.io
@@ -154,7 +167,7 @@ Don't want to manage servers? We're launching a managed hosting service where we
 
 ### For Home Assistant Fans
 - **REST API Integration**: Pull pantry data and expiring items into Home Assistant
-- **Shopping List Sync**: Bi-directional sync with Home Assistant shopping lists
+- **Shopping List Access**: Read, add, check off and clear shopping-list items from Home Assistant
 - **Automation Support**: Trigger notifications, shopping lists, and custom automations
 - **Voice Control Ready**: Foundation laid for Google Assistant/Alexa integration
 - **Self-Hosted**: No cloud dependencies, runs entirely on your network
@@ -166,15 +179,15 @@ Don't want to manage servers? We're launching a managed hosting service where we
 - **No Tracking**: No analytics, no telemetry, no phone-home
 - **Full Control**: Modify anything you want, it's your code
 - **Secure by Default**: Multiple authentication modes for different use cases
-- **OIDC Support**: Single Sign-On with Google, Microsoft, Keycloak, Authentik
+- **SSO Support**: Google and Apple sign-in, plus any OIDC provider (Authentik, Keycloak, Authelia, Okta, Azure AD)
 
 ### Advanced Features
 - **Local Image Storage**: Recipe, product, and user photos stored on disk — no external object storage required
-- **Multi-architecture Support**: AMD64 and ARM64 Docker images
+- **Prebuilt Images**: AMD64 images on GHCR (build from source for ARM64)
 - **Microservices Architecture**: Separate services for inventory, lookup, and gateway
 - **30-day Barcode Cache**: Reduce API calls with intelligent caching
-- **Email Notifications**: Password recovery and account verification
-- **Session Management**: 30-day sessions with device tracking
+- **Account Emails**: Password recovery, account verification, and welcome emails (expiry alerts are mobile notifications)
+- **Session Management**: Sessions extend automatically while in use, with IP/device info recorded
 - **Batch Operations**: Bulk edit, delete, and filter inventory items
 - **TypeScript Throughout**: Full TypeScript codebase on web and mobile for type safety
 
@@ -248,7 +261,7 @@ docker compose up -d
 - (Optional) Home Assistant instance for smart home integration
 - (Optional) Mealie or Tandoor for recipe management
 - For iOS app: Request TestFlight access (email: support@palstack.io)
-- For OIDC: OAuth2 provider credentials (Google, Microsoft, etc.)
+- For SSO: a Google client ID, or OIDC client credentials from your identity provider
 
 **📚 Detailed setup guides available at [palstack.io/pantrypal/docs](https://palstack.io/pantrypal/docs)**
 
@@ -279,7 +292,7 @@ nginx (reverse proxy)
 - **Barcode Data**: Open Food Facts API + UPCitemDB fallback
 - **Authentication**: bcrypt, session tokens, OIDC (Authlib 1.3)
 - **Email**: aiosmtplib 3.0 (async SMTP)
-- **Multi-arch**: AMD64 + ARM64 Docker images
+- **Images**: AMD64 (prebuilt on GHCR)
 
 ---
 
@@ -297,16 +310,14 @@ pantryPal supports flexible authentication to fit different use cases. Configure
 **Default Mode:** `full` - All users must create accounts and login, ensuring secure access from anywhere.
 
 ### Authentication Features
-- **Session-based authentication** for web and mobile (30-day sessions)
+- **Session-based authentication** for web and mobile (extends automatically while in use)
 - **API key support** for Home Assistant and service integrations
 - **Biometric authentication** on mobile (Face ID, Touch ID, Fingerprint)
-- **OIDC/OAuth2 support** for Single Sign-On:
-  - Google
-  - Microsoft
-  - Keycloak
-  - Authentik
-  - Auto account linking by email
-  - PKCE flow with state validation
+- **Google and Apple sign-in** (native ID-token verification)
+- **OIDC/OAuth2 support** for Single Sign-On with any OIDC provider:
+  - Authentik, Keycloak, Authelia, Okta, Azure AD / Microsoft Entra
+  - Auto account linking by verified email
+  - Authorization-code flow with state validation
 - **Email verification** for new accounts
 - **Password reset** via email (1-hour token TTL)
 - **Multi-user support** with admin capabilities
@@ -615,19 +626,19 @@ The self-hosted version is **free and open source** under AGPL-3.0:
 
 ### pantryPal Premium (Proprietary) - Managed Hosting Only
 
-Our managed hosting service will include **proprietary premium features**:
-- 🤖 **AI-powered receipt scanning** - Photo to pantry in seconds
-- 📊 **Advanced analytics** - Food waste insights and patterns
-- 🍳 **Smart meal planning** - AI-suggested meals from inventory
-- 🛒 **Auto-reordering** - Integration with grocery delivery services
-- 📧 **Enhanced notifications** - Smarter expiry alerts
-- ⚡ **Priority support** - Direct access to the team
+The hosted service at [pantrypal.palstack.io](https://pantrypal.palstack.io) adds **proprietary premium features** on top of Core (see [Core vs Premium](#-core-vs-premium)):
+- 🤖 **AI-assisted recipe finding** - Real, attributed recipes built around what's in your pantry
+- 🧾 **Receipt scanning** - Photograph a receipt, get pantry items with expiry dates
+- 🥗 **Nutrition info and portion scaling**
+- 🏠 **Multiple pantries** - For bigger households
+- 💾 **Managed daily backups**
+- ⚡ **Priority support** on Family and Professional plans
 
 **Premium features are:**
 - Available **only** via managed hosting subscription
 - **Not open source** (proprietary code)
 - Used to fund development of the free Core version
-- Coming soon at [pantrypal.palstack.io](https://pantrypal.palstack.io)
+- Live at [pantrypal.palstack.io](https://pantrypal.palstack.io): Free plan now, paid plans coming soon
 
 ### Why Dual Licensing?
 
@@ -670,8 +681,8 @@ We're not building engagement platforms or harvesting data. We solve real proble
 - **Dog-Fooded**: We use what we build daily
 
 **Two Paths:**
-1. **Self-Host** - Free forever, full features, community support
-2. **Managed Hosting** - Coming soon! We handle infrastructure, you enjoy the app
+1. **Self-Host (Core)** - Free forever, full control, community support
+2. **Hosted Premium** - [pantrypal.palstack.io](https://pantrypal.palstack.io): we handle the infrastructure and add AI features
 
 We're building sustainable tools that help people, not chasing unicorns. If we can pay our bills doing it—and sleep well at night—that's success.
 
