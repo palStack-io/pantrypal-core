@@ -4,9 +4,17 @@
 # Drop this file directly into Portainer → Stacks → Add Stack → Web editor.
 #
 # BEFORE DEPLOYING:
-#   1. Replace every  CHANGEME  value with your own secret.
-#      - DB_PASSWORD     → any strong password
-#      - SECRET_KEY      → run: openssl rand -hex 32
+#   1. Replace every  CHANGEME  value with your own secret. There are no
+#      shared defaults — every install must generate its own:
+#      - DB_PASSWORD             → any strong password (same value everywhere
+#                                  it appears, including each DATABASE_URL)
+#      - SECRET_KEY              → run: openssl rand -hex 32
+#      - ENCRYPTION_SALT         → run: openssl rand -base64 32
+#      - INTERNAL_SERVICE_TOKEN  → run: openssl rand -hex 32 (same value in
+#                                  api-gateway, inventory and lookup)
+#      Set them once and keep them: changing DB_PASSWORD locks you out of the
+#      existing database; changing SECRET_KEY or ENCRYPTION_SALT makes saved
+#      Mealie/Tandoor credentials unreadable.
 #   2. Optional env vars (SMTP, APP_URL) can be left blank —
 #      features that need them will simply be disabled at runtime.
 #   3. AUTH_MODE controls access:

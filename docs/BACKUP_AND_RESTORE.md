@@ -2,21 +2,20 @@
 
 ## Overview
 
-PantryPal runs a dedicated `backup` service that automatically backs up all persistent data on a configurable cron schedule. Three categories of data are covered:
+PantryPal runs a dedicated `backup` service that automatically backs up all persistent data on a configurable cron schedule. Two categories of data are covered:
 
 | Category | Tool | What's included |
 |---|---|---|
-| PostgreSQL | `pg_dump` + gzip | Users, sessions, recipes, OIDC, API keys, password reset tokens |
-| SQLite | `sqlite3 .backup` | `users.db`, `api_keys.db`, `inventory.db` |
+| PostgreSQL | `pg_dump` + gzip | Everything in the database — users, sessions, API keys, OIDC links, inventory, shopping lists, recipes, and the barcode cache |
 | Local storage | `cp -a` | Recipe, product, and user images under `LOCAL_STORAGE_PATH` |
 
-> **Not backed up:** `lookup_cache.db` — this is a 30-day TTL barcode cache that repopulates automatically from Open Food Facts. There is no value in restoring it.
+> **Also keep a copy of your `.env`.** The backups don't include it, and a restored database is useless without the same `DB_PASSWORD`, `SECRET_KEY` and `ENCRYPTION_SALT` — saved Mealie/Tandoor credentials can only be decrypted with the original `SECRET_KEY` + `ENCRYPTION_SALT`.
 
 ---
 
 ## Backup Storage Layout
 
-### docker-compose / docker-compose.prod (bind mounts)
+### docker-compose (bind mounts)
 
 Backups land in the `./backups/` directory on the host:
 
@@ -24,11 +23,6 @@ Backups land in the `./backups/` directory on the host:
 ./backups/
 ├── postgres/
 │   └── pantrypal_2026-04-02_020000.sql.gz
-├── sqlite/
-│   └── 2026-04-02/
-│       ├── users.db
-│       ├── api_keys.db
-│       └── inventory.db
 ├── storage/
 │   └── 2026-04-02/
 │       ├── products/
@@ -58,7 +52,7 @@ docker run --rm \
 
 Backups are **disabled by default**. To enable:
 
-### docker-compose / docker-compose.prod
+### docker-compose
 
 In your `.env` file:
 
@@ -118,8 +112,9 @@ docker exec pantrypal-backup cat /var/log/backup.log
 ### Restore PostgreSQL
 
 ```bash
-# 1. Stop the api-gateway (the only service writing to postgres)
-docker compose stop api-gateway
+# 1. Stop every service that connects to postgres (DROP DATABASE fails while
+#    any connection is open)
+docker compose stop api-gateway inventory-service lookup-service backup
 
 # 2. Drop and recreate the database
 docker exec pantrypal-postgres psql -U pantrypal -c "DROP DATABASE pantrypal;"
@@ -129,48 +124,8 @@ docker exec pantrypal-postgres psql -U pantrypal -c "CREATE DATABASE pantrypal;"
 gunzip -c ./backups/postgres/pantrypal_2026-04-02_020000.sql.gz \
   | docker exec -i pantrypal-postgres psql -U pantrypal -d pantrypal
 
-# 4. Restart the api-gateway
-docker compose start api-gateway
-```
-
----
-
-### Restore SQLite Databases
-
-Each SQLite file is independent. Replace only the one(s) you need.
-
-```bash
-# 1. Stop the service that owns the database
-docker compose stop api-gateway          # for users.db / api_keys.db
-docker compose stop inventory-service    # for inventory.db
-
-# 2. Copy the backup file over the live file
-#    (adjust the date folder to your chosen backup)
-
-# users.db
-cp ./backups/sqlite/2026-04-02/users.db ./data/users.db
-
-# api_keys.db
-cp ./backups/sqlite/2026-04-02/api_keys.db ./data/api_keys.db
-
-# inventory.db
-cp ./backups/sqlite/2026-04-02/inventory.db ./data/inventory/inventory.db
-
-# 3. Restart the service(s)
-docker compose start api-gateway inventory-service
-```
-
-#### Portainer (named volumes)
-
-Use a temporary container to copy files into the volume:
-
-```bash
-# Example: restore users.db into the gateway_data volume
-docker run --rm \
-  -v $(pwd)/backups/sqlite/2026-04-02:/backup \
-  -v pantrypal_gateway_data:/data \
-  alpine \
-  cp /backup/users.db /data/users.db
+# 4. Restart the services
+docker compose start api-gateway inventory-service lookup-service backup
 ```
 
 ---
@@ -196,6 +151,9 @@ docker compose start api-gateway
 Use this when restoring to a fresh host or after complete data loss.
 
 ```bash
+# 0. Put your original .env (same DB_PASSWORD, SECRET_KEY, ENCRYPTION_SALT,
+#    INTERNAL_SERVICE_TOKEN) next to docker-compose.yml
+
 # 1. Bring up just the infrastructure (postgres) — not the app
 docker compose up -d postgres
 
@@ -206,15 +164,10 @@ docker compose ps
 gunzip -c ./backups/postgres/pantrypal_YYYY-MM-DD_HHMMSS.sql.gz \
   | docker exec -i pantrypal-postgres psql -U pantrypal -d pantrypal
 
-# 4. Restore SQLite files
-cp ./backups/sqlite/YYYY-MM-DD/users.db      ./data/users.db
-cp ./backups/sqlite/YYYY-MM-DD/api_keys.db   ./data/api_keys.db
-cp ./backups/sqlite/YYYY-MM-DD/inventory.db  ./data/inventory/inventory.db
-
-# 5. Restore local storage files
+# 4. Restore local storage files
 cp -a ./backups/storage/YYYY-MM-DD/. ./data/storage/
 
-# 6. Bring up the rest of the stack
+# 5. Bring up the rest of the stack
 docker compose up -d
 ```
 

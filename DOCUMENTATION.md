@@ -447,14 +447,22 @@ Base URL: `/api/`
 
 ### Quick Start
 ```bash
-# Option 1: Docker Hub (easiest)
-curl -O https://raw.githubusercontent.com/harung1993/pantrypal/main/docker-compose-hub.yml
-docker-compose -f docker-compose-hub.yml up -d
+# Option 1: Prebuilt images from GHCR (easiest)
+curl -O https://raw.githubusercontent.com/palStack-io/pantrypal-core/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/palStack-io/pantrypal-core/main/.env.example
 
 # Option 2: Build from source
-git clone https://github.com/harung1993/pantrypal.git
-cd pantrypal/backend
-docker-compose up -d
+git clone https://github.com/palStack-io/pantrypal-core.git
+cd pantrypal-core
+cp .env.example .env
+
+# Either way: generate your own secrets (required — there are no defaults)
+for v in DB_PASSWORD SECRET_KEY INTERNAL_SERVICE_TOKEN ENCRYPTION_SALT; do
+  sed -i.bak "s/^$v=\$/$v=$(openssl rand -hex 32)/" .env
+done && rm .env.bak
+
+docker compose up -d                                   # Option 1
+docker compose -f docker-compose.dev.yml up -d --build # Option 2
 
 # Access at http://localhost:8888
 ```
@@ -468,6 +476,10 @@ docker-compose up -d
 ### Environment Variables
 | Variable | Purpose |
 |----------|---------|
+| `DB_PASSWORD` | **Required.** PostgreSQL password |
+| `SECRET_KEY` | **Required.** Encryption key for stored credentials |
+| `INTERNAL_SERVICE_TOKEN` | **Required.** Service-to-service auth token |
+| `ENCRYPTION_SALT` | **Required.** Salt for credential encryption |
 | `AUTH_MODE` | none, api_key_only, full, smart |
 | `ALLOW_REGISTRATION` | Enable/disable signup (default: `false`) |
 | `APP_URL` | Base URL for email links |
@@ -485,7 +497,7 @@ docker-compose up -d
 
 ### Backend Services
 ```bash
-cd backend/services/api-gateway
+cd services/api-gateway
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -494,7 +506,7 @@ uvicorn app.main:app --reload --port 8000
 
 ### Web Frontend
 ```bash
-cd backend/services/web-ui
+cd services/web-ui
 npm install
 npm run dev
 ```
@@ -508,17 +520,15 @@ npx expo start
 
 ### Docker Services
 ```bash
-cd backend
-
-# Build all services
-docker-compose build
+# Build all services from this checkout
+docker compose -f docker-compose.dev.yml build
 
 # Start stack
-docker-compose up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # View logs
-docker-compose logs -f
+docker compose -f docker-compose.dev.yml logs -f
 
 # Stop stack
-docker-compose down
+docker compose -f docker-compose.dev.yml down
 ```

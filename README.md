@@ -11,6 +11,13 @@
   </p>
 </div>
 
+> [!WARNING]
+> **pantryPal is under active, constant development.** This repo changes frequently —
+> features, configuration, environment variables, and APIs may change between releases
+> without notice. Pin an image tag (e.g. `pantrypal-api-gateway:api-gateway-<sha>`)
+> rather than `latest` if you need stability, back up before upgrading, and check the
+> commit history before pulling new images.
+
 ---
 
 **Open source, privacy-first pantry management from palStack**
@@ -197,25 +204,29 @@ Don't want to manage servers? We're launching a managed hosting service where we
 Pull pre-built images from GitHub Container Registry:
 
 ```bash
-# Download docker-compose file
+# 1. Download the compose file and the example config
 curl -O https://raw.githubusercontent.com/palStack-io/pantrypal-core/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/palStack-io/pantrypal-core/main/.env.example
 
-# (Optional) Create .env file for email notifications
-cat > .env << 'EOF'
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-gmail-app-password
-SMTP_FROM_EMAIL=your-email@gmail.com
-SMTP_FROM_NAME=pantryPal
-SMTP_USE_TLS=true
-EOF
+# 2. Generate your own secrets (required — pantryPal ships with none)
+for v in DB_PASSWORD SECRET_KEY INTERNAL_SERVICE_TOKEN ENCRYPTION_SALT; do
+  sed -i.bak "s/^$v=\$/$v=$(openssl rand -hex 32)/" .env
+done && rm .env.bak
 
-# Start pantryPal
-docker-compose up -d
+# 3. (Optional) Edit .env to set APP_URL, SMTP for email, and SSO
+
+# 4. Start pantryPal
+docker compose up -d
 
 # Access at http://localhost:8888
 ```
+
+> **Required secrets:** `docker compose` won't start until `DB_PASSWORD`, `SECRET_KEY`,
+> `INTERNAL_SERVICE_TOKEN`, and `ENCRYPTION_SALT` are set in `.env`. There are no defaults —
+> every install must generate its own (step 2 above does this). Set them once, before the
+> first start, and keep them: changing `DB_PASSWORD` later locks you out of the existing
+> database, and changing `SECRET_KEY` or `ENCRYPTION_SALT` makes saved Mealie/Tandoor
+> credentials unreadable. Keep `.env` out of git.
 
 **First Time Setup:**
 1. Open http://localhost:8888 in your browser
@@ -254,12 +265,13 @@ nginx (reverse proxy)
 ├── api-gateway (FastAPI)          # Authentication, routing, email, OIDC, recipes, local image storage
 ├── inventory-service              # Item CRUD, shopping lists, locations
 ├── lookup-service                 # Barcode to product info (cached)
-└── web-ui (React + TypeScript)    # PWA dashboard interface
+├── web-ui (React + TypeScript)    # PWA dashboard interface
+└── backup                         # Scheduled PostgreSQL + image backups (opt-in)
 ```
 
 **Tech Stack:**
 - **Backend**: Python 3.11+ / FastAPI 0.104
-- **Frontend**: React 19.1 + Vite + TypeScript — PWA with offline support (Workbox)
+- **Frontend**: React 19.2 + Vite + TypeScript — PWA with offline support (Workbox)
 - **Mobile**: React Native 0.81 / Expo SDK 54 — TypeScript, iOS & Android
 - **Database**: PostgreSQL 15
 - **Object Storage**: Local filesystem (no external dependency)
@@ -307,6 +319,16 @@ pantryPal supports flexible authentication to fit different use cases. Configure
 ### Environment Variables
 
 pantryPal can be configured via environment variables in your `.env` file or `docker-compose.yml`:
+
+#### Required Secrets
+No defaults — generate each with `openssl rand -hex 32`. See [Quick Start](#quick-start).
+
+| Variable | Description |
+|----------|-------------|
+| `DB_PASSWORD` | PostgreSQL password. Fixed at first start — don't change it afterwards |
+| `SECRET_KEY` | Encryption key for stored integration credentials; also signs the SSO login round-trip |
+| `INTERNAL_SERVICE_TOKEN` | Shared token the internal services use to authenticate each other |
+| `ENCRYPTION_SALT` | Salt for encrypting stored integration credentials |
 
 #### Authentication & Security
 | Variable | Default | Description |
@@ -360,6 +382,12 @@ Redirect-flow OIDC for self-hosted IdPs — Authentik, Keycloak, Authelia, Okta,
 
 ```bash
 # .env file
+# Required — generate each with: openssl rand -hex 32
+DB_PASSWORD=<generated>
+SECRET_KEY=<generated>
+INTERNAL_SERVICE_TOKEN=<generated>
+ENCRYPTION_SALT=<generated>
+
 AUTH_MODE=full
 ALLOW_REGISTRATION=false
 APP_URL=https://pantry.yourdomain.com

@@ -62,12 +62,26 @@ PantryPal uses a **shared household model** where:
 
 ```bash
 # Clone the repository
-git clone https://github.com/palstack-io/pantrypal.git
-cd pantrypal/backend
+git clone https://github.com/palStack-io/pantrypal-core.git
+cd pantrypal-core
 
-# Start with Docker Compose
+# Create .env and generate your own secrets (required — there are no defaults)
+cp .env.example .env
+for v in DB_PASSWORD SECRET_KEY INTERNAL_SERVICE_TOKEN ENCRYPTION_SALT; do
+  sed -i.bak "s/^$v=\$/$v=$(openssl rand -hex 32)/" .env
+done && rm .env.bak
+
+# Start with Docker Compose (pulls prebuilt images)
 docker compose up -d
+
+# Or build every image from this checkout instead
+docker compose -f docker-compose.dev.yml up -d --build
 ```
+
+`docker compose` refuses to start until `DB_PASSWORD`, `SECRET_KEY`, `INTERNAL_SERVICE_TOKEN`
+and `ENCRYPTION_SALT` are set. Generate them once and keep them — changing `DB_PASSWORD`
+locks you out of the existing database, and changing `SECRET_KEY` or `ENCRYPTION_SALT`
+makes saved Mealie/Tandoor credentials unreadable.
 
 ### 2. Access the Application
 
@@ -219,8 +233,10 @@ environment:
   # Local image storage
   - LOCAL_STORAGE_PATH=/app/data/storage
 
-  # Security (CHANGE THIS!)
-  - SECRET_KEY=change-this-to-a-random-secret-key-in-production
+  # Security — required, no defaults. Set these in .env (openssl rand -hex 32)
+  - SECRET_KEY=${SECRET_KEY}
+  - ENCRYPTION_SALT=${ENCRYPTION_SALT}
+  - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
 ```
 
 ### Authentication Options
@@ -311,7 +327,9 @@ services:
     image: ghcr.io/palstack-io/pantrypal-api-gateway:latest
     environment:
       - DATABASE_URL=postgresql://pantrypal:${DB_PASSWORD}@postgres:5432/pantrypal
-      - SECRET_KEY=${SECRET_KEY}  # Random 64-char string in .env
+      - SECRET_KEY=${SECRET_KEY}
+      - ENCRYPTION_SALT=${ENCRYPTION_SALT}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}  # also set on inventory + lookup
       - AUTH_MODE=full
       - ALLOW_REGISTRATION=false
       - APP_URL=https://pantrypal.your-domain.com
@@ -324,19 +342,24 @@ Create a `.env` file with secrets:
 
 ```bash
 # .env (not committed to git!)
-DB_PASSWORD=super-secure-database-password-here
-SECRET_KEY=generate-64-random-characters-here
+DB_PASSWORD=<generated>
+SECRET_KEY=<generated>
+INTERNAL_SERVICE_TOKEN=<generated>
+ENCRYPTION_SALT=<generated>
 ```
 
-Generate a random secret key:
+Generate each value separately:
 ```bash
-python -c "import secrets; print(secrets.token_urlsafe(48))"
+openssl rand -hex 32
 ```
+
+The simplest route is to start from the shipped `docker-compose.yml` and `.env.example`
+rather than writing your own compose file.
 
 ---
 
 ## Support
 
-- **Documentation:** https://github.com/palstack-io/pantrypal/tree/main/backend/docs
-- **Issues:** https://github.com/palstack-io/pantrypal/issues
+- **Documentation:** https://palstack.io/pantrypal/docs
+- **Issues:** https://github.com/palStack-io/pantrypal-core/issues
 - **Contact:** support@palstack.io
