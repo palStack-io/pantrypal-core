@@ -87,7 +87,7 @@ Once you solve one household problem with code, you start seeing opportunities e
 pantryPal comes in two editions:
 
 - **Core (self-hosted)**: this repository. Free, runs on your own server with Docker, and your data never leaves your network. Everything in this README describes Core.
-- **Premium (hosted)**: the managed service at [pantrypal.palstack.io](https://pantrypal.palstack.io), run by palStack. It adds AI and multi-pantry features on top of Core. There's a Free plan, and Personal, Family and Professional plans are coming soon ([pricing](https://palstack.io/pantrypal#pricing)). Premium's code is proprietary and can't be self-hosted.
+- **Premium (hosted)**: the managed service run by palStack, launching soon ([details and pricing](https://palstack.io/pantrypal#pricing)). It adds AI and multi-pantry features on top of Core, with a Free plan and paid Personal, Family and Professional plans. Premium's code is proprietary and can't be self-hosted. Want a look first? Try the [demo](https://pantrydemo.palstack.io).
 
 | Feature | Core (self-hosted) | Premium (hosted) |
 |---|---|---|
@@ -626,7 +626,7 @@ The self-hosted version is **free and open source** under AGPL-3.0:
 
 ### pantryPal Premium (Proprietary) - Managed Hosting Only
 
-The hosted service at [pantrypal.palstack.io](https://pantrypal.palstack.io) adds **proprietary premium features** on top of Core (see [Core vs Premium](#-core-vs-premium)):
+The hosted service ([palstack.io/pantrypal](https://palstack.io/pantrypal)) adds **proprietary premium features** on top of Core (see [Core vs Premium](#-core-vs-premium)):
 - 🤖 **AI-assisted recipe finding** - Real, attributed recipes built around what's in your pantry
 - 🧾 **Receipt scanning** - Photograph a receipt, get pantry items with expiry dates
 - 🥗 **Nutrition info and portion scaling**
@@ -638,7 +638,7 @@ The hosted service at [pantrypal.palstack.io](https://pantrypal.palstack.io) add
 - Available **only** via managed hosting subscription
 - **Not open source** (proprietary code)
 - Used to fund development of the free Core version
-- Live at [pantrypal.palstack.io](https://pantrypal.palstack.io): Free plan now, paid plans coming soon
+- Launching soon; see [palstack.io/pantrypal](https://palstack.io/pantrypal) for plans
 
 ### Why Dual Licensing?
 
@@ -682,7 +682,7 @@ We're not building engagement platforms or harvesting data. We solve real proble
 
 **Two Paths:**
 1. **Self-Host (Core)** - Free forever, full control, community support
-2. **Hosted Premium** - [pantrypal.palstack.io](https://pantrypal.palstack.io): we handle the infrastructure and add AI features
+2. **Hosted Premium** - launching soon at [palstack.io/pantrypal](https://palstack.io/pantrypal): we handle the infrastructure and add AI features
 
 We're building sustainable tools that help people, not chasing unicorns. If we can pay our bills doing it—and sleep well at night—that's success.
 
