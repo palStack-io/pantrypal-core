@@ -1039,6 +1039,15 @@ async def update_shopping_list_item(item_id: int, item_update: ShoppingListUpdat
     db.refresh(db_item)
     return db_item
 
+# Must be declared before DELETE /shopping-list/{item_id}, or FastAPI matches
+# "clear-checked" as an item_id and rejects it with a 422.
+@app.delete("/shopping-list/clear-checked")
+async def clear_checked_items(db: Session = Depends(get_db)):
+    """Delete all checked items from shopping list"""
+    deleted = db.query(ShoppingListDB).filter(ShoppingListDB.checked == True).delete()
+    db.commit()
+    return {"message": f"Cleared {deleted} checked items", "deleted_count": deleted}
+
 @app.delete("/shopping-list/{item_id}")
 async def delete_shopping_list_item(item_id: int, db: Session = Depends(get_db)):
     """Delete a shopping list item"""
@@ -1155,13 +1164,6 @@ async def suggest_low_stock(db: Session = Depends(get_db)):
 
     db.commit()
     return {"message": f"Added {added_count} items to shopping list", "added_count": added_count}
-
-@app.delete("/shopping-list/clear-checked")
-async def clear_checked_items(db: Session = Depends(get_db)):
-    """Delete all checked items from shopping list"""
-    deleted = db.query(ShoppingListDB).filter(ShoppingListDB.checked == True).delete()
-    db.commit()
-    return {"message": f"Cleared {deleted} checked items", "deleted_count": deleted}
 
 def save_backup(db: Session):
     try:
