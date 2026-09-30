@@ -224,7 +224,7 @@ export const deleteRecipeIntegration = async (): Promise<unknown> => {
   return response.data;
 };
 
-export const importRecipes = async (limit = 500): Promise<unknown> => {
+export const importRecipes = async (limit = 500): Promise<{ imported: number; updated: number; failed: number; total_fetched: number }> => {
   const api = createApiInstance();
   const response = await api.post('/api/recipes/import', { limit });
   return response.data;

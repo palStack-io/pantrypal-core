@@ -11,12 +11,19 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import asyncio
+import logging
 
 from .models import Recipe, RecipeImage, RecipeIntegration, User
 from .database import SessionLocal
 from .local_storage_service import LocalStorageService
 from .mealie_integration import MealieIntegration
 from .tandoor_integration import TandoorIntegration
+
+logger = logging.getLogger(__name__)
+
+# Shown to the user for a recipe that could not be saved. The exception itself
+# (an IntegrityError carries the whole INSERT and its parameters) goes to the log.
+IMPORT_FAILED_MESSAGE = "Could not save this recipe"
 
 
 class RecipeImportService:
@@ -99,11 +106,12 @@ class RecipeImportService:
                     if result.get('image_downloaded'):
                         stats['images_downloaded'] += 1
 
-                except Exception as e:
+                except Exception:
+                    logger.exception("Recipe import failed: %s", recipe_data.get('external_id'))
                     stats['failed'] += 1
                     stats['errors'].append({
-                        'recipe': recipe_data.get('name', 'Unknown'),
-                        'error': str(e)
+                        'recipe': recipe_data.get('name') or 'Unknown',
+                        'error': IMPORT_FAILED_MESSAGE,
                     })
 
             # Update integration record
@@ -111,10 +119,11 @@ class RecipeImportService:
 
             return stats
 
-        except Exception as e:
+        except Exception:
+            logger.exception("Recipe import from %s failed", provider)
             stats['failed'] = stats['total_fetched']
             stats['errors'].append({
-                'general': str(e)
+                'general': f"Could not fetch recipes from {provider}"
             })
             return stats
 
@@ -147,8 +156,12 @@ class RecipeImportService:
             updated = self._update_recipe(existing, recipe_data)
             if updated:
                 result['status'] = 'updated'
-        else:
-            # Create new shared recipe
+            return result
+
+        # Savepoint: a row that fails (constraint, NOT NULL) rolls back only itself.
+        # Without it the session is left needing a rollback and every later recipe in
+        # the batch fails too.
+        with self.db.begin_nested():
             recipe = Recipe(
                 imported_by_user_id=imported_by_user_id,  # Track who imported for audit
                 external_provider=recipe_data['provider'],
@@ -187,8 +200,8 @@ class RecipeImportService:
                     # Update recipe with API image URL
                     recipe.image_url = f"/api/images/recipe/{recipe.id}/view"
 
-            self.db.commit()
-            result['status'] = 'imported'
+        self.db.commit()
+        result['status'] = 'imported'
 
         return result
 

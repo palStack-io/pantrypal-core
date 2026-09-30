@@ -281,9 +281,19 @@ async def import_recipes(
         limit=import_request.limit
     )
 
+    # Score the new recipes against the pantry now. Without this they showed 0% until
+    # the user pressed "Match Pantry". Best effort: the recipes are saved either way.
+    if stats.get("imported") or stats.get("updated"):
+        try:
+            await rematch_user(db, current_user.id)
+        except Exception:
+            logger.exception("Post-import match failed for user %s", current_user.id)
+
+    failed = stats.get("failed", 0)
     return {
-        "success": True,
-        "message": "Import completed",
+        # False whenever anything failed — this used to say True however many failed.
+        "success": failed == 0,
+        "message": "Import completed" if failed == 0 else f"{failed} recipe(s) could not be imported",
         **stats
     }
 
@@ -471,37 +481,47 @@ async def match_recipes_to_pantry(
     Calculate match percentages for all recipes based on current pantry
     Results stored in UserRecipePreference for the current user
     """
-    import os
-    inventory_url = os.getenv("INVENTORY_SERVICE_URL", "http://inventory-service:8001")
-    _internal_token = os.getenv("INTERNAL_SERVICE_TOKEN", "")
-    _internal_headers = {"X-Internal-Token": _internal_token} if _internal_token else {}
-
-    # Fetch pantry items from inventory service
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                f"{inventory_url}/items",
-                headers={"X-User-ID": current_user.id, **_internal_headers}
-            )
-            response.raise_for_status()
-            pantry_items = response.json()
-    except Exception as e:
-        logger.error("Failed to fetch pantry from inventory service: %s", e)
+        stats = await rematch_user(db, current_user.id, match_request.expiring_days)
+    except PantryItemsUnavailable:
         raise HTTPException(status_code=500, detail="Failed to fetch pantry items")
-
-    # Run matcher
-    matcher = get_recipe_matcher(db)
-    stats = await matcher.calculate_matches(
-        user_id=current_user.id,
-        pantry_items=pantry_items,
-        expiring_days=match_request.expiring_days
-    )
 
     return {
         "success": True,
         "message": "Recipe matching completed",
         **stats
     }
+
+
+class PantryItemsUnavailable(Exception):
+    """The inventory service could not be reached for the pantry's items."""
+
+
+async def rematch_user(db: Session, user_id: str, expiring_days: int = 7) -> dict:
+    """Recompute this user's match scores for every recipe against the current pantry."""
+    import os
+    inventory_url = os.getenv("INVENTORY_SERVICE_URL", "http://inventory-service:8001")
+    _internal_token = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+    _internal_headers = {"X-Internal-Token": _internal_token} if _internal_token else {}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{inventory_url}/items",
+                headers={"X-User-ID": user_id, **_internal_headers}
+            )
+            response.raise_for_status()
+            pantry_items = response.json()
+    except Exception as e:
+        logger.error("Failed to fetch pantry from inventory service: %s", e)
+        raise PantryItemsUnavailable() from e
+
+    matcher = get_recipe_matcher(db)
+    return await matcher.calculate_matches(
+        user_id=user_id,
+        pantry_items=pantry_items,
+        expiring_days=expiring_days
+    )
 
 
 # ============================================

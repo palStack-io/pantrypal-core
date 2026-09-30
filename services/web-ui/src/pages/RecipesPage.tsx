@@ -197,7 +197,10 @@ export function RecipesPage({ currentUser }: RecipesPageProps) {
     try {
       const stats = await importRecipes(500);
       await loadRecipes(); await loadFilterCounts();
-      showSuccess(`Imported ${stats.imported} recipes successfully!`);
+      // The API reports per-recipe failures in the body; this used to say
+      // "Imported 0 recipes successfully!" when every recipe had failed.
+      if (stats.failed > 0) setError(`${stats.failed} recipe(s) could not be imported (${stats.imported + (stats.updated || 0)} imported). Try again, or check the integration settings.`);
+      else showSuccess(`Imported ${stats.imported + (stats.updated || 0)} recipes successfully!`);
     } catch (err) { setError((err as any)?.response?.data?.detail || (err as Error).message); }
     finally { setImporting(false); }
   };
