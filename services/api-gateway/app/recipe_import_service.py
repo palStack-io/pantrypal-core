@@ -186,22 +186,24 @@ class RecipeImportService:
             self.db.add(recipe)
             self.db.flush()  # Get recipe ID
 
-            # Download and store image if requested
-            if import_images and recipe_data.get('image_url'):
-                image_downloaded = await self._download_recipe_image(
-                    recipe_id=recipe.id,
-                    source_url=recipe_data['image_url'],
-                    provider=recipe_data['provider'],
-                    auth_headers=auth_headers
-                )
-
-                if image_downloaded:
-                    result['image_downloaded'] = True
-                    # Update recipe with API image URL
-                    recipe.image_url = f"/api/images/recipe/{recipe.id}/view"
-
         self.db.commit()
         result['status'] = 'imported'
+
+        # Image AFTER the recipe is committed: the downloader commits on its own, which
+        # would close the savepoint above, and a missing photo must not fail the recipe.
+        if import_images and recipe_data.get('image_url'):
+            image_downloaded = await self._download_recipe_image(
+                recipe_id=recipe.id,
+                source_url=recipe_data['image_url'],
+                provider=recipe_data['provider'],
+                auth_headers=auth_headers
+            )
+
+            if image_downloaded:
+                result['image_downloaded'] = True
+                # Update recipe with API image URL
+                recipe.image_url = f"/api/images/recipe/{recipe.id}/view"
+                self.db.commit()
 
         return result
 

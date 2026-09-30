@@ -72,6 +72,32 @@ def test_import_errors_do_not_leak_sql(db, make_user, fake_mealie):
     assert "INSERT" not in blob and "SQL" not in blob and "psycopg2" not in blob
 
 
+def test_import_with_an_image_counts_as_imported(db, make_user, fake_mealie, monkeypatch):
+    """The image step commits on its own; it must not run inside the per-recipe savepoint
+    (premium's demo: every recipe with a photo was saved AND reported failed)."""
+    from app.models import Recipe
+    from app.recipe_import_service import RecipeImportService
+
+    async def _download(self, recipe_id, source_url, provider, auth_headers=None):
+        self.db.commit()                      # what the real downloader does after storing the file
+        return True
+
+    monkeypatch.setattr(RecipeImportService, "_download_recipe_image", _download)
+    r = _recipe("pulled-pork-pasta")
+    r["image_url"] = "http://mealie/img.webp"
+    fake_mealie["recipes"] = [r]
+    user = make_user(db)
+
+    svc = RecipeImportService(db=db, storage_service=None)
+    stats = asyncio.run(svc.import_recipes(
+        imported_by_user_id=user.id, provider="mealie", server_url="http://mealie",
+        api_token="t", import_images=True,
+    ))
+
+    assert (stats["imported"], stats["failed"]) == (1, 0), stats["errors"]
+    assert db.query(Recipe).filter(Recipe.external_id == "pulled-pork-pasta").count() == 1
+
+
 # ---- the route -------------------------------------------------------------
 
 def _stats(**kw):
