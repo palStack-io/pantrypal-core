@@ -7,6 +7,7 @@ import AddItemPage from './pages/AddItemPage';
 import { ShoppingListPage } from './pages/ShoppingListPage';
 import { InsightsPage } from './pages/InsightsPage';
 import { RecipesPage } from './pages/RecipesPage';
+import { MealPlanPage } from './pages/MealPlanPage';
 import SettingsPage from './SettingsPage';
 import LandingPage from './LandingPage';
 import VerifyEmailPage from './VerifyEmailPage';
@@ -183,6 +184,7 @@ function AppContent() {
             <Route path="/shopping" element={<ShoppingListPage />} />
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/recipes" element={<RecipesPage currentUser={currentUser} />} />
+            <Route path="/meal-plan" element={<MealPlanPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

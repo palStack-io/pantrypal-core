@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance } from 'axios';
-import type { Item, ShoppingItem, AuthStatus, User, Location, Category, Recipe, RecipeIntegration, ApiKey, InventoryStats } from './types';
+import type { Item, ShoppingItem, AuthStatus, User, Location, Category, Recipe, RecipeIntegration, ApiKey, InventoryStats, MealPlanEntry, NewMealEntry } from './types';
 
 const DEFAULT_API_URL = '';
 
@@ -360,6 +360,48 @@ export const createApiKey = async (name: string, isReadOnly = false): Promise<Ap
 export const revokeApiKey = async (keyId: string): Promise<void> => {
   const api = createApiInstance();
   await api.post(`/api/auth/keys/${keyId}/revoke`);
+};
+
+// ── Meal plan ────────────────────────────────────────────────────────────────
+
+export const getMealPlan = async (start: string, end: string): Promise<MealPlanEntry[]> => {
+  const api = createApiInstance();
+  const response = await api.get<{ entries: MealPlanEntry[] }>('/api/meal-plan', { params: { start, end } });
+  return response.data.entries;
+};
+
+export const createMealEntry = async (entry: NewMealEntry): Promise<MealPlanEntry> => {
+  const api = createApiInstance();
+  return (await api.post<MealPlanEntry>('/api/meal-plan/entries', entry)).data;
+};
+
+export const updateMealEntry = async (
+  id: string,
+  patch: Partial<Pick<MealPlanEntry, 'plan_date' | 'slot' | 'title' | 'servings' | 'notes'>>,
+): Promise<MealPlanEntry> => {
+  const api = createApiInstance();
+  return (await api.patch<MealPlanEntry>(`/api/meal-plan/entries/${id}`, patch)).data;
+};
+
+export const deleteMealEntry = async (id: string): Promise<void> => {
+  const api = createApiInstance();
+  await api.delete(`/api/meal-plan/entries/${id}`);
+};
+
+export const markMealCooked = async (id: string): Promise<MealPlanEntry> => {
+  const api = createApiInstance();
+  return (await api.post<MealPlanEntry>(`/api/meal-plan/entries/${id}/cooked`)).data;
+};
+
+export const mealPlanToShoppingList = async (start: string, end: string): Promise<{ added: number; recipes: number }> => {
+  const api = createApiInstance();
+  return (await api.post('/api/meal-plan/shopping-list', { start, end })).data;
+};
+
+/** One-off .ics snapshot. Fetched as a blob so it works with cookie and API-key auth alike. */
+export const downloadMealPlanIcs = async (start: string, end: string): Promise<Blob> => {
+  const api = createApiInstance();
+  return (await api.get('/api/meal-plan/export.ics', { params: { start, end }, responseType: 'blob' })).data;
 };
 
 export default { createApiInstance };

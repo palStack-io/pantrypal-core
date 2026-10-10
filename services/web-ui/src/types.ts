@@ -153,3 +153,31 @@ export interface Stats {
   locations: number;
   categories: number;
 }
+
+// ── Meal plan ────────────────────────────────────────────────────────────────
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+/** Dates are plain YYYY-MM-DD strings with no time zone; parse with parseLocalDate. */
+export interface MealPlanEntry {
+  id: string;
+  plan_date: string;
+  slot: MealSlot;
+  recipe_id: string | null;
+  title: string;
+  servings: number | null;
+  notes: string | null;
+  source: string;
+  cooked_at: string | null;
+  image_url: string | null;
+  total_time: number | null;
+}
+
+export interface NewMealEntry {
+  plan_date: string;
+  slot: MealSlot;
+  recipe_id?: string | null;
+  title?: string;
+  servings?: number | null;
+  notes?: string | null;
+}

@@ -1,5 +1,5 @@
 import { useState, ReactNode, MouseEvent } from 'react';
-import { Package, AlertTriangle, XCircle, Plus, ShoppingCart, TrendingUp, ChefHat, ChevronDown } from 'lucide-react';
+import { Package, AlertTriangle, XCircle, Plus, ShoppingCart, TrendingUp, ChefHat, CalendarDays, ChevronDown } from 'lucide-react';
 import { getColors, spacing, borderRadius, getShadows, getGradient } from '../colors';
 import { useInventoryStats } from '../hooks/useInventoryStats';
 import { getEmojiForLocation, getEmojiForCategory } from '../defaults';
@@ -188,6 +188,11 @@ export function Sidebar({ isOpen, currentPath, onNavigate, onFilterChange, curre
             id="tour-nav-recipes" href="/recipes" onNavigate={p => { onNavigate(p); onFilterChange(clearFilters); }}
             icon={<ChefHat size={18} />} label="Recipes"
             active={currentPath === '/recipes'} {...shared}
+          />
+          <NavLinkRow
+            id="tour-nav-mealplan" href="/meal-plan" onNavigate={p => { onNavigate(p); onFilterChange(clearFilters); }}
+            icon={<CalendarDays size={18} />} label="Meal Plan"
+            active={currentPath === '/meal-plan'} {...shared}
           />
           <NavFilterRow
             onClick={() => { onNavigate('/inventory'); onFilterChange({ ...clearFilters, filter: 'expiring' }); }}

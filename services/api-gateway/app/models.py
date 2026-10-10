@@ -426,3 +426,37 @@ class CategoryOverride(Base):
         UniqueConstraint('user_id', 'key', name='uq_user_category_override'),
         Index('idx_category_overrides_user', 'user_id'),
     )
+
+
+class MealPlanEntry(Base):
+    """One planned meal: a recipe (or a free-text note) on a date, in a slot.
+
+    Core is single-tenant (one household per install), so the plan belongs to the
+    install and every signed-in user sees and edits the same calendar, exactly as
+    with recipes. (Premium keys the same table by pantry.)
+
+    `plan_date` is a plain DATE with no time zone on purpose: "dinner on the 13th"
+    means the 13th wherever the viewer is, and a timestamp here is how the UTC
+    off-by-one date bug got in before.
+
+    `title` is a snapshot, and recipe_id is SET NULL on recipe delete, so a past
+    plan keeps its name instead of going blank.
+    """
+    __tablename__ = "meal_plan_entries"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    plan_date = Column(Date, nullable=False)
+    slot = Column(String(20), nullable=False)  # 'breakfast'|'lunch'|'dinner'|'snack'
+    recipe_id = Column(String(36), ForeignKey("recipes.id", ondelete="SET NULL"), nullable=True)
+    title = Column(String(255), nullable=False)
+    servings = Column(Integer, nullable=True)
+    notes = Column(Text, nullable=True)
+    source = Column(String(20), nullable=False, default="manual")  # 'manual'
+    created_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    cooked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        Index('idx_meal_plan_date', 'plan_date'),
+    )
