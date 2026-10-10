@@ -14,6 +14,18 @@ export function parseLocalDate(dateString: string): Date {
   return new Date(year, month - 1, day);
 }
 
+/**
+ * The inverse of parseLocalDate: a Date -> YYYY-MM-DD in the LOCAL calendar.
+ * `toISOString().slice(0, 10)` is the tempting one-liner and is wrong -- it is
+ * UTC, so an evening in a negative-offset zone lands on tomorrow's date.
+ */
+export function toLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return 'No expiry';
   const date = parseLocalDate(dateString);

@@ -33,7 +33,7 @@ from .database import init_db
 from .local_storage_service import get_local_storage_service
 
 # Import routers
-from .routes import images, recipes
+from .routes import images, meal_plan, recipes
 
 app = FastAPI(title="PantryPal API Gateway", version="2.0.0")
 
@@ -89,6 +89,7 @@ async def startup_event():
 # Include routers
 app.include_router(images.router)
 app.include_router(recipes.router)
+app.include_router(meal_plan.router)
 
 # Get AUTH_MODE for informational purposes
 AUTH_MODE = os.getenv("AUTH_MODE", "full").lower()
