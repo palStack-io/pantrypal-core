@@ -69,7 +69,9 @@ cd pantrypal-core
 cp .env.example .env
 for v in DB_PASSWORD SECRET_KEY INTERNAL_SERVICE_TOKEN ENCRYPTION_SALT; do
   sed -i.bak "s/^$v=\$/$v=$(openssl rand -hex 32)/" .env
-done && rm .env.bak
+done
+# The first admin's password (you sign in as "admin" with it)
+sed -i.bak "s|^ADMIN_DEFAULT_PASSWORD=.*|ADMIN_DEFAULT_PASSWORD=$(openssl rand -base64 18)|" .env && rm .env.bak
 
 # Start with Docker Compose (pulls prebuilt images)
 docker compose up -d
