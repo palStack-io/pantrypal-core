@@ -3,7 +3,7 @@
 ## Problem: Email Links Go to Wrong Port or Domain
 
 ### Symptoms
-- Password reset link goes to `http://192.168.68.104/reset-password` (missing port)
+- Password reset link goes to `http://192.168.1.50/reset-password` (missing port)
 - Email verification link points to wrong domain
 - Clicking email links redirects to login page instead of the correct flow
 
@@ -15,7 +15,7 @@ The `APP_URL` environment variable in your `.env` file doesn't match how users a
 #### Step 1: Identify How Users Access Your Service
 
 Check which URL format you use to access PantryPal:
-- `http://192.168.68.104:8080` ← Local network with custom port
+- `http://192.168.1.50:8080` ← Local network with custom port
 - `http://localhost:8888` ← Local docker default
 - `https://pantrypal.palstack.io` ← Production domain with SSL
 
@@ -27,7 +27,7 @@ Edit `backend/.env`:
 
 ```bash
 # For local network access on port 8080
-APP_URL=http://192.168.68.104:8080
+APP_URL=http://192.168.1.50:8080
 
 # For local docker on default nginx port
 APP_URL=http://localhost:8888
@@ -45,11 +45,11 @@ docker compose restart api-gateway
 
 #### Step 4: Test Password Reset
 
-1. Go to login page: `http://192.168.68.104:8080` (or your URL)
+1. Go to login page: `http://192.168.1.50:8080` (or your URL)
 2. Click "Forgot Password"
 3. Enter your email
 4. Check email for reset link
-5. Link should now have correct URL with port: `http://192.168.68.104:8080/reset-password?token=...`
+5. Link should now have correct URL with port: `http://192.168.1.50:8080/reset-password?token=...`
 
 ---
 
@@ -130,7 +130,7 @@ After updating `APP_URL` and restarting:
 
 ```bash
 # Must match user-facing URL (with port if non-standard)
-APP_URL=http://192.168.68.104:8080
+APP_URL=http://192.168.1.50:8080
 
 # Email settings (required for password reset)
 SMTP_HOST=smtp.gmail.com

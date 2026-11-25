@@ -1264,7 +1264,7 @@ function SettingsPage({ onBack, currentUser, onReplayTour }: SettingsPageProps) 
                 color: colors.textSecondary,
                 margin: `${spacing.sm} 0`,
               }}>
-                Examples: http://192.168.68.119, http://macmini.local
+                Examples: http://192.168.1.50, http://macmini.local
               </p>
             </div>
 
