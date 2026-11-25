@@ -107,7 +107,8 @@ which is what the [live demo](https://pantrydemo.palstack.io) shows.
 | Backups | Built-in backup container you run | Managed |
 | Where your data lives | Your server | palStack's servers |
 
-The pantryPal phone app (in testing) can connect to either; on a Core server, hosted-only features are hidden.
+**Phone app (iOS and Android):** included with hosted pantryPal; for Core servers it will be a one-time purchase from
+January 2027. On a Core server, hosted-only features are hidden.
 
 ## Architecture
 
