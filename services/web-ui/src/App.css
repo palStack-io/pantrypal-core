@@ -106,6 +106,7 @@ tbody tr:hover { background: var(--bg-hover); }
   .sidebar.open { left: 0; }
   .sidebar-toggle { display: flex; }
   .main-content { padding-top: 56px; }
+}
 
 @media (max-width: 768px) {
   table { min-width: 560px; }
