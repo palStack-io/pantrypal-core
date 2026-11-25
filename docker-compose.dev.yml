@@ -97,7 +97,7 @@ services:
       # Demo Mode (creates demo accounts on startup)
       - DEMO_MODE=${DEMO_MODE:-false}
       - DEMO_ACCOUNT_PASSWORD=${DEMO_ACCOUNT_PASSWORD:-demo12345}
-      - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:-admin12345}
+      - "ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:?ADMIN_DEFAULT_PASSWORD must be set in .env}"
       - DEMO_MEALIE_URL=${DEMO_MEALIE_URL:-}
       - DEMO_MEALIE_TOKEN=${DEMO_MEALIE_TOKEN:-}
 

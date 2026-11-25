@@ -12,6 +12,8 @@
 #      - ENCRYPTION_SALT         → run: openssl rand -base64 32
 #      - INTERNAL_SERVICE_TOKEN  → run: openssl rand -hex 32 (same value in
 #                                  api-gateway, inventory and lookup)
+#      - ADMIN_DEFAULT_PASSWORD  → run: openssl rand -base64 18 (you sign in
+#                                  as "admin" with it; 12+ characters)
 #      Set them once and keep them: changing DB_PASSWORD locks you out of the
 #      existing database; changing SECRET_KEY or ENCRYPTION_SALT makes saved
 #      Mealie/Tandoor credentials unreadable.
@@ -79,6 +81,7 @@ services:
       SECRET_KEY: CHANGEME_run_openssl_rand_hex_32          # ← required
       ENCRYPTION_SALT: CHANGEME_run_openssl_rand_base64_32  # ← required
       INTERNAL_SERVICE_TOKEN: CHANGEME_run_openssl_rand_hex_32  # ← required
+      ADMIN_DEFAULT_PASSWORD: CHANGEME_run_openssl_rand_base64_18  # ← required, first admin's password
 
       # ── Authentication ────────────────────────────────────────────────────
       # none | api_key_only | full | smart

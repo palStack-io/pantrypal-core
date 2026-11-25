@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional, Dict
+import os
 import secrets
 
 from .database import SessionLocal
@@ -571,17 +572,33 @@ def find_user_by_username(username: str) -> Optional[Dict]:
         db.close()
 
 
+INSECURE_ADMIN_PASSWORDS = {"", "admin", "admin12345", "password", "changeme", "change_me"}
+
+
+def admin_bootstrap_password() -> Optional[str]:
+    """The first admin's password from ADMIN_DEFAULT_PASSWORD, or None if it is unset or a published default."""
+    password = os.getenv("ADMIN_DEFAULT_PASSWORD", "").strip()
+    lowered = password.lower()
+    if lowered in INSECURE_ADMIN_PASSWORDS or lowered.startswith(("changeme", "change_me")) or len(password) < 12:
+        return None
+    return password
+
+
 def create_default_admin():
-    """Create default admin user if no users exist"""
+    """Create the first admin from ADMIN_DEFAULT_PASSWORD if no users exist. Never uses a built-in password."""
+    password = admin_bootstrap_password()
+    if password is None:
+        print("❌ ADMIN_DEFAULT_PASSWORD is unset, too short (under 12 characters) or a published default; "
+              "no admin account was created. Set it in .env and restart.")
+        return
     db = SessionLocal()
     try:
         count = db.query(User).count()
 
         if count == 0:
-            # Create default admin
             user = User(
                 username="admin",
-                password_hash=hash_password("admin"),
+                password_hash=hash_password(password),
                 email=None,
                 full_name="Administrator",
                 is_admin=True,
@@ -591,7 +608,7 @@ def create_default_admin():
             )
             db.add(user)
             db.commit()
-            print("✅ Created default admin user (username: admin, password: admin)")
+            print("✅ Created the admin account (username: admin, password from ADMIN_DEFAULT_PASSWORD)")
     finally:
         db.close()
 
