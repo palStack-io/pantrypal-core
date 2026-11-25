@@ -4,10 +4,8 @@
 # Pulls prebuilt images from ghcr.io — no need to clone the full repo or
 # build anything. All you need is this file and a .env alongside it:
 #
-#   curl -O https://raw.githubusercontent.com/palStack-io/pantrypal-core/main/docker-compose.yml
-#   curl -O https://raw.githubusercontent.com/palStack-io/pantrypal-core/main/.env.example -o .env
-#   # edit .env, then:
-#   docker compose up -d
+#   See the Quick start in README.md: download this file and .env.example,
+#   generate the secrets, then `docker compose up -d`.
 #
 # Developing pantryPal itself, or want images built from your own checkout?
 # Use docker-compose.dev.yml instead. Deploying via the Portainer web
@@ -46,7 +44,7 @@ services:
     image: ghcr.io/palstack-io/pantrypal-nginx:latest
     container_name: pantrypal-nginx
     ports:
-      - "8888:80"
+      - "${HTTP_PORT:-8888}:80"
     depends_on:
       - api-gateway
       - web-ui
@@ -96,7 +94,7 @@ services:
       # Demo Mode (creates demo accounts on startup)
       - DEMO_MODE=${DEMO_MODE:-false}
       - DEMO_ACCOUNT_PASSWORD=${DEMO_ACCOUNT_PASSWORD:-demo12345}
-      - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:-admin12345}
+      - "ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD:?ADMIN_DEFAULT_PASSWORD must be set in .env}"
       - DEMO_MEALIE_URL=${DEMO_MEALIE_URL:-}
       - DEMO_MEALIE_TOKEN=${DEMO_MEALIE_TOKEN:-}
 

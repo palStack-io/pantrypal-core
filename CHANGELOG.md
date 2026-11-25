@@ -40,7 +40,7 @@
 ### Fixed
 - **Password Reset Email Links**: Fixed issue where password reset and email verification links were missing port numbers, causing redirects to homepage instead of proper flows
   - Root cause: `APP_URL` environment variable didn't match actual service access URL
-  - Solution: Updated `APP_URL` to `http://192.168.68.104:8080` to match nginx exposed port
+  - Solution: Updated `APP_URL` to `http://192.168.1.50:8080` to match nginx exposed port
   - Impact: Password reset and email verification now work correctly
 
 ### Added
@@ -57,7 +57,7 @@
   - Documented when to include/exclude ports in APP_URL
 
 - **Mobile App**:
-  - Updated default API URL in `mobile/config.js` from `192.168.68.79:8888` to `192.168.68.104:8080`
+  - Updated default API URL in `mobile/config.js` from `192.168.1.50:8888` to `192.168.1.50:8080`
   - Updated example URLs in LandingScreen to show proper port usage
   - No TestFlight push required (cosmetic changes only)
 

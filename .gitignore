@@ -177,3 +177,9 @@ minio_data/
 # ===================================
 *.test-output
 test-results/
+
+# Local agent notes (kept out of the public repo)
+CLAUDE.md
+AGENTS.md
+.claude/
+docs/superpowers/

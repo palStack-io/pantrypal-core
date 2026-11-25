@@ -9,6 +9,12 @@ stubs out just enough at the module level:
 """
 import os
 import sys
+
+# Tests import the service as `app`; make that work however pytest is started.
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import os
+import sys
 import types
 
 # 1. Provide a dummy DATABASE_URL so database.py can parse the URL without

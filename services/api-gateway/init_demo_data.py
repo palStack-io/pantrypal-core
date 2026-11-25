@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 # Ensure we can import from the app
 sys.path.insert(0, '/app')
 
-from app.pg_auth import create_user, mark_email_verified, find_user_by_email
+from app.pg_auth import create_user, mark_email_verified, find_user_by_email, admin_bootstrap_password
 from app.database import SessionLocal, init_db
 from app.models import RecipeIntegration
 from app.security import get_security_service
@@ -37,7 +37,7 @@ print("✓ Database tables created")
 # ============================================
 print("\n🔐 Checking for admin user...")
 
-_admin_password = os.getenv("ADMIN_DEFAULT_PASSWORD", "admin12345")
+_admin_password = admin_bootstrap_password()
 
 admin_data = {
     "username": "admin",
@@ -50,7 +50,22 @@ admin_data = {
 
 admin_user_id = None
 
+def _an_admin_exists():
+    from app.models import User
+    db = SessionLocal()
+    try:
+        return db.query(User).filter(User.is_admin == True).first()  # noqa: E712
+    finally:
+        db.close()
+
 try:
+    if _admin_password is None:
+        existing_admin = _an_admin_exists()
+        if existing_admin is None:
+            print("❌ ADMIN_DEFAULT_PASSWORD is unset, under 12 characters or a published default.")
+            print("   Set it in .env (e.g. openssl rand -base64 18) and start again. No admin was created.")
+            sys.exit(1)
+        raise ValueError("already exists")
     user = create_user(
         username=admin_data["username"],
         password=admin_data["password"],
@@ -64,15 +79,14 @@ try:
     
     print(f"✅ Created default admin user")
     print(f"   Username: admin")
-    print(f"   Password: {_admin_password}")
-    print(f"   ⚠️  CHANGE THIS PASSWORD IMMEDIATELY AFTER FIRST LOGIN!")
+    print(f"   Password: the value of ADMIN_DEFAULT_PASSWORD in your .env")
     
 except ValueError as e:
     if "already exists" in str(e):
         print("✓ Admin user already exists")
-        existing = find_user_by_email(admin_data["email"])
+        existing = find_user_by_email(admin_data["email"]) or _an_admin_exists()
         if existing:
-            admin_user_id = existing["id"]
+            admin_user_id = existing["id"] if isinstance(existing, dict) else existing.id
     else:
         print(f"❌ Error creating admin user: {e}")
         raise
